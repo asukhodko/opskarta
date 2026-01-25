@@ -1,0 +1,43 @@
+version: 1
+
+meta:
+  id: hello-upgrade
+  title: "Пример: обновление Git-сервиса"
+
+statuses:
+  not_started: { label: "Не начато",     color: "#9ca3af" }
+  in_progress: { label: "В работе",      color: "#0ea5e9" }
+  done:        { label: "Готово",        color: "#22c55e" }
+  blocked:     { label: "Заблокировано", color: "#fecaca" }
+
+nodes:
+  root:
+    title: "Обновление Git-сервиса"
+    kind: summary
+    status: in_progress
+
+  prep:
+    title: "Подготовка"
+    kind: phase
+    parent: root
+    start: 2026-02-01
+    duration: 10d
+    status: in_progress
+
+  rollout:
+    title: "Раскатка"
+    kind: phase
+    parent: root
+    after: [prep]
+    duration: 5d
+    status: not_started
+
+  switch:
+    title: "Переключение трафика"
+    kind: task
+    parent: rollout
+    after: [rollout]
+    duration: 1d
+    status: not_started
+    notes: |
+      Критичный шаг. Нужен план отката.
