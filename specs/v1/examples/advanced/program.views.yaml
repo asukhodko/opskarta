@@ -1,0 +1,92 @@
+version: 1
+project: platform-modernization
+
+gantt_views:
+  # ============================================================
+  # Обзорное представление всей программы
+  # ============================================================
+  overview:
+    title: "Модернизация платформы — Обзор"
+    excludes: ["weekends", "2026-02-23", "2026-03-08", "2026-05-01", "2026-05-09"]
+
+    lanes:
+      backend:
+        title: "Бэкенд"
+        nodes: [api-gateway, microservices]
+
+      frontend:
+        title: "Фронтенд"
+        nodes: [design-system, ui-migration]
+
+      infra:
+        title: "Инфраструктура"
+        nodes: [k8s, monitoring]
+
+      milestones:
+        title: "Вехи"
+        nodes: [integration-testing, release]
+
+  # ============================================================
+  # Детальное представление бэкенда
+  # ============================================================
+  backend-detail:
+    title: "Бэкенд — Детальный план"
+    excludes: ["weekends"]
+
+    lanes:
+      gateway:
+        title: "API Gateway"
+        nodes: [gateway-design, gateway-impl, gateway-testing]
+
+      services:
+        title: "Микросервисы"
+        nodes: [user-service, order-service, notification-service]
+
+  # ============================================================
+  # Детальное представление фронтенда
+  # ============================================================
+  frontend-detail:
+    title: "Фронтенд — Детальный план"
+    excludes: ["weekends"]
+
+    lanes:
+      design:
+        title: "Дизайн-система"
+        nodes: [ds-tokens, ds-components, ds-docs]
+
+      migration:
+        title: "Миграция UI"
+        nodes: [migrate-auth, migrate-dashboard, migrate-settings, ui-e2e-tests]
+
+  # ============================================================
+  # Детальное представление инфраструктуры
+  # ============================================================
+  infrastructure-detail:
+    title: "Инфраструктура — Детальный план"
+    excludes: ["weekends"]
+
+    lanes:
+      kubernetes:
+        title: "Kubernetes"
+        nodes: [k8s-cluster, k8s-helm, k8s-ci-cd]
+
+      observability:
+        title: "Наблюдаемость"
+        nodes: [prometheus, logging, alerting]
+
+  # ============================================================
+  # Представление критического пути
+  # ============================================================
+  critical-path:
+    title: "Критический путь к релизу"
+    excludes: ["weekends"]
+
+    lanes:
+      path:
+        title: "Критический путь"
+        nodes:
+          - gateway-design
+          - gateway-impl
+          - gateway-testing
+          - integration-testing
+          - release

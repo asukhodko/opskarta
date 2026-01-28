@@ -1,0 +1,325 @@
+version: 1
+
+meta:
+  id: platform-modernization
+  title: "Программа модернизации платформы"
+
+statuses:
+  not_started:  { label: "Не начато",     color: "#9ca3af" }
+  planning:     { label: "Планирование",  color: "#a78bfa" }
+  in_progress:  { label: "В работе",      color: "#0ea5e9" }
+  review:       { label: "На ревью",      color: "#f59e0b" }
+  done:         { label: "Готово",        color: "#22c55e" }
+  blocked:      { label: "Заблокировано", color: "#ef4444" }
+  on_hold:      { label: "Приостановлено", color: "#6b7280" }
+
+nodes:
+  # ============================================================
+  # Корневой узел программы
+  # ============================================================
+  program:
+    title: "Модернизация платформы Q1-Q2 2026"
+    kind: summary
+    status: in_progress
+    notes: |
+      Программа включает три основных направления:
+      - Модернизация бэкенда (переход на микросервисы)
+      - Обновление фронтенда (новый UI-фреймворк)
+      - Улучшение инфраструктуры (Kubernetes, мониторинг)
+
+  # ============================================================
+  # ТРЕК 1: Бэкенд
+  # ============================================================
+  backend:
+    title: "Бэкенд"
+    kind: phase
+    parent: program
+    status: in_progress
+
+  # --- Эпик: API Gateway ---
+  api-gateway:
+    title: "API Gateway"
+    kind: epic
+    parent: backend
+    start: 2026-01-15
+    duration: 30d
+    status: in_progress
+
+  gateway-design:
+    title: "Проектирование API Gateway"
+    kind: task
+    parent: api-gateway
+    start: 2026-01-15
+    duration: 5d
+    status: done
+
+  gateway-impl:
+    title: "Реализация API Gateway"
+    kind: task
+    parent: api-gateway
+    after: [gateway-design]
+    duration: 15d
+    status: in_progress
+    notes: |
+      Используем Kong Gateway.
+      Требуется интеграция с существующим auth-сервисом.
+
+  gateway-testing:
+    title: "Тестирование API Gateway"
+    kind: task
+    parent: api-gateway
+    after: [gateway-impl]
+    duration: 10d
+    status: not_started
+
+  # --- Эпик: Микросервисы ---
+  microservices:
+    title: "Декомпозиция на микросервисы"
+    kind: epic
+    parent: backend
+    after: [api-gateway]
+    duration: 45d
+    status: planning
+
+  user-service:
+    title: "User Service"
+    kind: task
+    parent: microservices
+    duration: 15d
+    status: not_started
+
+  order-service:
+    title: "Order Service"
+    kind: task
+    parent: microservices
+    after: [user-service]
+    duration: 20d
+    status: not_started
+    notes: |
+      Зависит от User Service для авторизации.
+
+  notification-service:
+    title: "Notification Service"
+    kind: task
+    parent: microservices
+    duration: 10d
+    status: not_started
+
+  # ============================================================
+  # ТРЕК 2: Фронтенд
+  # ============================================================
+  frontend:
+    title: "Фронтенд"
+    kind: phase
+    parent: program
+    status: planning
+
+  # --- Эпик: Дизайн-система ---
+  design-system:
+    title: "Дизайн-система"
+    kind: epic
+    parent: frontend
+    start: 2026-02-01
+    duration: 25d
+    status: planning
+
+  ds-tokens:
+    title: "Дизайн-токены"
+    kind: task
+    parent: design-system
+    start: 2026-02-01
+    duration: 5d
+    status: not_started
+
+  ds-components:
+    title: "Базовые компоненты"
+    kind: task
+    parent: design-system
+    after: [ds-tokens]
+    duration: 15d
+    status: not_started
+
+  ds-docs:
+    title: "Документация Storybook"
+    kind: task
+    parent: design-system
+    after: [ds-components]
+    duration: 5d
+    status: not_started
+
+  # --- Эпик: Миграция UI ---
+  ui-migration:
+    title: "Миграция на новый UI"
+    kind: epic
+    parent: frontend
+    after: [design-system]
+    duration: 40d
+    status: not_started
+
+  migrate-auth:
+    title: "Миграция модуля авторизации"
+    kind: task
+    parent: ui-migration
+    duration: 10d
+    status: not_started
+    notes: |
+      Критичный модуль. Требуется тщательное тестирование.
+
+  migrate-dashboard:
+    title: "Миграция дашборда"
+    kind: task
+    parent: ui-migration
+    after: [migrate-auth]
+    duration: 15d
+    status: not_started
+
+  migrate-settings:
+    title: "Миграция настроек"
+    kind: task
+    parent: ui-migration
+    after: [migrate-auth]
+    duration: 10d
+    status: not_started
+
+  ui-e2e-tests:
+    title: "E2E тестирование"
+    kind: task
+    parent: ui-migration
+    after: [migrate-dashboard, migrate-settings]
+    duration: 5d
+    status: not_started
+
+  # ============================================================
+  # ТРЕК 3: Инфраструктура
+  # ============================================================
+  infrastructure:
+    title: "Инфраструктура"
+    kind: phase
+    parent: program
+    status: in_progress
+
+  # --- Эпик: Kubernetes ---
+  k8s:
+    title: "Миграция на Kubernetes"
+    kind: epic
+    parent: infrastructure
+    start: 2026-01-20
+    duration: 35d
+    status: in_progress
+
+  k8s-cluster:
+    title: "Настройка кластера"
+    kind: task
+    parent: k8s
+    start: 2026-01-20
+    duration: 10d
+    status: done
+
+  k8s-helm:
+    title: "Helm-чарты для сервисов"
+    kind: task
+    parent: k8s
+    after: [k8s-cluster]
+    duration: 15d
+    status: in_progress
+
+  k8s-ci-cd:
+    title: "CI/CD пайплайны"
+    kind: task
+    parent: k8s
+    after: [k8s-helm]
+    duration: 10d
+    status: not_started
+    notes: |
+      Интеграция с GitLab CI.
+      ArgoCD для GitOps.
+
+  # --- Эпик: Мониторинг ---
+  monitoring:
+    title: "Система мониторинга"
+    kind: epic
+    parent: infrastructure
+    after: [k8s]
+    duration: 20d
+    status: not_started
+
+  prometheus:
+    title: "Prometheus + Grafana"
+    kind: task
+    parent: monitoring
+    duration: 10d
+    status: not_started
+
+  logging:
+    title: "Централизованное логирование"
+    kind: task
+    parent: monitoring
+    duration: 7d
+    status: not_started
+
+  alerting:
+    title: "Настройка алертинга"
+    kind: task
+    parent: monitoring
+    after: [prometheus, logging]
+    duration: 3d
+    status: not_started
+
+  # ============================================================
+  # Кросс-трековые зависимости
+  # ============================================================
+  integration-testing:
+    title: "Интеграционное тестирование"
+    kind: epic
+    parent: program
+    after: [gateway-testing, ui-e2e-tests, k8s-ci-cd]
+    duration: 15d
+    status: not_started
+    notes: |
+      Финальное тестирование всех компонентов вместе.
+      Требует завершения работ по всем трекам.
+
+  release:
+    title: "Релиз v2.0"
+    kind: task
+    parent: program
+    after: [integration-testing, alerting]
+    duration: 5d
+    status: not_started
+    notes: |
+      Поэтапный rollout:
+      1. Canary (5% трафика)
+      2. Расширение до 50%
+      3. Полный релиз
+
+# ============================================================
+# Расширения (пользовательские поля)
+# ============================================================
+x:
+  team_assignments:
+    backend: ["alice", "bob", "charlie"]
+    frontend: ["diana", "eve"]
+    infrastructure: ["frank", "grace"]
+  
+  risk_register:
+    - id: R001
+      description: "Задержка поставки API Gateway"
+      probability: medium
+      impact: high
+      mitigation: "Параллельная разработка mock-сервиса"
+    - id: R002
+      description: "Несовместимость дизайн-токенов"
+      probability: low
+      impact: medium
+      mitigation: "Раннее прототипирование"
+  
+  milestones:
+    - date: 2026-02-15
+      name: "API Gateway Ready"
+      nodes: [gateway-testing]
+    - date: 2026-03-01
+      name: "Design System Complete"
+      nodes: [ds-docs]
+    - date: 2026-04-15
+      name: "Platform v2.0 Release"
+      nodes: [release]
