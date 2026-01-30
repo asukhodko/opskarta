@@ -8,6 +8,7 @@
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md)
 - [20-nodes.md](file://specs/v1/spec/20-nodes.md)
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml)
 - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml)
 - [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml)
@@ -15,6 +16,14 @@
 - [README.md](file://README.md)
 - [SPEC.md](file://specs/v1/SPEC.md)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive documentation for the new Mermaid Gantt renderer profile
+- Documented parent-child inheritance support through `x.scheduling.anchor_to_parent_start` extension
+- Enhanced weekend exclusion handling documentation
+- Updated scheduling computation algorithm to include parent inheritance logic
+- Added new section on renderer-specific behaviors and defaults
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -31,6 +40,8 @@
 ## Introduction
 This document describes the rendering engine that generates Mermaid Gantt diagrams from opskarta plan and view definitions. It explains the scheduling computation algorithm, automatic date calculation from dependencies, weekend exclusion logic, and business day arithmetic. It documents the rendering pipeline from validated plan data to Mermaid output, view configuration options, lane organization, status theming with color coding and emoji support, CLI usage, output formatting, integration with visualization tools, the Python API for programmatic rendering, data structures for scheduled nodes, performance optimization for large datasets, customization options, export formats, and troubleshooting rendering issues.
 
+**Updated** Added comprehensive coverage of the Mermaid Gantt renderer profile, including renderer-specific defaults, parent-child inheritance capabilities, and enhanced weekend exclusion handling.
+
 ## Project Structure
 The rendering engine lives under specs/v1/tools/render/mermaid_gantt.py and integrates with the opskarta specification and example files. The CLI entry point is exposed via python -m tools.render.mermaid_gantt. Validation utilities reside under specs/v1/tools/validate.py and enforce referential integrity and business rules.
 
@@ -45,6 +56,7 @@ SCHED["50-scheduling.md"]
 STAT["40-statuses.md"]
 VIEWS["30-views-file.md"]
 NODES["20-nodes.md"]
+RENDERER["95-renderer-mermaid.md<br/>Renderer Profile"]
 SPEC["SPEC.md"]
 end
 subgraph "Examples"
@@ -63,6 +75,7 @@ SPEC --> SCHED
 SPEC --> STAT
 SPEC --> VIEWS
 SPEC --> NODES
+SPEC --> RENDERER
 ```
 
 **Diagram sources**
@@ -72,6 +85,7 @@ SPEC --> NODES
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md#L1-L23)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
 - [20-nodes.md](file://specs/v1/spec/20-nodes.md#L1-L37)
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L1-L150)
 - [SPEC.md](file://specs/v1/SPEC.md#L1-L407)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
 - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
@@ -85,15 +99,17 @@ SPEC --> NODES
 ## Core Components
 - Date parsing and duration parsing utilities
 - Business day arithmetic helpers (weekend detection, next workday, add workdays)
-- Schedule computation engine with dependency resolution and cycle detection
+- Schedule computation engine with dependency resolution, cycle detection, and parent inheritance support
 - Mermaid Gantt renderer with theme generation and lane emission
 - CLI entrypoint with argument parsing and output handling
 - Status-to-Mermaid tag mapping and emoji mapping for visual cues
 
 Key responsibilities:
 - Parse and validate temporal fields (start, duration) and dependencies (after).
-- Compute earliest feasible dates respecting dependencies and exclusions.
+- Compute earliest feasible dates respecting dependencies, exclusions, and optional parent inheritance.
 - Emit Mermaid Gantt blocks with lanes, statuses, and optional emoji markers.
+
+**Updated** Enhanced schedule computation to include parent inheritance logic via the `x.scheduling.anchor_to_parent_start` extension.
 
 **Section sources**
 - [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L92-L294)
@@ -103,7 +119,7 @@ Key responsibilities:
 ## Architecture Overview
 The rendering pipeline consists of:
 1. Load and validate plan and views.
-2. Compute schedule per node considering explicit start, dependencies, and exclusions.
+2. Compute schedule per node considering explicit start, dependencies, exclusions, and optional parent inheritance.
 3. Render Mermaid Gantt output with theme variables and lane sections.
 
 ```mermaid
@@ -117,7 +133,7 @@ participant Out as "stdout/file"
 CLI->>Loader : plan.yaml
 CLI->>Loader : views.yaml
 CLI->>Renderer : plan, selected view
-Renderer->>Scheduler : nodes, exclude_weekends
+Renderer->>Scheduler : nodes, exclude_weekends, parent inheritance
 Scheduler-->>Renderer : {node_id : ScheduledNode}
 Renderer->>Theme : statuses
 Theme-->>Renderer : themeVariables
@@ -138,7 +154,7 @@ Renderer-->>Out : "
 The scheduler resolves node start dates by:
 - Using explicit start when present.
 - Otherwise computing the start as the next working day after the latest completion of dependencies (after).
-- Optionally inheriting start from parent when no explicit start or dependencies exist.
+- **Optionally inheriting start from parent** when `x.scheduling.anchor_to_parent_start: true` and no explicit start or dependencies exist.
 - Applying weekend exclusion when enabled.
 
 ```mermaid
@@ -160,15 +176,20 @@ WeekendAdj --> |Yes| NextWD["next_workday(latest)"]
 WeekendAdj --> |No| NextDay["latest + 1 day"]
 NextWD --> MakeStart["start = next_working_day"]
 NextDay --> MakeStart
-AfterDeps --> |No| ParentStart["parent exists?"]
+AfterDeps --> |No| ParentAnchor["check parent inheritance"]
+ParentAnchor --> CheckAnchor{"anchor_to_parent_start?"}
+CheckAnchor --> |Yes| ParentStart["parent exists?"]
 ParentStart --> |Yes| UseParent["start = parent.start"]
 ParentStart --> |No| NoStart["no start found"]
+CheckAnchor --> |No| NoStart
 UseParent --> MakeStart
 NoStart --> NoSchedule["return None (container-like)"]
 MakeStart --> FinishCalc["finish = finish_date(start, duration, exclude_weekends)"]
 FinishCalc --> Cache["cache[node_id] = ScheduledNode"]
 Cache --> ReturnRes["return ScheduledNode"]
 ```
+
+**Updated** Added parent inheritance logic with the `x.scheduling.anchor_to_parent_start` extension check.
 
 **Diagram sources**
 - [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L217-L294)
@@ -180,6 +201,27 @@ Cache --> ReturnRes["return ScheduledNode"]
 **Section sources**
 - [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L217-L294)
 - [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
+
+### Renderer Profile: Mermaid Gantt
+The Mermaid Gantt renderer provides reference implementation behavior with specific defaults and non-core extensions.
+
+#### Default Behaviors
+- **Duration Default**: If node lacks `duration`, renderer uses **1 day** (`1d`) instead of core specification's undefined behavior.
+- **Unscheduled Nodes**: Nodes without calculable start dates are **skipped** without error, with optional informational warnings.
+
+#### Parent-Child Inheritance Extension
+The renderer supports optional `x.scheduling.anchor_to_parent_start` for inheritance:
+
+**Semantics**:
+1. **If node has no `start` and no `after`**: `effective_start(child) = effective_start(parent)`
+2. **If node has `after` (but no `start`)**: `effective_start = max(start_from_after, effective_start(parent))`
+3. **If node has explicit `start`**: Uses explicit `start` (extension has no effect)
+
+**Important**: This extension is **non-core** and renderer-specific. Other tools are not required to support it.
+
+**Section sources**
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L1-L150)
+- [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L223-L321)
 
 ### Weekend Exclusion Logic and Business Day Arithmetic
 - Weekend detection uses standard weekday semantics.
@@ -358,7 +400,9 @@ class ScheduledNode {
   - statuses define color hex values used for theming.
 - Node-level:
   - status influences both Mermaid tags and emoji.
-  - parent inheritance can propagate start dates when no explicit start is given.
+  - **Parent inheritance**: `x.scheduling.anchor_to_parent_start: true` enables inheritance from parent when no explicit start is given.
+
+**Updated** Added parent inheritance customization option.
 
 **Section sources**
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md#L11-L18)
@@ -434,6 +478,12 @@ Common issues and resolutions:
   - Use --list-views to discover available view IDs; select one present in gantt_views.
 - Output not rendering:
   - Verify the emitted fenced block is placed in a Markdown-compatible environment with Mermaid support.
+- **Parent inheritance not working**:
+  - Ensure `x.scheduling.anchor_to_parent_start: true` is set in the child node.
+  - Verify the parent node has a calculable start date.
+  - Note that this is a renderer-specific extension, not part of core specification.
+
+**Updated** Added troubleshooting guidance for parent inheritance feature.
 
 **Section sources**
 - [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L49-L86)
@@ -443,7 +493,7 @@ Common issues and resolutions:
 - [README.md](file://README.md#L78-L83)
 
 ## Conclusion
-The opskarta Mermaid Gantt rendering engine computes accurate schedules from explicit starts and dependencies, enforces weekend exclusion when configured, and renders a ready-to-use Mermaid block with theming and emoji. Its modular design integrates cleanly with validation and supports flexible view configuration, making it suitable for automated documentation pipelines and interactive dashboards.
+The opskarta Mermaid Gantt rendering engine computes accurate schedules from explicit starts and dependencies, enforces weekend exclusion when configured, and renders a ready-to-use Mermaid block with theming and emoji. Its modular design integrates cleanly with validation and supports flexible view configuration, making it suitable for automated documentation pipelines and interactive dashboards. The renderer profile provides additional capabilities including parent-child inheritance and enhanced weekend exclusion handling.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
@@ -458,3 +508,16 @@ The opskarta Mermaid Gantt rendering engine computes accurate schedules from exp
 - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
 - [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L326)
 - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
+
+### Renderer Profile Details
+The Mermaid Gantt renderer implements specific behaviors beyond core specification:
+
+- **Duration Default**: 1 day for nodes without duration
+- **Unscheduled Node Handling**: Skips nodes without calculable start dates
+- **Parent Inheritance**: Optional `x.scheduling.anchor_to_parent_start` extension
+- **Weekend Exclusion**: Supports `excludes: ["weekends"]` with visual holiday markers
+- **Output Format**: Standard Mermaid Gantt fenced block with theme variables
+
+**Section sources**
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L1-L150)
+- [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L376-L460)

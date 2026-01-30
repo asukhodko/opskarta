@@ -8,6 +8,7 @@
 - [20-nodes.md](file://specs/v1/spec/20-nodes.md)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md)
+- [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md)
 - [60-validation.md](file://specs/v1/spec/60-validation.md)
 - [90-extensibility.md](file://specs/v1/spec/90-extensibility.md)
 - [SPEC.md](file://specs/v1/SPEC.md)
@@ -18,29 +19,38 @@
 - [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Added comprehensive YAML encoding guidelines for proper date formatting, duration specifications, and multi-line string handling
+- Enhanced validation system documentation with improved error messaging and schema validation details
+- Updated troubleshooting guide with YAML-specific formatting recommendations
+- Added practical examples demonstrating proper YAML encoding practices
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+6. [YAML Encoding Guidelines](#yaml-encoding-guidelines)
+7. [Enhanced Validation System](#enhanced-validation-system)
+8. [Dependency Analysis](#dependency-analysis)
+9. [Performance Considerations](#performance-considerations)
+10. [Troubleshooting Guide](#troubleshooting-guide)
+11. [Conclusion](#conclusion)
+12. [Appendices](#appendices)
 
 ## Introduction
 This document describes the opskarta v1 file formats that define operational maps:
 - Plan files (*.plan.yaml): describe the work items, hierarchy, scheduling, statuses, and metadata.
 - Views files (*.views.yaml): define how to present the plan (e.g., Gantt views) and organize lanes for visualization.
 
-It explains the complete structure of both file types, their interplay, JSON Schema definitions, validation rules, recommended practices, and examples from the repository’s hello and advanced samples.
+It explains the complete structure of both file types, their interplay, JSON Schema definitions, validation rules, recommended practices, and examples from the repository's hello and advanced samples. The documentation now includes comprehensive YAML encoding guidelines and enhanced validation system details.
 
 ## Project Structure
 The opskarta v1 specification organizes documentation and examples under specs/v1:
 - schemas: JSON Schema definitions for plan and views files.
-- spec: Markdown documents detailing each aspect of the format.
+- spec: Markdown documents detailing each aspect of the format, including new YAML encoding guidelines.
 - examples: Minimal, hello, and advanced examples demonstrating usage.
 
 ```mermaid
@@ -52,6 +62,7 @@ D1["spec/10-plan-file.md"]
 D2["spec/20-nodes.md"]
 D3["spec/30-views-file.md"]
 D4["spec/40-statuses.md"]
+D5["spec/55-yaml-notes.md"]
 D6["spec/60-validation.md"]
 D9["spec/90-extensibility.md"]
 E_hello_plan["examples/hello/hello.plan.yaml"]
@@ -69,7 +80,8 @@ end
 - [20-nodes.md](file://specs/v1/spec/20-nodes.md#L1-L37)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md#L1-L23)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L140)
+- [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md#L1-L137)
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L220)
 - [90-extensibility.md](file://specs/v1/spec/90-extensibility.md#L1-L26)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
 - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
@@ -191,7 +203,7 @@ Practical examples:
 
 Validation rules:
 - project must equal plan.meta.id.
-- All node_ids in lanes must exist in the plan’s nodes.
+- All node_ids in lanes must exist in the plan's nodes.
 
 ```mermaid
 sequenceDiagram
@@ -260,6 +272,198 @@ Views-->>Author : Rendered views (e.g., Gantt)
 **Section sources**
 - [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml#L1-L6)
 
+## YAML Encoding Guidelines
+
+**Updated** Added comprehensive YAML encoding guidelines for proper serialization practices.
+
+The opskarta format supports both YAML and JSON serialization. YAML is recommended for human readability, while JSON provides machine-friendly interchange. Proper YAML encoding is crucial for reliable parsing and validation.
+
+### Date Formatting (start field)
+YAML parsers may automatically convert strings resembling dates into special date types. To prevent parsing issues, always quote date values in the `start` field.
+
+**Recommended format:**
+```yaml
+nodes:
+  task1:
+    title: "Task"
+    start: "2024-03-15"  # String in quotes (recommended)
+    duration: "5d"
+```
+
+**Potentially problematic format:**
+```yaml
+nodes:
+  task1:
+    title: "Task"
+    start: 2024-03-15  # Without quotes - may be interpreted as date or number
+    duration: 5d       # Without quotes - may cause parsing errors
+```
+
+### Duration Specifications (duration field)
+The `duration` value MUST be a string in `<number><unit>` format (e.g., `5d`, `2w`).
+
+**Correct examples:**
+```yaml
+duration: "5d"   # 5 days
+duration: "2w"   # 2 weeks (= 10 working days)
+duration: "10d"  # 10 days
+```
+
+**Incorrect examples:**
+```yaml
+duration: 5d     # Without quotes - may cause YAML parsing errors
+duration: 5      # Number without unit - does not match format
+duration: "0d"   # Zero is invalid
+duration: "-1d"  # Negative values are invalid
+```
+
+### Multi-line Strings (notes field)
+For multi-line notes, use literal blocks (`|`) or folded blocks (`>`):
+
+**Literal block (preserves line breaks):**
+```yaml
+nodes:
+  task1:
+    title: "Task with notes"
+    notes: |
+      First line of note.
+      Second line of note.
+      
+      Paragraph after empty line.
+```
+
+**Folded block (combines lines):**
+```yaml
+nodes:
+  task1:
+    title: "Task with notes"
+    notes: >
+      This is a long note that
+      will be combined into a single line
+      with spaces between parts.
+```
+
+### Special Characters
+When using special characters in strings, quote them appropriately:
+
+```yaml
+nodes:
+  task1:
+    title: "Task: important!"      # Colon requires quotes
+    issue: "JIRA-123"             # No problems
+    notes: "Note with # symbol"   # Hash requires quotes
+```
+
+### YAML vs JSON Equivalence
+The formats are fully interchangeable. Below are equivalent examples:
+
+**YAML:**
+```yaml
+version: 1
+meta:
+  id: "my-project"
+  title: "My Project"
+nodes:
+  task1:
+    title: "First Task"
+    start: "2024-03-01"
+    duration: "5d"
+  task2:
+    title: "Second Task"
+    after:
+      - task1
+    duration: "3d"
+```
+
+**JSON (equivalent):**
+```json
+{
+  "version": 1,
+  "meta": {
+    "id": "my-project",
+    "title": "My Project"
+  },
+  "nodes": {
+    "task1": {
+      "title": "First Task",
+      "start": "2024-03-01",
+      "duration": "5d"
+    },
+    "task2": {
+      "title": "Second Task",
+      "after": ["task1"],
+      "duration": "3d"
+    }
+  }
+}
+```
+
+**Section sources**
+- [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md#L1-L137)
+
+## Enhanced Validation System
+
+**Updated** Enhanced validation system with improved error messaging and schema validation capabilities.
+
+The validation system operates on multiple levels to ensure data integrity and consistency across opskarta files.
+
+### Validation Levels
+
+1. **Syntax Level** - Validates correct YAML/JSON syntax
+2. **Schema Level** - Ensures field types, required fields, and formats match JSON Schema
+3. **Semantic Level** - Verifies referential integrity, business rules, and date correctness
+
+### Error Message Standards
+
+The validator must provide clear, actionable error messages containing:
+- Path to the problematic field (e.g., `nodes.task2.parent`)
+- Problem description
+- Expected value or format
+
+**Example error outputs:**
+```
+Error: Invalid reference in nodes.task2.parent
+  Value: "nonexistent"
+  Expected: existing node ID from nodes
+  Available: root, task1
+```
+
+```
+Error: Invalid duration format in nodes.task1.duration
+  Value: "5"
+  Expected: format <number><unit> where unit is 'd' or 'w'
+  Pattern: ^[1-9][0-9]*[dw]$
+```
+
+### Schema Validation Details
+
+Both plan and views files use comprehensive JSON Schema validation:
+
+**Plan Schema Validation:**
+- Required fields: version, nodes
+- Meta validation: id and title must be non-empty strings
+- Node validation: each node requires title; supports kind, status, parent, after, start (YYYY-MM-DD), duration (<digits>d or <digits>w), issue, notes
+- Additional properties allowed throughout for extensibility
+
+**Views Schema Validation:**
+- Required fields: version, project
+- Project validation: must match plan.meta.id
+- Gantt view validation: supports title, excludes, and lanes
+- Lane validation: each lane requires title and nodes list
+
+### Cross-File Validation
+
+The system validates relationships between plan and views files:
+- project field must equal plan.meta.id
+- All node_ids in views must exist in plan.nodes
+- Duration formats must follow `<number><unit>` pattern
+- Start dates must follow YYYY-MM-DD format
+
+**Section sources**
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L220)
+- [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
+- [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L66)
+
 ## Dependency Analysis
 - Referential integrity:
   - nodes.parent must reference an existing node_id.
@@ -290,23 +494,40 @@ L["views.lanes[*].nodes[*]"] --> N2
 - Keep nodes flat or reasonably deep to simplify rendering and dependency resolution.
 - Prefer explicit after dependencies for complex schedules to avoid ambiguous start calculations.
 - Limit excessive custom extensions to reduce parsing overhead in downstream tools.
+- Use quoted strings for dates and durations to prevent YAML parsing overhead.
 
 ## Troubleshooting Guide
-Common formatting errors and resolutions:
-- Missing required fields:
-  - Ensure plan.version, plan.meta.id/title, plan.nodes, and plan.nodes.*.title are present.
-  - Ensure views.version, views.project, and views.gantt_views are present.
-- Reference errors:
-  - parent must exist in nodes.
-  - after entries must exist in nodes.
-  - status must be a key in statuses.
-  - project must equal plan.meta.id.
-  - lanes nodes must exist in nodes.
-- Format errors:
-  - start must be YYYY-MM-DD.
-  - duration must be <digits>d or <digits>w.
-- Validation messages:
-  - Use clear error paths (e.g., nodes.task2.parent) and expected values.
+
+**Updated** Enhanced troubleshooting guide with YAML-specific formatting recommendations.
+
+### Common YAML Formatting Errors and Resolutions
+
+**Missing Required Fields:**
+- Ensure plan.version, plan.meta.id/title, plan.nodes, and plan.nodes.*.title are present.
+- Ensure views.version, views.project, and views.gantt_views are present.
+
+**Reference Errors:**
+- parent must exist in nodes.
+- after entries must exist in nodes.
+- status must be a key in statuses.
+- project must equal plan.meta.id.
+- lanes nodes must exist in nodes.
+
+**Format Errors:**
+- start must be YYYY-MM-DD (quoted).
+- duration must be <digits>d or <digits>w (quoted).
+- Use proper YAML quoting for strings containing special characters.
+
+**YAML-Specific Issues:**
+- Date parsing: Always quote dates in start field to prevent automatic conversion to date types.
+- Duration parsing: Always quote duration values to prevent YAML parser confusion.
+- Multi-line strings: Use literal blocks (|) for preserved line breaks, folded blocks (>) for combined lines.
+- Special characters: Quote strings containing colons, hash symbols, or other special characters.
+
+**Enhanced Validation Messages:**
+- Use clear error paths (e.g., nodes.task2.parent) and expected values.
+- Pay attention to validation level indicators (syntax, schema, semantic).
+- Check both plan and views file validation results.
 
 **Section sources**
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L7-L11)
@@ -314,33 +535,45 @@ Common formatting errors and resolutions:
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L77-L81)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L82-L100)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L124-L139)
+- [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md#L5-L137)
 
 ## Conclusion
 The opskarta v1 file formats provide a compact, extensible foundation for operational maps:
 - Plan files capture metadata, statuses, hierarchical nodes, and scheduling.
 - Views files enable multiple presentations (e.g., Gantt) over the same plan.
-- Strict validation rules ensure consistency across files and within each file.
+- Enhanced validation rules ensure consistency across files and within each file.
+- Comprehensive YAML encoding guidelines prevent parsing issues and ensure reliable data interchange.
 - Extensibility allows teams to tailor the format to their needs while preserving compatibility.
 
 ## Appendices
 
 ### Best Practices
-- Use meaningful node_id values and consistent naming conventions.
-- Keep statuses aligned across related plans and views.
-- Prefer explicit after dependencies for complex schedules.
-- Group custom extensions under a dedicated namespace (e.g., x:) to avoid conflicts.
-- Version both plan and views consistently and keep project identifiers synchronized.
 
-### File Organization and Naming Conventions
+**YAML Encoding Best Practices:**
+- Always quote date values (YYYY-MM-DD) in start fields.
+- Always quote duration values (<digits>d or <digits>w).
+- Use literal blocks (|) for multi-line notes that preserve formatting.
+- Use folded blocks (>) for multi-line notes that combine into single lines.
+- Quote strings containing special characters (colons, hash symbols, etc.).
+
+**File Organization and Naming Conventions:**
 - Plan files: *.plan.yaml
 - Views files: *.views.yaml
 - Place both files alongside the work items they describe; group by project or program.
 
-### Version Control Integration
+**Version Control Integration:**
 - Treat plan and views files as configuration; commit alongside source and documentation.
 - Use pull requests to review changes to scheduling, dependencies, and statuses.
 - Consider separate branches for major re-baselines or multi-program plans.
 
+**Enhanced Validation Workflow:**
+- Run syntax validation first to catch YAML/JSON parsing errors.
+- Execute schema validation to ensure field types and formats are correct.
+- Perform semantic validation to verify referential integrity and business rules.
+- Review validation messages carefully, focusing on error paths and expected formats.
+
 **Section sources**
 - [90-extensibility.md](file://specs/v1/spec/90-extensibility.md#L12-L26)
 - [SPEC.md](file://specs/v1/SPEC.md#L17-L23)
+- [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md#L1-L137)
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L197-L220)
