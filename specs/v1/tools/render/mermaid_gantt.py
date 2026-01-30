@@ -111,18 +111,18 @@ def parse_date(value: str) -> date:
 
 def parse_duration(value: Any) -> int:
     """
-    Парсит длительность в днях.
+    Парсит длительность в рабочих днях.
     
     Принимает:
     - int: количество дней
-    - str: '10d' или '10' (дни)
+    - str: '10d' (дни) или '2w' (недели, 1w = 5 рабочих дней) или '10' (дни)
     - None: по умолчанию 1 день
     
     Args:
         value: Значение длительности
         
     Returns:
-        Количество дней (целое число)
+        Количество рабочих дней (целое число)
         
     Raises:
         SchedulingError: если формат длительности неверный
@@ -147,8 +147,14 @@ def parse_duration(value: Any) -> int:
             if n <= 0:
                 raise SchedulingError(f"Длительность должна быть положительной, получено {value!r}")
             return n
+        if s.endswith("w") and s[:-1].isdigit():
+            # 1w = 5 рабочих дней
+            n = int(s[:-1])
+            if n <= 0:
+                raise SchedulingError(f"Длительность должна быть положительной, получено {value!r}")
+            return n * 5
     
-    raise SchedulingError(f"Неподдерживаемый формат длительности: {value!r} (ожидается int или 'Nd')")
+    raise SchedulingError(f"Неподдерживаемый формат длительности: {value!r} (ожидается int, 'Nd' или 'Nw')")
 
 
 def is_weekend(d: date) -> bool:
@@ -218,7 +224,10 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
     """
     Вычисляет расписание для узлов на основе явных дат начала и зависимостей `after`.
     
-    Узлы без явного start или after наследуют дату начала от родителя (parent).
+    Core-поведение: узлы без явного start или after являются непланируемыми (unscheduled).
+    
+    Опциональное расширение: если узел имеет `x.scheduling.anchor_to_parent_start: true`,
+    он может унаследовать дату начала от родителя.
     
     Args:
         nodes: Словарь узлов из плана
@@ -232,6 +241,7 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
     """
     cache: Dict[str, ScheduledNode] = {}
     visiting: Set[str] = set()
+    skipped_nodes: List[str] = []
 
     def resolve(node_id: str) -> Optional[ScheduledNode]:
         if node_id in cache:
@@ -268,18 +278,30 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
                     latest = max(dep_finishes)
                     start = next_workday(latest) if exclude_weekends else latest + timedelta(days=1)
             
-            # Если нет start и нет after, пробуем унаследовать от родителя
+            # Опциональное расширение: наследование даты от родителя
+            # Активируется только через x.scheduling.anchor_to_parent_start: true
             if start is None:
-                parent_id = node.get("parent")
-                if parent_id and parent_id in nodes:
-                    parent_sched = resolve(parent_id)
-                    if parent_sched:
-                        start = parent_sched.start
+                x_data = node.get("x") or {}
+                scheduling_ext = x_data.get("scheduling") or {} if isinstance(x_data, dict) else {}
+                anchor_to_parent = scheduling_ext.get("anchor_to_parent_start", False) if isinstance(scheduling_ext, dict) else False
+                
+                if anchor_to_parent:
+                    parent_id = node.get("parent")
+                    if parent_id and parent_id in nodes:
+                        parent_sched = resolve(parent_id)
+                        if parent_sched:
+                            # Если есть after, берём максимум
+                            if after and start is None:
+                                # after был обработан выше, но не дал результата
+                                start = parent_sched.start
+                            else:
+                                start = parent_sched.start
 
         visiting.remove(node_id)
         
-        # Если не удалось определить дату начала, возвращаем None
+        # Если не удалось определить дату начала, возвращаем None (unscheduled)
         if start is None:
+            skipped_nodes.append(node_id)
             return None
 
         finish = finish_date(start, duration_days, exclude_weekends)
@@ -289,6 +311,11 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
 
     for node_id in nodes.keys():
         resolve(node_id)
+
+    # Выводим предупреждение о пропущенных узлах
+    if skipped_nodes:
+        import sys
+        print(f"Предупреждение: следующие узлы не имеют вычислимой даты начала и будут пропущены: {', '.join(skipped_nodes)}", file=sys.stderr)
 
     return cache
 

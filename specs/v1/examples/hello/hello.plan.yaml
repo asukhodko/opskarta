@@ -20,7 +20,7 @@ nodes:
     title: "Подготовка"
     kind: phase
     parent: root
-    start: 2026-02-01
+    start: "2026-02-01"
     duration: 10d
     status: in_progress
 

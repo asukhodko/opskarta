@@ -1,0 +1,21 @@
+# Test fixture: extension fields (x: namespace)
+version: 1
+meta:
+  id: "extensions-test"
+  title: "Test: extension fields"
+x:
+  custom_root_field: "root level extension"
+  team_assignments:
+    - team: "Backend"
+      lead: "Alice"
+nodes:
+  task_with_extensions:
+    title: "Task with extensions"
+    start: "2024-03-01"
+    duration: "5d"
+    x:
+      team: "SRE"
+      risk: "high"
+      priority: 1
+      custom_nested:
+        key: "value"

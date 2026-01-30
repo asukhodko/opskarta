@@ -41,7 +41,7 @@ nodes:
     title: "API Gateway"
     kind: epic
     parent: backend
-    start: 2026-01-15
+    start: "2026-01-15"
     duration: 30d
     status: in_progress
 
@@ -49,7 +49,7 @@ nodes:
     title: "Проектирование API Gateway"
     kind: task
     parent: api-gateway
-    start: 2026-01-15
+    start: "2026-01-15"
     duration: 5d
     status: done
 
@@ -119,7 +119,7 @@ nodes:
     title: "Дизайн-система"
     kind: epic
     parent: frontend
-    start: 2026-02-01
+    start: "2026-02-01"
     duration: 25d
     status: planning
 
@@ -127,7 +127,7 @@ nodes:
     title: "Дизайн-токены"
     kind: task
     parent: design-system
-    start: 2026-02-01
+    start: "2026-02-01"
     duration: 5d
     status: not_started
 
@@ -203,7 +203,7 @@ nodes:
     title: "Миграция на Kubernetes"
     kind: epic
     parent: infrastructure
-    start: 2026-01-20
+    start: "2026-01-20"
     duration: 35d
     status: in_progress
 
@@ -211,7 +211,7 @@ nodes:
     title: "Настройка кластера"
     kind: task
     parent: k8s
-    start: 2026-01-20
+    start: "2026-01-20"
     duration: 10d
     status: done
 
@@ -314,12 +314,12 @@ x:
       mitigation: "Раннее прототипирование"
   
   milestones:
-    - date: 2026-02-15
+    - date: "2026-02-15"
       name: "API Gateway Ready"
       nodes: [gateway-testing]
-    - date: 2026-03-01
+    - date: "2026-03-01"
       name: "Design System Complete"
       nodes: [ds-docs]
-    - date: 2026-04-15
+    - date: "2026-04-15"
       name: "Platform v2.0 Release"
       nodes: [release]

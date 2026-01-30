@@ -1,0 +1,28 @@
+# Test fixture: opt-in parent inheritance via x.scheduling.anchor_to_parent_start
+version: 1
+meta:
+  id: "parent-inherit-test"
+  title: "Test: opt-in parent inheritance"
+nodes:
+  parent_task:
+    title: "Parent task"
+    start: "2024-03-01"
+    duration: "10d"
+    # finish = 2024-03-10
+
+  child_without_anchor:
+    title: "Child without anchor (unscheduled)"
+    parent: parent_task
+    duration: "3d"
+    # No x.scheduling.anchor_to_parent_start
+    # Expected: unscheduled (no start, no after)
+
+  child_with_anchor:
+    title: "Child with anchor"
+    parent: parent_task
+    duration: "3d"
+    x:
+      scheduling:
+        anchor_to_parent_start: true
+    # Expected start = 2024-03-01 (inherited from parent)
+    # Expected finish = 2024-03-03

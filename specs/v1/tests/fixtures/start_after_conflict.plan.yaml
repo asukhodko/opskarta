@@ -1,0 +1,19 @@
+# Test fixture: start + after conflict (start takes precedence)
+version: 1
+meta:
+  id: "start-after-test"
+  title: "Test: start + after conflict"
+nodes:
+  dependency:
+    title: "Dependency task"
+    start: "2024-03-01"
+    duration: "5d"
+    # finish = 2024-03-05
+
+  task_with_both:
+    title: "Task with both start and after"
+    start: "2024-03-04"  # Explicit start (before dependency finishes!)
+    after: [dependency]   # Logical dependency only
+    duration: "3d"
+    # Expected: start = 2024-03-04 (explicit takes precedence)
+    # finish = 2024-03-06

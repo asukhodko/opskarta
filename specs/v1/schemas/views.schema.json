@@ -14,11 +14,51 @@
     },
     "project": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Must match meta.id from the plan file"
     },
     "gantt_views": {
       "type": "object",
-      "additionalProperties": true
+      "description": "Gantt chart view definitions",
+      "additionalProperties": {
+        "type": "object",
+        "description": "A single Gantt view",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "View title displayed in the diagram"
+          },
+          "excludes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Calendar exclusions (e.g., 'weekends', specific dates)"
+          },
+          "lanes": {
+            "type": "object",
+            "description": "Swim lanes for grouping nodes",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Lane title"
+                },
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Node IDs to display in this lane"
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
     }
   },
   "additionalProperties": true

@@ -308,18 +308,29 @@ def validate_plan(plan: Dict[str, Any]) -> List[str]:
                         value=start,
                         expected="формат YYYY-MM-DD (например, 2024-01-15)"
                     )
+                # Проверка корректности даты
+                try:
+                    from datetime import datetime
+                    datetime.strptime(start_str, '%Y-%m-%d')
+                except ValueError:
+                    raise ValidationError(
+                        "Некорректная дата (не существует в календаре)",
+                        path=f"{node_path}.start",
+                        value=start,
+                        expected="существующая дата в формате YYYY-MM-DD"
+                    )
         
         # Проверка формата duration (<число><единица>)
         if 'duration' in node:
             duration = node.get('duration')
             if duration is not None:
                 duration_str = str(duration)
-                if not re.match(r'^\d+[dw]$', duration_str):
+                if not re.match(r'^[1-9][0-9]*[dw]$', duration_str):
                     raise ValidationError(
                         "Неверный формат длительности",
                         path=f"{node_path}.duration",
                         value=duration,
-                        expected="формат <число><единица>, где единица: d (дни) или w (недели)"
+                        expected="формат <число><единица>, где число >= 1, единица: d (дни) или w (недели)"
                     )
     
     # --- Проверка циклических зависимостей ---
@@ -483,7 +494,15 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> List[str]:
     meta = plan.get('meta', {})
     plan_id = meta.get('id') if isinstance(meta, dict) else None
     
-    if plan_id and project != plan_id:
+    # meta.id обязателен при использовании views
+    if not plan_id:
+        raise ValidationError(
+            "Поле 'meta.id' обязательно в плане при использовании файла представлений",
+            path="meta.id",
+            expected="непустая строка (идентификатор проекта)"
+        )
+    
+    if project != plan_id:
         raise ValidationError(
             "Поле 'project' не совпадает с meta.id плана",
             path="project",
@@ -514,6 +533,17 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> List[str]:
                     value=type(view).__name__,
                     expected="object (dict)"
                 )
+            
+            # Проверка excludes и предупреждение о конкретных датах
+            excludes = view.get('excludes')
+            if excludes is not None:
+                if isinstance(excludes, list):
+                    for item in excludes:
+                        if isinstance(item, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', item):
+                            warnings.append(
+                                f"Предупреждение: {view_path}.excludes содержит конкретную дату '{item}'. "
+                                f"Конкретные даты являются подсказками для рендерера и не влияют на core-алгоритм вычисления дат."
+                            )
             
             lanes = view.get('lanes')
             if lanes is None:

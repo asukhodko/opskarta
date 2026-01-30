@@ -1,0 +1,23 @@
+# Test fixture: weeks duration (1w = 5 workdays)
+version: 1
+meta:
+  id: "weeks-test"
+  title: "Test: weeks duration"
+nodes:
+  one_week:
+    title: "One week task"
+    start: "2024-03-04"  # Monday
+    duration: "1w"       # = 5 workdays
+    # Expected finish = 2024-03-08 (Friday)
+
+  two_weeks:
+    title: "Two weeks task"
+    start: "2024-03-04"  # Monday
+    duration: "2w"       # = 10 workdays
+    # Expected finish = 2024-03-15 (Friday of second week)
+
+  after_one_week:
+    title: "Task after one week"
+    after: [one_week]
+    duration: "3d"
+    # Expected start = 2024-03-11 (Monday), finish = 2024-03-13 (Wednesday)

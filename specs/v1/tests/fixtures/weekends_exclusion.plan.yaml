@@ -1,0 +1,20 @@
+# Test fixture: weekends exclusion
+version: 1
+meta:
+  id: "weekends-test"
+  title: "Test: weekends exclusion"
+nodes:
+  friday_start:
+    title: "Start on Friday"
+    start: "2024-03-01"  # Friday
+    duration: "3d"
+    # With excludes: weekends
+    # Workdays: Fri (01), Mon (04), Tue (05)
+    # Expected finish = 2024-03-05 (Tuesday)
+
+  weekend_after:
+    title: "Task after friday_start"
+    after: [friday_start]
+    duration: "2d"
+    # Expected start = 2024-03-06 (Wednesday)
+    # Expected finish = 2024-03-07 (Thursday)
