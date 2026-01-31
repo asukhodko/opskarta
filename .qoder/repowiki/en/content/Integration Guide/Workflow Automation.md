@@ -23,12 +23,11 @@
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive Makefile automation with 230 lines of build targets
-- Enhanced CI/CD integration with Docker support and automated validation
-- Added dependency management, linting, and formatting capabilities
-- Integrated testing with coverage reporting and Docker-based testing
-- Implemented rendering automation for Gantt diagrams
-- Added clean and development utilities
+- Updated Makefile to include virtual environment support with venv targets
+- Consolidated validation targets into unified validate target
+- Added new quickstart target for streamlined developer onboarding
+- Removed Docker-based CI targets and simplified rendering system
+- Enhanced development workflow automation with improved Python detection
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -51,11 +50,12 @@ This document describes workflow automation for Opskarta, focusing on:
 - Error handling strategies, retry mechanisms, and monitoring approaches
 - Troubleshooting guidance for common automation issues
 
-The repository now provides comprehensive Makefile automation with 230 lines of build targets covering documentation, validation, testing, and CI/CD integration. Enhanced with Docker support, extensive dependency management, and automated workflows for all development tasks.
+The repository now provides comprehensive Makefile automation with virtual environment support, consolidated validation targets, and enhanced development workflow automation. Docker-based CI targets have been removed in favor of simplified local execution with improved Python environment detection.
 
 ## Project Structure
 The automation-relevant parts of the repository are organized around:
-- Comprehensive Makefile with build, validation, testing, rendering, development, Docker, and CI targets
+- Comprehensive Makefile with build, validation, testing, rendering, development, and CI targets
+- Virtual environment support with automatic Python detection and activation
 - Reference tools under specs/v1/tools/ for validation, rendering, and spec building
 - JSON Schemas under specs/v1/schemas/ for optional JSON Schema validation
 - Specification documents under specs/v1/spec/ describing scheduling and validation rules
@@ -66,13 +66,14 @@ The automation-relevant parts of the repository are organized around:
 graph TB
 subgraph "Makefile Targets"
 BUILD["Build Targets<br/>build, build-spec, check-spec"]
-VALID["Validation Targets<br/>validate, validate-examples, validate-fixtures, validate-schema"]
+VALID["Validation Targets<br/>validate, validate-examples, validate-schema"]
 TEST["Testing Targets<br/>test, test-unit, test-coverage"]
-RENDER["Rendering Targets<br/>render-examples"]
-DEV["Development Targets<br/>deps, lint, format"]
-DOCKER["Docker Targets<br/>docker-test, docker-validate, docker-build, docker-shell"]
-CI["CI Targets<br/>ci, ci-docker"]
-CLEAN["Clean Targets<br/>clean"]
+RENDER["Rendering Targets<br/>render-hello, render-program"]
+DEV["Development Targets<br/>deps, deps-dev, deps-all, lint, format"]
+VENV["Virtual Environment<br/>venv, venv-clean"]
+CI["CI Targets<br/>ci, check"]
+QUICK["Quick Start<br/>quickstart"]
+CLEAN["Clean Targets<br/>clean, clean-all"]
 end
 subgraph "Tools"
 V["specs/v1/tools/validate.py"]
@@ -99,9 +100,6 @@ BUILD --> B
 VALID --> V
 TEST --> REQ
 RENDER --> R
-DOCKER --> V
-DOCKER --> R
-DOCKER --> B
 CI --> BUILD
 CI --> VALID
 CI --> TEST
@@ -116,9 +114,9 @@ REQ --> R
 ```
 
 **Diagram sources**
-- [Makefile](file://Makefile#L1-L230)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
+- [Makefile](file://Makefile#L1-L257)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L964)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L576)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
 - [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt#L1-L10)
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
@@ -132,10 +130,10 @@ REQ --> R
 - [specs/v1/examples/minimal/project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml#L1-L6)
 
 **Section sources**
-- [Makefile](file://Makefile#L1-L230)
+- [Makefile](file://Makefile#L1-L257)
 - [README.md](file://README.md#L1-L96)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L964)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L576)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
 - [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt#L1-L10)
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
@@ -149,25 +147,25 @@ REQ --> R
 - [specs/v1/examples/minimal/project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml#L1-L6)
 
 ## Core Components
-- **Makefile Automation**: Comprehensive 230-line Makefile providing unified build system with targets for documentation, validation, testing, rendering, development, Docker, and CI/CD integration
-- **Validation tool**: validates plan and views files, supports semantic and optional JSON Schema validation, and reports actionable errors with paths and suggestions
-- **Rendering tool**: generates Mermaid Gantt diagrams from plan and views, computing schedules with support for weekdays-only calculations and exclusions
-- **Spec builder**: aggregates specification sections into a single document and can check whether the built document is up-to-date
-- **Schemas**: JSON Schema definitions for plan and views enable machine-readable validation
-- **Examples**: minimal, hello, and advanced example files demonstrate practical usage patterns
-- **Test Suite**: comprehensive unit tests for scheduling logic and validation functionality
+- **Makefile Automation**: Comprehensive Makefile providing unified build system with virtual environment support, consolidated validation targets, and enhanced development workflow automation
+- **Virtual Environment Management**: Automatic detection and creation of Python virtual environments with venv targets for isolated development
+- **Consolidated Validation**: Unified validation pipeline with automatic example discovery and schema validation
+- **Enhanced Development Tools**: Improved dependency management, linting, and formatting capabilities with optional development dependencies
+- **Rendering System**: Streamlined rendering targets for specific examples with view discovery capabilities
+- **Testing Framework**: Flexible testing with pytest fallback and comprehensive unit test coverage
+- **Spec Maintenance**: Automated specification building and freshness checking
 
 Key automation enablers:
-- Unified Makefile targets for consistent development workflows across different environments
-- Automatic dependency detection and Docker fallback for isolated execution
-- Comprehensive CI/CD integration with Docker-based testing and validation
-- Automated artifact generation for documentation, validation reports, and rendering outputs
+- Virtual environment support with automatic Python detection and activation
+- Consolidated validation targets for streamlined development workflows
+- Simplified CI/CD integration focused on local execution
+- Enhanced developer experience with quickstart target and improved tooling
 - Integrated linting and formatting tools for code quality assurance
 
 **Section sources**
-- [Makefile](file://Makefile#L1-L230)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
+- [Makefile](file://Makefile#L1-L257)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L964)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L576)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
 - [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
@@ -178,266 +176,264 @@ Key automation enablers:
 - [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
 
 ## Architecture Overview
-The automation architecture centers on four pillars with comprehensive Makefile integration:
-- **Unified Build System**: Single Makefile orchestrating all development tasks with environment detection and Docker fallback
-- **Validation Pipeline**: Pre-commit hook and CI steps validate YAML syntax, JSON Schema compliance (optional), and semantic correctness (references, cycles, formats)
-- **Rendering Pipeline**: Scheduled runs compute schedules and render Gantt diagrams for reporting and dashboards
-- **Spec Maintenance Pipeline**: Automated checks ensure SPEC.md stays in sync with spec sections
-- **CI/CD Integration**: Complete pipeline with Docker support, dependency management, and artifact generation
+The automation architecture centers on five pillars with enhanced Makefile integration and virtual environment support:
+- **Virtual Environment System**: Automatic Python detection with venv fallback and isolated dependency management
+- **Unified Build System**: Single Makefile orchestrating all development tasks with environment-aware execution
+- **Consolidated Validation Pipeline**: Pre-commit hook and CI steps validate YAML syntax, JSON Schema compliance, and semantic correctness
+- **Streamlined Rendering Pipeline**: Targeted rendering for specific examples with view discovery
+- **Enhanced CI/CD Integration**: Simplified pipeline focused on local execution with dependency management
 
 ```mermaid
 graph TB
 Dev["Developer"]
 PC["Pre-commit Hook"]
 CI["CI Runner"]
-MK["Makefile<br/>230 Lines"]
+MK["Makefile<br/>257 Lines"]
+VENV["Virtual Environment<br/>venv, venv-clean"]
 VAL["Validation Tool<br/>validate.py"]
 SCH["Scheduling & Rendering<br/>mermaid_gantt.py"]
 OUT["Reports / Artifacts"]
 SPEC["Spec Builder<br/>build_spec.py"]
 TEST["Test Suite<br/>pytest & unittest"]
-DOCKER["Docker Environment<br/>python:3.11-slim"]
 Dev --> MK
 Dev --> PC
 Dev --> CI
 PC --> MK
 CI --> MK
+MK --> VENV
 MK --> VAL
 MK --> SCH
 MK --> SPEC
 MK --> TEST
-MK --> DOCKER
+VENV --> VAL
+VENV --> SCH
+VENV --> SPEC
+VENV --> TEST
 VAL --> OUT
 SCH --> OUT
 SPEC --> OUT
 TEST --> OUT
-DOCKER --> VAL
-DOCKER --> SCH
-DOCKER --> SPEC
-DOCKER --> TEST
 ```
 
 **Diagram sources**
-- [Makefile](file://Makefile#L1-L230)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
+- [Makefile](file://Makefile#L1-L257)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L964)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L576)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
 - [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
 
 ## Detailed Component Analysis
 
 ### Makefile Automation System
-The comprehensive 230-line Makefile provides unified automation across all development domains:
+The comprehensive 257-line Makefile provides unified automation across all development domains with enhanced virtual environment support:
+
+**Virtual Environment Management**
+- `venv`: Creates Python virtual environment with automatic pip upgrade
+- `venv-clean`: Removes virtual environment directory
+- Automatic Python detection preferring venv over system Python
+
+**Dependency Management**
+- `deps`: Installs core dependencies (PyYAML, jsonschema)
+- `deps-dev`: Installs development dependencies (pytest, pytest-cov, ruff)
+- `deps-all`: Alias for deps-dev
 
 **Build Targets**
 - `build`: Orchestrates complete artifact generation including SPEC.md creation
 - `build-spec`: Generates SPEC.md from spec/ sources with automatic formatting
 - `check-spec`: Validates SPEC.md freshness without overwriting
 
-**Validation Targets**
-- `validate`: Comprehensive validation of examples and fixtures
+**Consolidated Validation**
+- `validate`: Unified validation of examples and fixtures
 - `validate-examples`: Validates all example files with automatic discovery
-- `validate-fixtures`: Validates test fixture files
 - `validate-schema`: Ensures JSON schemas are valid JSON
-
-**Testing Targets**
-- `test`: Runs complete test suite with fallback mechanisms
-- `test-unit`: Executes unit tests only
-- `test-coverage`: Runs tests with coverage reporting
+- `validate-hello`: Quick validation of hello example
+- `validate-program`: Validation of program example
 
 **Rendering Targets**
-- `render-examples`: Automatically renders Gantt diagrams for all examples with view discovery
+- `render-hello`: Renders hello example Gantt diagram with overview view
+- `render-program`: Lists available views for program example
 
-**Development Targets**
-- `deps`: Installs Python dependencies (PyYAML, jsonschema, pytest, pytest-cov)
-- `lint`: Code linting with ruff (optional)
-- `format`: Code formatting with ruff (optional)
+**Development Tools**
+- `lint`: Code linting with ruff (requires ruff installation)
+- `format`: Code formatting with ruff (requires ruff installation)
 
-**Docker Integration**
-- `docker-test`: Runs tests in isolated Docker container
-- `docker-validate`: Validates files in Docker environment
-- `docker-build`: Builds SPEC.md in Docker container
-- `docker-shell`: Opens interactive Docker shell
-
-**CI/CD Targets**
+**Enhanced CI/CD**
 - `ci`: Complete CI pipeline running all checks
-- `ci-docker`: Docker-based CI execution
+- `check`: Quick check for schemas, examples, and spec
+
+**Quick Start**
+- `quickstart`: Streamlined setup with venv creation, dependency installation, and hello example validation
 
 **Clean Targets**
 - `clean`: Removes generated files and cache directories
+- `clean-all`: Cleans everything including virtual environment
 
 ```mermaid
 flowchart TD
-MK_START(["make"]) --> DETECT["Detect Python/Docker"]
-DET_ENV{"Environment?"}
-DET_ENV --> |Python| LOCAL["Local Execution"]
-DET_ENV --> |Docker| DOCKER["Docker Fallback"]
-LOCAL --> TARGET{"Target?"}
-DOCKER --> TARGET
+MK_START(["make"]) --> VENV_DETECT["Detect Virtual Environment"]
+VENV_CHECK{"VENV Exists?"}
+VENV_CHECK --> |Yes| USE_VENV["Use venv Python"]
+VENV_CHECK --> |No| SYS_PYTHON["Use system Python"]
+USE_VENV --> TARGET{"Target?"}
+SYS_PYTHON --> TARGET
 TARGET --> |build| BUILD["Build SPEC.md"]
 TARGET --> |validate| VALIDATE["Validate Files"]
 TARGET --> |test| TEST_RUN["Run Tests"]
 TARGET --> |render| RENDER["Render Gantt"]
 TARGET --> |deps| DEPS["Install Dependencies"]
-TARGET --> |docker-*| DCONT["Docker Commands"]
-TARGET --> |ci*| CI["CI Pipeline"]
+TARGET --> |venv| VENV["Create Virtual Env"]
+TARGET --> |ci| CI["CI Pipeline"]
+TARGET --> |quickstart| QUICK["Quick Start"]
 BUILD --> SUCCESS["Success Message"]
 VALIDATE --> SUCCESS
 TEST_RUN --> SUCCESS
 RENDER --> SUCCESS
 DEPS --> SUCCESS
-DCONT --> SUCCESS
+VENV --> SUCCESS
 CI --> SUCCESS
+QUICK --> SUCCESS
 ```
 
 **Diagram sources**
-- [Makefile](file://Makefile#L14-L28)
-- [Makefile](file://Makefile#L49-L230)
+- [Makefile](file://Makefile#L15-L27)
+- [Makefile](file://Makefile#L48-L62)
+- [Makefile](file://Makefile#L87-L100)
+- [Makefile](file://Makefile#L105-L150)
+- [Makefile](file://Makefile#L174-L194)
+- [Makefile](file://Makefile#L233-L240)
 
 **Section sources**
-- [Makefile](file://Makefile#L1-L230)
+- [Makefile](file://Makefile#L1-L257)
 
-### Validation Pipeline
-The validation tool performs comprehensive validation with Makefile integration:
-- Syntax validation via YAML parsing
-- Optional JSON Schema validation against plan and views schemas
-- Semantic validation including required fields, reference integrity, status validity, date/duration formats, and cycle detection
-- Automated discovery and validation of all example and fixture files
+### Virtual Environment System
+The Makefile now includes comprehensive virtual environment support with automatic detection and management:
+
+**Automatic Python Detection**
+- Prefers virtual environment Python if venv exists
+- Falls back to system Python (python3 or python)
+- Uses venv/bin/python and venv/bin/pip when available
+
+**Environment Management**
+- `venv`: Creates virtual environment and upgrades pip
+- `venv-clean`: Removes virtual environment directory
+- Clear activation instructions for developers
+
+**Benefits**
+- Isolated dependency management
+- Consistent Python version control
+- Eliminates system-wide package conflicts
+- Streamlined development environment setup
+
+**Section sources**
+- [Makefile](file://Makefile#L15-L27)
+- [Makefile](file://Makefile#L48-L62)
+
+### Consolidated Validation Pipeline
+The validation system has been streamlined with unified targets and enhanced automation:
+
+**Unified Validation Target**
+- `validate`: Orchestrates comprehensive validation of all examples and fixtures
+- Automatic discovery of example directories and files
+- Sequential validation with immediate failure reporting
+
+**Enhanced Example Validation**
+- `validate-examples`: Automatic discovery of all example directories
+- Handles both plan-only and plan+views validation scenarios
+- Robust error handling with exit codes
+
+**Schema Validation**
+- `validate-schema`: Validates JSON schema file integrity
+- Ensures schemas are valid JSON before use
+
+**Quick Validation Targets**
+- `validate-hello`: Fast validation of hello example
+- `validate-program`: Validation of advanced program example
 
 ```mermaid
 flowchart TD
-Start(["make validate"]) --> EX["validate-examples"]
+Start(["make validate"]) --> CONSOLIDATED["validate target"]
+CONSOLIDATED --> EX["validate-examples"]
 EX --> FIND_EX["Find example directories"]
 FIND_EX --> LOOP_EX{"More examples?"}
 LOOP_EX --> |Yes| LOAD_EX["Load plan and views"]
-LOAD_EX --> SCHEMA_EX{"--schema flag?"}
-SCHEMA_EX --> |Yes| VALIDATE_EX["Validate with JSON Schema"]
-SCHEMA_EX --> |No| SEMANTIC_EX["Semantic validation only"]
+LOAD_EX --> VALIDATE_EX["Validate with validate.py"]
 VALIDATE_EX --> NEXT_EX["Next example"]
-SEMANTIC_EX --> NEXT_EX
 NEXT_EX --> LOOP_EX
-LOOP_EX --> |No| FIX["validate-fixtures"]
-FIX --> FIND_FIX["Find fixture files"]
-FIND_FIX --> LOOP_FIX{"More fixtures?"}
-LOOP_FIX --> |Yes| LOAD_FIX["Load plan"]
-LOAD_FIX --> SCHEMA_FIX["Validate with JSON Schema"]
-SCHEMA_FIX --> NEXT_FIX["Next fixture"]
-NEXT_FIX --> LOOP_FIX
-LOOP_FIX --> |No| SCHEMA["validate-schema"]
+LOOP_EX --> |No| SCHEMA["validate-schema"]
 SCHEMA --> CHECK_JSON["Check JSON validity"]
 CHECK_JSON --> END(["Complete"])
 ```
 
 **Diagram sources**
-- [Makefile](file://Makefile#L70-L105)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
-- [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
-- [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
+- [Makefile](file://Makefile#L105-L132)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L964)
 
 **Section sources**
-- [Makefile](file://Makefile#L67-L105)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
-- [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
-- [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
-- [specs/v1/spec/60-validation.md](file://specs/v1/spec/60-validation.md#L1-L140)
+- [Makefile](file://Makefile#L105-L150)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L964)
 
-### Rendering Pipeline (Gantt Generation)
-The rendering tool computes schedules and produces Mermaid Gantt output with automated view discovery:
-- Parses dates and durations
-- Resolves start dates from explicit values, dependencies, or parent inheritance
-- Supports weekday-only calculations and calendar exclusions
-- Renders lanes and tasks with status-based theming
-- Automatically discovers available views for each example
+### Streamlined Rendering Pipeline
+The rendering system has been simplified with targeted examples and enhanced view discovery:
 
-```mermaid
-sequenceDiagram
-participant MAKE as "make render-examples"
-participant RG as "render.mermaid_gantt.py"
-participant PLAN as "plan.yaml"
-participant VIEWS as "views.yaml"
-MAKE->>RG : Discover examples
-RG->>PLAN : load_yaml()
-RG->>VIEWS : load_yaml()
-RG->>RG : list-views discovery
-RG->>RG : compute_schedule(nodes, exclude_weekends)
-RG->>RG : render_mermaid_gantt(plan, view)
-RG-->>MAKE : Generate MD outputs
-```
+**Targeted Rendering**
+- `render-hello`: Renders hello example with overview view
+- `render-program`: Lists available views for program example
+- Direct module execution with proper working directory handling
 
-**Diagram sources**
-- [Makefile](file://Makefile#L132-L151)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
-- [specs/v1/spec/50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
+**View Discovery**
+- Automatic discovery of available views per example
+- Support for multiple view types and configurations
+- Flexible output generation with status-based theming
+
+**Benefits**
+- Faster execution with specific targets
+- Reduced complexity in rendering workflow
+- Better separation of concerns for different example types
 
 **Section sources**
-- [Makefile](file://Makefile#L132-L151)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
-- [specs/v1/spec/50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
+- [Makefile](file://Makefile#L154-L169)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L576)
 
-### Spec Maintenance Pipeline
-The spec builder aggregates spec sections into a single document and can verify freshness with Makefile integration.
+### Enhanced CI/CD Integration
+The CI/CD system has been simplified with consolidated targets and improved reliability:
 
-```mermaid
-flowchart TD
-SB_Start(["make build-spec"]) --> FIND_FILES["Find spec/*.md files by numeric prefix"]
-FIND_FILES --> SORT["Sort by prefix"]
-SORT --> BUILD_TOC["Build Table of Contents"]
-BUILD_TOC --> CONCAT["Concatenate sections"]
-CONCAT --> WRITE_OUT["Write SPEC.md"]
-WRITE_OUT --> SB_END(["Complete"])
-```
+**Consolidated CI Targets**
+- `ci`: Complete pipeline with dependency installation, spec checking, validation, and testing
+- `check`: Quick validation for schema, examples, and spec freshness
+- Streamlined execution without Docker dependencies
 
-**Diagram sources**
-- [Makefile](file://Makefile#L52-L56)
-- [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
+**Improved Reliability**
+- Local execution reduces external dependency complexity
+- Enhanced error handling and reporting
+- Faster feedback loops for developers
 
-**Section sources**
-- [Makefile](file://Makefile#L52-L62)
-- [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
-
-### Scheduling Logic
-Scheduling supports:
-- Explicit start dates and durations
-- Dependencies via after lists
-- Parent inheritance for implicit start dates
-- Weekday-only calculations and calendar exclusions
-- Cycle detection to prevent invalid plans
-
-```mermaid
-flowchart TD
-S0(["Start compute_schedule"]) --> Init["Initialize cache and visiting set"]
-Init --> ResolveLoop["For each node_id: resolve(node_id)"]
-ResolveLoop --> CheckCache{"Cached?"}
-CheckCache --> |Yes| NextNode["Next node"]
-CheckCache --> |No| Recurse{"Visiting?"}
-Recurse --> |Yes| ErrorCycle["Raise scheduling error: cycle"]
-Recurse --> |No| FetchNode["Fetch node data"]
-FetchNode --> DetermineStart{"Has start?"}
-DetermineStart --> |Yes| ParseStart["Parse date/duration"]
-DetermineStart --> |No| FromAfter{"Has after?"}
-FromAfter --> |Yes| MaxDepFinish["Max finish of dependencies + 1 day (or next weekday)"]
-FromAfter --> |No| FromParent{"Has parent?"}
-FromParent --> |Yes| ParentStart["Inherit parent start"]
-FromParent --> |No| NoStart["No start date available"]
-ParseStart --> ComputeFinish["Compute finish (with excludes)"]
-MaxDepFinish --> ComputeFinish
-ParentStart --> ComputeFinish
-NoStart --> Skip["Skip node (no schedule)"]
-ComputeFinish --> Cache["Cache ScheduledNode"]
-Cache --> NextNode
-NextNode --> Done(["Return schedule map"])
-```
-
-**Diagram sources**
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L217-L294)
-- [specs/v1/spec/50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
+**Benefits**
+- Simplified CI configuration
+- Reduced maintenance overhead
+- More reliable execution across different environments
 
 **Section sources**
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
-- [specs/v1/spec/50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
+- [Makefile](file://Makefile#L221-L228)
+
+### Quick Start Workflow
+A new streamlined workflow targets rapid developer onboarding:
+
+**Quick Start Target**
+- `quickstart`: Creates venv, installs deps, validates hello, renders hello
+- Provides immediate feedback and next steps
+- Reduces onboarding friction significantly
+
+**Workflow Benefits**
+- Single-command setup for new contributors
+- Immediate validation of working environment
+- Clear progression to full development workflow
+
+**Section sources**
+- [Makefile](file://Makefile#L233-L240)
 
 ## Dependency Analysis
-- **Makefile Dependencies**: Comprehensive dependency management with Python detection and Docker fallback
+- **Makefile Dependencies**: Comprehensive dependency management with virtual environment support and Python detection
+- **Virtual Environment Dependencies**: Automatic detection and management of Python environments
 - **Tools Dependencies**: PyYAML for YAML parsing; optional jsonschema for strict validation; pytest and pytest-cov for testing
 - **Validation Tool**: Consumes plan and views schemas to optionally enforce strict schema compliance
 - **Rendering Tool**: Depends on scheduling logic and plan/views data to produce deterministic outputs
@@ -445,97 +441,95 @@ NextNode --> Done(["Return schedule map"])
 
 ```mermaid
 graph LR
-MK["Makefile"] --> PY["Python Detection"]
-MK --> DOCK["Docker Fallback"]
-PY --> VAL["validate.py"]
-PY --> REND["mermaid_gantt.py"]
-PY --> SPEC["build_spec.py"]
-PY --> TEST["pytest"]
-DOCK --> VAL
-DOCK --> REND
-DOCK --> SPEC
-DOCK --> TEST
-PY["PyYAML"] --> VAL
-JS["jsonschema"] --> VAL
-REQ["pytest"] --> TEST
-COV["pytest-cov"] --> TEST
+MK["Makefile"] --> VENV["Virtual Environment"]
+MK --> PY["Python Detection"]
+VENV --> VAL["validate.py"]
+VENV --> REND["mermaid_gantt.py"]
+VENV --> SPEC["build_spec.py"]
+VENV --> TEST["pytest"]
+PY --> VAL
+PY --> REND
+PY --> SPEC
+PY --> TEST
+REQ["requirements.txt"] --> VAL
+REQ --> REND
 ```
 
 **Diagram sources**
-- [Makefile](file://Makefile#L14-L28)
+- [Makefile](file://Makefile#L15-L27)
 - [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt#L1-L10)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L964)
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
 - [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L576)
 - [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
 
 **Section sources**
-- [Makefile](file://Makefile#L14-L28)
+- [Makefile](file://Makefile#L15-L27)
 - [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt#L1-L10)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L964)
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
 - [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L576)
 - [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
 
 ## Performance Considerations
-- **Makefile Optimization**: Centralized execution reduces process startup overhead and improves caching
-- **Parallel Processing**: Multiple validation and rendering tasks can run concurrently within Makefile targets
-- **Docker Isolation**: Containerized execution ensures consistent performance across different environments
+- **Virtual Environment Optimization**: Centralized execution reduces process startup overhead and improves caching
 - **Selective Validation**: Makefile targets allow targeted validation to reduce unnecessary processing
+- **Parallel Processing**: Multiple validation and rendering tasks can run concurrently within Makefile targets
+- **Enhanced Dependency Management**: Virtual environments eliminate redundant installations and improve performance
 - **Artifact Caching**: Generated outputs can be cached and reused across CI/CD runs
 
 ## Troubleshooting Guide
 Common automation issues and resolutions with Makefile-specific solutions:
 
-**Environment Detection Issues**
-- Symptom: Makefile fails to detect Python or Docker
-- Resolution: Check PATH variables; ensure Python 3.9+ or Docker is installed; Makefile automatically falls back to Docker
-- Evidence: Environment detection logic at lines 14-28
+**Virtual Environment Issues**
+- Symptom: venv creation fails or activation problems
+- Resolution: Check Python 3.9+ installation; ensure write permissions; use `make venv-clean` then `make venv`
+- Evidence: Virtual environment creation logic at lines 51-56
+
+**Python Detection Problems**
+- Symptom: Makefile fails to detect Python or uses wrong version
+- Resolution: Ensure python3 or python is in PATH; check Python 3.9+ compatibility
+- Evidence: Python detection logic at lines 19-27
 
 **Permission Problems**
-- Symptom: write failures when generating SPEC.md or rendering outputs
-- Resolution: ensure write permissions in target directories; Makefile handles PermissionError explicitly
-- Evidence: Spec builder handles PermissionError explicitly
+- Symptom: write failures when creating venv or generating outputs
+- Resolution: ensure write permissions in project directory; check disk space availability
+- Evidence: venv creation handles PermissionError explicitly
 
 **Network Connectivity**
-- Symptom: failures when fetching remote schemas or external resources
-- Resolution: pre-fetch schemas; run in environments with network access; mirror artifacts internally
-- Evidence: Docker-based execution bypasses local network issues
+- Symptom: failures when installing dependencies
+- Resolution: pre-install dependencies locally; use offline mode; check proxy settings
+- Evidence: Dependency installation handled locally without Docker
 
 **Performance Bottlenecks**
 - Symptom: slow validations or renders on large plans
 - Resolution: split plans into smaller modules; use selective validation; cache rendered artifacts
-- Evidence: Makefile provides targeted execution with `validate-examples` and `validate-fixtures`
+- Evidence: Makefile provides targeted execution with specific validation targets
 
 **Schema Mismatches**
 - Symptom: JSON Schema validation errors
 - Resolution: align fields with schemas; use the provided schemas as references
 - Evidence: `validate-schema` target specifically checks JSON schema validity
 
-**Docker Execution Issues**
-- Symptom: Docker commands fail or timeout
-- Resolution: Ensure Docker daemon is running; check volume mounting permissions; verify Python 3.11 slim image availability
-- Evidence: Docker targets at lines 179-204
-
 **Section sources**
-- [Makefile](file://Makefile#L14-L28)
-- [Makefile](file://Makefile#L179-L204)
+- [Makefile](file://Makefile#L15-L27)
+- [Makefile](file://Makefile#L48-L62)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L230-L236)
 - [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L599-L618)
 - [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L236-L243)
 
 ## Conclusion
-Opskarta's comprehensive Makefile automation provides a solid foundation for workflow automation:
-- **Unified Build System**: Single Makefile orchestrates all development tasks with environment detection and Docker fallback
-- **Automated Validation**: Comprehensive validation pipeline covering examples, fixtures, and schemas
-- **Integrated Testing**: Complete test suite with coverage reporting and Docker-based execution
-- **Enhanced Rendering**: Automated Gantt diagram generation with view discovery
-- **CI/CD Ready**: Complete pipeline with Docker support and artifact generation
-- **Developer Experience**: Consistent workflows across different environments with automatic dependency management
+Opskarta's enhanced Makefile automation provides a streamlined foundation for workflow automation:
+- **Virtual Environment Support**: Automatic Python detection and isolated environment management
+- **Consolidated Validation**: Unified validation pipeline covering examples, fixtures, and schemas
+- **Enhanced Development Tools**: Improved dependency management, linting, and formatting capabilities
+- **Simplified CI/CD**: Streamlined pipeline focused on local execution without Docker dependencies
+- **Quick Start Workflow**: Rapid onboarding with single-command setup and immediate feedback
+- **Developer Experience**: Consistent workflows across different environments with enhanced tooling
 
-By integrating these Makefile targets into pre-commit hooks, CI pipelines, and scheduled jobs, teams can maintain high-quality operational maps and reliable automation with minimal configuration overhead.
+By integrating these Makefile targets into pre-commit hooks, CI pipelines, and scheduled jobs, teams can maintain high-quality operational maps and reliable automation with minimal configuration overhead and reduced complexity.
 
 ## Appendices
 
@@ -549,30 +543,29 @@ By integrating these Makefile targets into pre-commit hooks, CI pipelines, and s
   - Fail fast on semantic or schema errors; surface actionable messages
 - **Continuous Integration Checks**
   - Run `make ci` for complete CI pipeline including SPEC.md freshness
-  - Use `make ci-docker` for isolated Docker-based execution
   - Validate examples and custom plans; render Gantt outputs for selected views
   - Publish artifacts (Markdown/GitHub Pages) for visibility
 
 **Section sources**
-- [Makefile](file://Makefile#L210-L217)
+- [Makefile](file://Makefile#L221-L228)
 - [README.md](file://README.md#L72-L83)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L634-L782)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L439-L549)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L634-L964)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L439-L576)
 
 ### Scheduling Automation for Periodic Reports
 - Compute schedules from plan data and render Gantt diagrams on a schedule
 - Use weekday exclusions and calendar exceptions to reflect realistic timelines
 - Store rendered outputs as artifacts or publish to documentation sites
-- Leverage `make render-examples` for automated batch processing
+- Leverage `make render-hello` for automated batch processing
 
 **Section sources**
-- [Makefile](file://Makefile#L132-L151)
+- [Makefile](file://Makefile#L154-L160)
 - [specs/v1/spec/50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L549)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L1-L576)
 
 ### Webhook Implementations
 - **Real-time operational map updates**
-  - On push to main branch, trigger `make ci` or `make ci-docker` for validation and rendering
+  - On push to main branch, trigger `make ci` for validation and rendering
   - Post diffs to documentation or dashboards using generated artifacts
 - **External system notifications**
   - On plan/view changes, notify downstream systems with sanitized summaries
@@ -582,56 +575,63 @@ By integrating these Makefile targets into pre-commit hooks, CI pipelines, and s
   - Reconcile on conflict using plan's authoritative meta.id
 
 **Section sources**
-- [Makefile](file://Makefile#L210-L217)
+- [Makefile](file://Makefile#L221-L228)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L174-L240)
 
 ### Cron Job Configurations
 - **Daily/Weekly schedules** to regenerate Gantt diagrams and update dashboards
-  - Use `make render-examples` for automated batch processing
+  - Use `make render-hello` for automated batch processing
 - **Bi-daily validation** of example plans to ensure compatibility across versions
   - Execute `make validate` for comprehensive validation
 - **Monthly spec freshness checks** to keep SPEC.md up to date
   - Run `make check-spec` to verify SPEC.md freshness
 
 **Section sources**
-- [Makefile](file://Makefile#L132-L151)
-- [Makefile](file://Makefile#L58-L62)
+- [Makefile](file://Makefile#L154-L160)
+- [Makefile](file://Makefile#L96-L100)
 
 ### Containerized Deployment Patterns
-- **Docker-based Development**
-  - Use `make docker-shell` for interactive development environment
-  - Leverage `make docker-test`, `docker-validate`, and `docker-build` for isolated execution
-- **Production Containerization**
-  - Package tools in Python base image; install dependencies from requirements.txt
-  - Use Docker targets for consistent execution across environments
-- **Multi-stage Builds**
-  - Use `make deps` for dependency installation in containerized environments
-  - Minimize image size with Docker-based execution
+**Updated** Removed Docker-based CI targets as part of simplification effort
+
+The repository now focuses on local execution with virtual environment support instead of Docker-based containers. All automation targets run directly on the host system with isolated Python environments.
 
 **Section sources**
-- [Makefile](file://Makefile#L179-L204)
-- [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt#L1-L10)
-- [CONTRIBUTING.md](file://CONTRIBUTING.md#L27-L30)
+- [Makefile](file://Makefile#L1-L257)
 
 ### Example Automation Scripts (Makefile Targets)
-- **Validate a plan and views pair**:
-  - `make validate-examples` - Validates all example files automatically
-  - `make validate-fixtures` - Validates test fixture files
-- **Render a Gantt view**:
-  - `make render-examples` - Renders all example Gantt diagrams with view discovery
-- **Build or check SPEC.md**:
-  - `make build-spec` - Generates SPEC.md from spec sources
-  - `make check-spec` - Verifies SPEC.md freshness
-- **Run comprehensive validation**:
+- **Create and manage virtual environment**:
+  - `make venv` - Creates Python virtual environment
+  - `make venv-clean` - Removes virtual environment
+- **Install dependencies**:
+  - `make deps` - Install core dependencies
+  - `make deps-dev` - Install development dependencies
+  - `make deps-all` - Alias for development dependencies
+- **Validate files**:
   - `make validate` - Complete validation pipeline
+  - `make validate-examples` - Validates all example files
+  - `make validate-schema` - Validates JSON schemas
+  - `make validate-hello` - Quick hello example validation
+- **Render diagrams**:
+  - `make render-hello` - Renders hello example Gantt
+  - `make render-program` - Lists program example views
+- **Run tests**:
   - `make test` - Full test suite execution
-- **Docker-based execution**:
-  - `make docker-validate` - Validation in Docker container
-  - `make docker-test` - Testing in Docker container
+  - `make test-unit` - Unit tests only
+  - `make test-coverage` - Tests with coverage report
+- **Code quality**:
+  - `make lint` - Lint Python code
+  - `make format` - Format Python code
+- **CI/CD**:
+  - `make ci` - Complete CI pipeline
+  - `make check` - Quick validation
+- **Quick start**:
+  - `make quickstart` - Streamlined setup workflow
+- **Cleanup**:
+  - `make clean` - Clean generated files
+  - `make clean-all` - Clean everything including venv
 
 **Section sources**
-- [Makefile](file://Makefile#L67-L151)
-- [Makefile](file://Makefile#L179-L204)
+- [Makefile](file://Makefile#L48-L257)
 
 ### Example Plans and Views
 - **Minimal plan**:

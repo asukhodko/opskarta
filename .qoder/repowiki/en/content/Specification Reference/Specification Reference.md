@@ -22,6 +22,15 @@
 - [validate.py](file://specs/v1/tools/validate.py)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Added comprehensive Core vs Non-core component distinction system
+- Enhanced node identification guidelines with specific requirements and recommendations
+- Expanded milestone handling documentation with detailed specifications
+- Updated status definitions with structured status objects and validation rules
+- Enhanced Gantt view documentation with renderer profile details
+- Improved validation rules with severity levels and classification
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -116,7 +125,7 @@ X3 --> B
 - [SPEC.md](file://specs/v1/SPEC.md#L4-L25)
 
 ## Core Components
-- Plan file (*.plan.yaml): Defines the operational map’s version, metadata, statuses dictionary, and nodes collection.
+- Plan file (*.plan.yaml): Defines the operational map's version, metadata, statuses dictionary, and nodes collection.
 - Views file (*.views.yaml): Describes how to render the plan (e.g., Gantt views) and binds to a plan via project id.
 - Nodes: Hierarchical work items with kinds, statuses, parents, scheduling, and optional custom fields.
 - Statuses: Arbitrary key-value dictionaries with recommended keys and display attributes.
@@ -161,6 +170,43 @@ V --> |"lanes[].nodes"| P
 
 ## Detailed Component Analysis
 
+### Core vs Non-core Component Distinctions
+
+Opskarta v1 introduces a clear distinction between core and non-core components to separate normative requirements from optional extensions:
+
+**Core Components (MUST implement)**
+- Basic file structure for *.plan.yaml and *.views.yaml
+- Node fields: title, kind, status, parent, after, start, duration, milestone
+- Scheduling calculations: finish computation, start from after
+- Calendar exclusions: "weekends" in excludes
+- Default values: duration = 1d for scheduled nodes
+- Validation rules and referential integrity
+
+**Non-core Components (MAY implement)**
+- Extensions via x: namespace (e.g., x.scheduling.anchor_to_parent_start)
+- Renderer profiles (Mermaid Gantt, others)
+- Renderer-specific view fields (date_format, axis_format, tick_interval)
+- Specific dates in excludes (passed to renderer, don't affect core algorithm)
+- Default status colors
+
+```mermaid
+flowchart TD
+Core["Core Components"] --> Must["MUST implement by all tools"]
+NonCore["Non-core Components"] --> May["MAY implement by tools"]
+Core --> NodeFields["Node fields & scheduling"]
+Core --> Calendar["Calendar exclusions"]
+Core --> Defaults["Default values"]
+NonCore --> Extensions["x: namespace extensions"]
+NonCore --> Renderers["Renderer profiles"]
+NonCore --> SpecificDates["Specific dates in excludes"]
+```
+
+**Diagram sources**
+- [SPEC.md](file://specs/v1/SPEC.md#L27-L52)
+
+**Section sources**
+- [SPEC.md](file://specs/v1/SPEC.md#L27-L52)
+
 ### Plan File (*.plan.yaml)
 - Root fields:
   - version (int)
@@ -171,7 +217,7 @@ V --> |"lanes[].nodes"| P
   - title (string, required)
   - kind (string), status (string), parent (string)
   - after (list[string]), start (YYYY-MM-DD), duration (<num>d|<num>w)
-  - issue (string), notes (string)
+  - milestone (boolean), issue (string), notes (string)
   - Additional custom fields allowed (extensibility)
 
 ```mermaid
@@ -184,7 +230,8 @@ CheckNodes --> IterateNodes["Iterate nodes"]
 IterateNodes --> CheckTitle["Each node has 'title' (string)"]
 CheckTitle --> CheckRefs["Validate 'parent', 'status', 'after' refs"]
 CheckRefs --> CheckFormats["Validate 'start' (YYYY-MM-DD), 'duration' (<num>[dw])"]
-CheckFormats --> End(["Plan valid"])
+CheckFormats --> CheckMilestones["Validate 'milestone' boolean values"]
+CheckMilestones --> End(["Plan valid"])
 ```
 
 **Diagram sources**
@@ -254,6 +301,7 @@ class Node {
 +string[] after
 +string start
 +string duration
++boolean milestone
 +string issue
 +string notes
 }
@@ -274,13 +322,79 @@ Plan --> Node : "contains"
 - [20-nodes.md](file://specs/v1/spec/20-nodes.md#L9-L31)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L13-L75)
 
-### Status Management
-- statuses is an arbitrary dictionary
-- Recommended keys: not_started, in_progress, done, blocked
-- Each status object supports label and color for rendering
+### Node Identification Guidelines
+
+Opskarta v1 provides detailed guidelines for node identification:
+
+**Requirements**
+- node_id MUST be unique within nodes
+- node_id MUST be a string
+
+**Recommendations**
+- Recommended format: `^[a-zA-Z][a-zA-Z0-9._-]*$`
+  - Starts with a letter
+  - Contains only letters, digits, dots, underscores, hyphens
+- For Mermaid compatibility: avoid spaces, brackets, colons in identifiers
+
+**Examples**
+```yaml
+# Good identifiers
+nodes:
+  kickoff: ...
+  phase_1: ...
+  backend-api: ...
+  JIRA.123: ...
+
+# Problematic identifiers (may not work in some renderers)
+nodes:
+  "task with spaces": ...     # Spaces
+  "task:important": ...       # Colon
+  123: ...                    # Starts with digit
+```
 
 **Section sources**
-- [40-statuses.md](file://specs/v1/spec/40-statuses.md#L1-L23)
+- [SPEC.md](file://specs/v1/SPEC.md#L91-L121)
+- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L5-L35)
+
+### Milestone Handling
+
+Milestones are event points on the timeline, not tasks with duration. They're used for key dates: releases, deadlines, checkpoints.
+
+**Field `milestone`**
+- milestone (boolean) - if true, node is displayed as a milestone
+
+**Behavior**
+- Milestone MUST have start or calculable start from after
+- If duration not specified for milestone, uses 1d for calculations
+- On Gantt diagram, milestone displays as point/diamond, not as a bar
+- Milestones can have dependencies (after) and statuses (status)
+
+**Section sources**
+- [SPEC.md](file://specs/v1/SPEC.md#L151-L182)
+- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L65-L96)
+
+### Status Management
+
+**Structured Status Objects**
+Statuses are now defined as structured objects with label and color fields:
+
+**Structure**
+- statuses is an arbitrary dictionary
+- Each status object supports:
+  - label (string) - human-readable name
+  - color (string) - hex color format `^#[0-9a-fA-F]{6}$`
+
+**Recommended Keys**
+- not_started, in_progress, done, blocked
+
+**Validation Rules**
+- If status field exists on any node, statuses section becomes mandatory
+- status values must reference existing keys in statuses dictionary
+- color format must be valid hex color
+
+**Section sources**
+- [SPEC.md](file://specs/v1/SPEC.md#L266-L358)
+- [40-statuses.md](file://specs/v1/spec/40-statuses.md#L1-L93)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L57-L75)
 
 ### Scheduling Algorithms and Behavior
@@ -318,11 +432,33 @@ F --> H
 - Semantics: cross-references, cycles, formats, and business rules
 - Error messages include path, value, expected, and available choices
 
+**Severity Levels**
+| Level | Description | Behavior |
+|-------|-------------|----------|
+| **error** | Critical error, makes file invalid | Validation fails (exit code ≠ 0) |
+| **warn** | Potential problem requiring attention | Validation succeeds, but warning shown |
+| **info** | Informational message | Validation succeeds |
+
+**Classification of Problems**
+| Problem | Severity |
+|---------|----------|
+| Missing required fields (version, nodes, title) | error |
+| Non-existent references (parent, after, status) | error |
+| Cyclic dependencies (parent, after) | error |
+| Duplicate node_id in nodes | error |
+| Invalid start or duration format | error |
+| Invalid color format in statuses | error |
+| Explicit start earlier than dependency finish | warn |
+| Missing duration for scheduled node | warn |
+| Specific dates in excludes (non-core) | info |
+| Unscheduled nodes (don't appear on diagram) | info |
+
 ```mermaid
 flowchart TD
 L1["Syntax"] --> L2["Schema"]
 L2 --> L3["Semantics"]
-L3 --> Out["Success or detailed error"]
+L3 --> Severity["Severity Classification"]
+Severity --> Out["Success or detailed error"]
 ```
 
 **Diagram sources**
@@ -390,8 +526,6 @@ Validator --> ViewsSchema["views.schema.json"]
 - Use lanes to partition large plans for efficient rendering
 - Keep statuses compact and reuse recommended keys for interoperability
 
-[No sources needed since this section provides general guidance]
-
 ## Troubleshooting Guide
 Common issues and resolutions:
 - Missing required fields
@@ -404,6 +538,7 @@ Common issues and resolutions:
 - Incorrect formats
   - start must be YYYY-MM-DD
   - duration must be <num>d or <num>w
+  - color must be valid hex format
 - Error messages
   - The validator reports path, value, expected, and available options
 
@@ -415,8 +550,6 @@ Common issues and resolutions:
 
 ## Conclusion
 Opskarta v1 provides a minimal yet extensible format for operational maps. Plans define the work model; views define presentations. Robust validation and JSON Schemas ensure correctness. Extensibility preserves compatibility while enabling domain-specific enhancements.
-
-[No sources needed since this section summarizes without analyzing specific files]
 
 ## Appendices
 

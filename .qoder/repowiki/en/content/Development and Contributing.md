@@ -13,6 +13,7 @@
 - [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py)
 - [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py)
+- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py)
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json)
 - [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json)
 - [specs/v1/spec/00-introduction.md](file://specs/v1/spec/00-introduction.md)
@@ -28,11 +29,12 @@
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive testing infrastructure documentation with pytest integration
-- Documented new test suite covering scheduling functionality with 304 lines of tests
-- Added fixture-based testing documentation for various scheduling scenarios
-- Enhanced development workflow with automated testing, coverage reporting, and CI/CD integration
-- Updated Makefile targets for testing and coverage reporting
+- Added comprehensive Makefile infrastructure documentation with 230 lines of build automation
+- Documented complete CI/CD pipeline support with Docker integration
+- Enhanced testing framework with pytest integration and coverage reporting
+- Added validation systems for examples, fixtures, and JSON schemas
+- Documented rendering capabilities for Gantt diagrams
+- Updated development workflow with automated dependency management
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -48,12 +50,13 @@
 11. [Testing and Quality Assurance](#testing-and-quality-assurance)
 12. [Extending the Specification](#extending-the-specification)
 13. [Continuous Integration Guidance](#continuous-integration-guidance)
-14. [Conclusion](#conclusion)
+14. [Makefile Infrastructure](#makefile-infrastructure)
+15. [Conclusion](#conclusion)
 
 ## Introduction
 This document provides a complete guide for developers and contributors working on Opskarta. It covers development environment setup, testing frameworks, code standards, specification evolution, versioning, contribution workflow, and quality assurance processes. The goal is to enable both bug fixes and feature contributions with clear expectations around documentation, examples, and ecosystem compatibility.
 
-**Updated** Added comprehensive testing infrastructure documentation covering pytest integration, fixture-based testing, and automated quality assurance processes.
+**Updated** Added comprehensive Makefile infrastructure providing build automation, validation systems, pytest integration, and CI/CD pipeline support for opskarta v1 specification project.
 
 ## Project Structure
 Opskarta is organized around a single specification version (v1) with supporting tools, examples, schemas, and a comprehensive test suite. The repository is designed so that the specification is the core, and tools are reference implementations that remain lightweight and optional.
@@ -122,11 +125,12 @@ Key responsibilities:
 - [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
 
 ## Architecture Overview
-The development architecture centers on the specification and reference tools with integrated testing infrastructure:
+The development architecture centers on the specification and reference tools with integrated testing infrastructure and comprehensive Makefile automation:
 
 ```mermaid
 graph TB
 user["Developer / Contributor"]
+makefile["Makefile<br/>230 lines of automation"]
 cli["CLI Tools<br/>validate.py, build_spec.py"]
 renderer["Renderer<br/>render.mermaid_gantt"]
 spec["SPEC.md<br/>and spec/*.md"]
@@ -135,9 +139,15 @@ examples["Examples<br/>minimal/, hello/, advanced/"]
 tests["Test Suite<br/>test_scheduling.py<br/>304 lines of tests"]
 fixtures["Test Fixtures<br/>5 scenario files"]
 coverage["Coverage Reporting<br/>pytest-cov"]
+docker["Docker Integration<br/>Containerized testing"]
+user --> makefile
 user --> cli
 user --> renderer
 user --> tests
+makefile --> cli
+makefile --> renderer
+makefile --> tests
+makefile --> docker
 cli --> schemas
 cli --> spec
 cli --> tests
@@ -150,7 +160,8 @@ spec --> schemas
 ```
 
 **Diagram sources**
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L752)
+- [Makefile](file://Makefile#L1-L230)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
 - [specs/v1/tools/README.md](file://specs/v1/tools/README.md#L1-L126)
 - [specs/v1/SPEC.md](file://specs/v1/SPEC.md#L1-L407)
@@ -190,7 +201,7 @@ ReportOK --> End(["End"])
 - [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L634-L751)
 
 **Section sources**
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L752)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
 
 ### Spec Builder (build_spec.py)
 Responsibilities:
@@ -339,6 +350,10 @@ fixtures --> test_suite
   - Test suite runs efficiently with pytest parallelization support.
   - Fixture-based tests reduce code duplication and improve maintainability.
   - Coverage reporting helps identify untested code paths.
+- **Makefile optimization**:
+  - Containerized testing reduces environment setup overhead.
+  - Parallel validation of multiple files improves throughput.
+  - Cached dependencies minimize installation time.
 - Recommendations:
   - Keep PRs small to minimize validation overhead.
   - Prefer incremental spec updates and targeted examples.
@@ -354,12 +369,15 @@ Common issues and resolutions:
 - Tool installation: Install dependencies from requirements.txt.
 - **Test failures**: Use pytest verbose mode (-v) and coverage reports (--cov) to identify failing test cases.
 - **Coverage gaps**: Analyze missing branch coverage and add targeted test cases.
+- **Makefile issues**: Use `make help` to see available targets and ensure proper Python/Docker detection.
+- **Docker problems**: Verify Docker installation and network connectivity for containerized operations.
 
 **Section sources**
 - [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L135-L329)
 - [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L431-L579)
 - [specs/v1/tools/README.md](file://specs/v1/tools/README.md#L6-L11)
 - [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L10-L12)
+- [Makefile](file://Makefile#L14-L28)
 
 ## Contribution Workflow
 - Issue-first collaboration: Open an issue describing the problem, proposal, or question.
@@ -503,5 +521,56 @@ CI-->>Dev : Report status
 - [Makefile](file://Makefile#L158-L161)
 - [Makefile](file://Makefile#L179-L204)
 
+## Makefile Infrastructure
+**New** Comprehensive 230-line Makefile providing complete build automation, validation systems, and CI/CD pipeline support:
+
+### Core Build Targets
+- **`make build`**: Complete build including SPEC.md generation and validation
+- **`make build-spec`**: Generate SPEC.md from spec/*.md files
+- **`make check-spec`**: Verify SPEC.md is up-to-date with spec/*.md sources
+
+### Validation Systems
+- **`make validate`**: Comprehensive validation of all examples and fixtures
+- **`make validate-examples`**: Validate all example files (minimal, hello, advanced)
+- **`make validate-fixtures`**: Validate test fixture files
+- **`make validate-schema`**: Validate JSON schema syntax
+
+### Testing Framework
+- **`make test`**: Run complete test suite with pytest fallback
+- **`make test-unit`**: Run unit tests only
+- **`make test-coverage`**: Generate coverage reports with pytest-cov
+
+### Rendering Capabilities
+- **`make render-examples`**: Generate Gantt diagrams for all examples
+
+### Development Tools
+- **`make deps`**: Install Python dependencies (pyyaml, jsonschema, pytest, pytest-cov)
+- **`make lint`**: Run code linting with ruff (if available)
+- **`make format`**: Auto-format code with ruff (if available)
+
+### Docker Integration
+- **`make docker-test`**: Run tests in Python 3.11 container
+- **`make docker-validate`**: Run validation in containerized environment
+- **`make docker-build`**: Build SPEC.md in Docker container
+- **`make docker-shell`**: Open interactive shell in container
+
+### CI/CD Targets
+- **`make ci`**: Run all CI checks (check-spec, validate, test)
+- **`make ci-docker`**: Run all CI checks in Docker containers
+
+### Cleanup Operations
+- **`make clean`**: Remove generated files (output, cache, coverage)
+
+### Environment Detection
+The Makefile automatically detects Python and Docker availability:
+- Uses local Python if available, otherwise falls back to Docker
+- Provides clear error messages when neither is found
+- Supports both python3 and python commands
+
+**Section sources**
+- [Makefile](file://Makefile#L1-L230)
+
 ## Conclusion
-Opskarta's development model emphasizes a clear specification, minimal reference tools, practical examples, and comprehensive testing infrastructure. The addition of the 304-line test suite with fixture-based scenarios ensures robust quality assurance and regression prevention. Contributors should focus on small, well-scoped changes, maintain backward compatibility, ensure spec and tooling integrity, and leverage the comprehensive testing framework. By following the contribution workflow, testing practices, extension guidelines, and CI/CD integration, you can confidently add features and improve the ecosystem while preserving interoperability and maintaining high code quality standards.
+Opskarta's development model emphasizes a clear specification, minimal reference tools, practical examples, and comprehensive testing infrastructure. The addition of the 304-line test suite with fixture-based scenarios ensures robust quality assurance and regression prevention. The comprehensive 230-line Makefile infrastructure provides complete build automation, validation systems, pytest integration, and CI/CD pipeline support, making development workflows efficient and reproducible across different environments.
+
+Contributors should focus on small, well-scoped changes, maintain backward compatibility, ensure spec and tooling integrity, and leverage the comprehensive testing framework and Makefile automation. By following the contribution workflow, testing practices, extension guidelines, and CI/CD integration, you can confidently add features and improve the ecosystem while preserving interoperability and maintaining high code quality standards. The Makefile infrastructure ensures consistent development experiences whether working locally or in CI/CD pipelines, with Docker support for reproducible containerized environments.
