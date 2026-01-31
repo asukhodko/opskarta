@@ -70,6 +70,10 @@
             "pattern": "^[1-9][0-9]*[dw]$",
             "description": "Duration in days (d) or weeks (w), e.g. 5d, 2w"
           },
+          "milestone": {
+            "type": "boolean",
+            "description": "If true, node is a milestone (point in time, not duration bar)"
+          },
           "issue": {
             "type": "string"
           },

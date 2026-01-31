@@ -28,6 +28,18 @@
             "type": "string",
             "description": "View title displayed in the diagram"
           },
+          "date_format": {
+            "type": "string",
+            "description": "Date format for Mermaid (e.g., 'YYYY-MM-DD'). Maps to Mermaid dateFormat directive."
+          },
+          "axis_format": {
+            "type": "string",
+            "description": "Axis date format for Mermaid (e.g., '%d %b'). Maps to Mermaid axisFormat directive."
+          },
+          "tick_interval": {
+            "type": "string",
+            "description": "Tick interval for Mermaid axis (e.g., '1week', '1day'). Maps to Mermaid tickInterval directive."
+          },
           "excludes": {
             "type": "array",
             "items": {

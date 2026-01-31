@@ -12,6 +12,11 @@
     2. Схема — соответствие JSON Schema (опционально)
     3. Семантика — ссылочная целостность, бизнес-правила
 
+Уровни серьёзности:
+    - error: критическая ошибка, валидация завершается неудачей
+    - warn: потенциальная проблема, валидация успешна
+    - info: информационное сообщение
+
 Зависимости: PyYAML (pip install pyyaml)
 """
 
@@ -19,8 +24,9 @@ import argparse
 import json
 import re
 import sys
+from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 # ============================================================================
@@ -66,12 +72,74 @@ class ValidationError(Exception):
 # Загрузка файлов
 # ============================================================================
 
+class DuplicateKeyError(Exception):
+    """Ошибка при обнаружении дубликата ключа в YAML."""
+    pass
+
+
+def _make_duplicate_key_checker():
+    """
+    Создаёт YAML загрузчик, который обнаруживает дубликаты ключей.
+    
+    Returns:
+        Класс загрузчика с проверкой дубликатов
+    """
+    import yaml
+    
+    class DuplicateKeyLoader(yaml.SafeLoader):
+        pass
+    
+    def construct_mapping(loader, node):
+        loader.flatten_mapping(node)
+        pairs = loader.construct_pairs(node)
+        keys = [key for key, _ in pairs]
+        duplicates = [key for key in keys if keys.count(key) > 1]
+        if duplicates:
+            # Находим первый дубликат
+            seen = set()
+            for key in keys:
+                if key in seen:
+                    raise DuplicateKeyError(f"Дубликат ключа: {key!r}")
+                seen.add(key)
+        return dict(pairs)
+    
+    DuplicateKeyLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+        construct_mapping
+    )
+    
+    return DuplicateKeyLoader
+
+
+def normalize_yaml_dates(data: Any) -> Any:
+    """
+    Рекурсивно нормализует YAML-даты к строкам формата YYYY-MM-DD.
+    
+    Args:
+        data: Данные из YAML-парсера
+        
+    Returns:
+        Нормализованные данные
+    """
+    if isinstance(data, datetime):
+        return data.date().isoformat()
+    elif isinstance(data, date):
+        return data.isoformat()
+    elif isinstance(data, dict):
+        return {k: normalize_yaml_dates(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [normalize_yaml_dates(item) for item in data]
+    else:
+        return data
+
+
 def load_yaml(file_path: Path) -> Dict[str, Any]:
     """
-    Загружает YAML файл.
+    Загружает YAML файл с проверкой дубликатов ключей и нормализацией дат.
     
     Raises:
-        ValidationError: если файл не найден или содержит невалидный YAML
+        ValidationError: если файл не найден, содержит невалидный YAML,
+                        или содержит дубликаты ключей
     """
     try:
         import yaml
@@ -88,7 +156,10 @@ def load_yaml(file_path: Path) -> Dict[str, Any]:
     
     try:
         content = file_path.read_text(encoding='utf-8')
-        data = yaml.safe_load(content)
+        
+        # Используем загрузчик с проверкой дубликатов ключей
+        DuplicateKeyLoader = _make_duplicate_key_checker()
+        data = yaml.load(content, Loader=DuplicateKeyLoader)
         
         if data is None:
             return {}
@@ -101,7 +172,17 @@ def load_yaml(file_path: Path) -> Dict[str, Any]:
                 expected="object (dict)"
             )
         
+        # Нормализуем YAML-даты к строкам
+        data = normalize_yaml_dates(data)
+        
         return data
+    
+    except DuplicateKeyError as e:
+        raise ValidationError(
+            str(e),
+            path=str(file_path),
+            expected="уникальные ключи"
+        )
         
     except yaml.YAMLError as e:
         raise ValidationError(
@@ -132,7 +213,53 @@ def load_json_schema(schema_path: Path) -> Dict[str, Any]:
 # Валидация плана
 # ============================================================================
 
-def validate_plan(plan: Dict[str, Any]) -> List[str]:
+def parse_duration_days(duration: str) -> int:
+    """
+    Парсит строку duration и возвращает количество рабочих дней.
+    
+    Args:
+        duration: Строка формата Nd или Nw
+        
+    Returns:
+        Количество рабочих дней
+    """
+    if duration.endswith('w'):
+        return int(duration[:-1]) * 5
+    else:  # 'd'
+        return int(duration[:-1])
+
+
+def compute_finish_date(start_str: str, duration_str: str, excludes_weekends: bool = False) -> str:
+    """
+    Вычисляет дату окончания задачи.
+    
+    Args:
+        start_str: Дата начала в формате YYYY-MM-DD
+        duration_str: Длительность в формате Nd или Nw
+        excludes_weekends: Учитывать ли выходные
+        
+    Returns:
+        Дата окончания в формате YYYY-MM-DD
+    """
+    start = datetime.strptime(start_str, '%Y-%m-%d').date()
+    duration_days = parse_duration_days(duration_str)
+    
+    if excludes_weekends:
+        # Пропускаем выходные
+        days_added = 0
+        current = start
+        while days_added < duration_days - 1:
+            current += __import__('datetime').timedelta(days=1)
+            if current.weekday() < 5:  # Пн-Пт
+                days_added += 1
+        return current.isoformat()
+    else:
+        # Календарные дни
+        finish = start + __import__('datetime').timedelta(days=duration_days - 1)
+        return finish.isoformat()
+
+
+def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
     """
     Валидирует файл плана.
     
@@ -141,14 +268,16 @@ def validate_plan(plan: Dict[str, Any]) -> List[str]:
     - Ссылочную целостность (parent, after, status)
     - Формат полей планирования (start, duration)
     - Отсутствие циклических зависимостей
+    - Конфликты start и after
     
     Returns:
-        Список предупреждений (не критичных проблем)
+        Кортеж (warnings, infos)
     
     Raises:
         ValidationError: при обнаружении критической ошибки
     """
     warnings: List[str] = []
+    infos: List[str] = []
     
     # --- Проверка version ---
     if 'version' not in plan:
@@ -337,7 +466,50 @@ def validate_plan(plan: Dict[str, Any]) -> List[str]:
     _check_cycles_parent(nodes)
     _check_cycles_after(nodes)
     
-    return warnings
+    # --- Проверка конфликтов start и after ---
+    for node_id, node in nodes.items():
+        if not isinstance(node, dict):
+            continue
+        
+        start = node.get('start')
+        after = node.get('after')
+        
+        if start and after and isinstance(after, list):
+            # Узел имеет и start, и after — проверяем конфликт
+            start_str = str(start)
+            
+            # Вычисляем максимальный finish среди зависимостей
+            max_finish = None
+            for dep_id in after:
+                dep_node = nodes.get(dep_id)
+                if not isinstance(dep_node, dict):
+                    continue
+                
+                dep_start = dep_node.get('start')
+                dep_duration = dep_node.get('duration', '1d')  # По умолчанию 1d
+                
+                if dep_start:
+                    try:
+                        dep_finish = compute_finish_date(str(dep_start), str(dep_duration))
+                        if max_finish is None or dep_finish > max_finish:
+                            max_finish = dep_finish
+                    except (ValueError, KeyError):
+                        pass  # Пропускаем некорректные данные
+            
+            if max_finish and start_str < max_finish:
+                warnings.append(
+                    f"Предупреждение: nodes.{node_id}.start ({start_str}) раньше "
+                    f"завершения зависимостей ({max_finish}). Это может быть намеренным "
+                    f"(параллельная работа) или ошибкой в планировании."
+                )
+        
+        # Проверка отсутствия duration у планируемого узла (info)
+        if start and 'duration' not in node:
+            infos.append(
+                f"Информация: nodes.{node_id} не имеет duration, используется значение по умолчанию 1d"
+            )
+    
+    return warnings, infos
 
 
 def _check_cycles_parent(nodes: Dict[str, Any]) -> None:
@@ -439,7 +611,7 @@ def _build_cycle_path(nodes: Dict[str, Any], start_id: str, field: str) -> str:
 # Валидация views
 # ============================================================================
 
-def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> List[str]:
+def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
     """
     Валидирует файл представлений относительно файла плана.
     
@@ -449,12 +621,13 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> List[str]:
     - Ссылки на узлы в представлениях
     
     Returns:
-        Список предупреждений
+        Кортеж (warnings, infos)
     
     Raises:
         ValidationError: при обнаружении критической ошибки
     """
     warnings: List[str] = []
+    infos: List[str] = []
     
     # --- Проверка version ---
     if 'version' not in views:
@@ -534,14 +707,14 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> List[str]:
                     expected="object (dict)"
                 )
             
-            # Проверка excludes и предупреждение о конкретных датах
+            # Проверка excludes и информация о конкретных датах
             excludes = view.get('excludes')
             if excludes is not None:
                 if isinstance(excludes, list):
                     for item in excludes:
                         if isinstance(item, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', item):
-                            warnings.append(
-                                f"Предупреждение: {view_path}.excludes содержит конкретную дату '{item}'. "
+                            infos.append(
+                                f"Информация: {view_path}.excludes содержит конкретную дату '{item}'. "
                                 f"Конкретные даты являются подсказками для рендерера и не влияют на core-алгоритм вычисления дат."
                             )
             
@@ -606,7 +779,7 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> List[str]:
                             available=list(node_ids)
                         )
     
-    return warnings
+    return warnings, infos
 
 
 # ============================================================================
@@ -716,6 +889,7 @@ def main():
     args = parser.parse_args()
     
     all_warnings: List[str] = []
+    all_infos: List[str] = []
     
     try:
         # --- Загрузка и валидация плана ---
@@ -734,8 +908,9 @@ def main():
         
         # Семантическая валидация
         print("  Семантическая валидация...")
-        plan_warnings = validate_plan(plan)
+        plan_warnings, plan_infos = validate_plan(plan)
         all_warnings.extend(plan_warnings)
+        all_infos.extend(plan_infos)
         
         print(f"  ✓ План валиден")
         
@@ -755,8 +930,9 @@ def main():
             
             # Семантическая валидация
             print("  Семантическая валидация...")
-            views_warnings = validate_views(views, plan)
+            views_warnings, views_infos = validate_views(views, plan)
             all_warnings.extend(views_warnings)
+            all_infos.extend(views_infos)
             
             print(f"  ✓ Представления валидны")
         
@@ -765,6 +941,12 @@ def main():
             print("\nПредупреждения:")
             for warning in all_warnings:
                 print(f"  ⚠ {warning}")
+        
+        # --- Вывод информационных сообщений ---
+        if all_infos:
+            print("\nИнформация:")
+            for info in all_infos:
+                print(f"  ℹ {info}")
         
         print("\n✓ Валидация завершена успешно")
         sys.exit(0)

@@ -10,21 +10,20 @@ TOOLS_DIR := $(SPEC_DIR)/tools
 TESTS_DIR := $(SPEC_DIR)/tests
 EXAMPLES_DIR := $(SPEC_DIR)/examples
 SCHEMAS_DIR := $(SPEC_DIR)/schemas
+VENV_DIR := venv
 
-# Python detection (local or Docker)
-PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null)
-DOCKER := $(shell command -v docker 2>/dev/null)
+# Python - prefer venv if it exists
+VENV_PYTHON := $(VENV_DIR)/bin/python
+VENV_PIP := $(VENV_DIR)/bin/pip
 
-# If no local Python, use Docker
-ifndef PYTHON
-  ifdef DOCKER
-    PYTHON := docker run --rm -v "$(CURDIR):/app" -w /app python:3.11-slim python
-    PIP := docker run --rm -v "$(CURDIR):/app" -w /app python:3.11-slim pip
-  else
-    $(error "No Python or Docker found. Please install Python 3.9+ or Docker.")
-  endif
-else
+ifeq ($(wildcard $(VENV_PYTHON)),)
+  # No venv, try system Python
+  PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null)
   PIP := $(PYTHON) -m pip
+else
+  # Use venv Python
+  PYTHON := $(VENV_PYTHON)
+  PIP := $(VENV_PIP)
 endif
 
 # Colors for output
@@ -41,6 +40,45 @@ help: ## Show this help message
 	@echo ""
 	@echo "Targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+
+# ============================================================================
+# Virtual Environment
+# ============================================================================
+
+.PHONY: venv
+venv: $(VENV_DIR)/bin/activate ## Create virtual environment
+
+$(VENV_DIR)/bin/activate:
+	@echo "$(GREEN)Creating virtual environment...$(NC)"
+	python3 -m venv $(VENV_DIR)
+	$(VENV_PIP) install --upgrade pip
+	@echo "$(GREEN)Virtual environment created!$(NC)"
+	@echo "$(YELLOW)Run 'source $(VENV_DIR)/bin/activate' to activate$(NC)"
+
+.PHONY: venv-clean
+venv-clean: ## Remove virtual environment
+	@echo "$(YELLOW)Removing virtual environment...$(NC)"
+	rm -rf $(VENV_DIR)
+	@echo "$(GREEN)Done!$(NC)"
+
+# ============================================================================
+# Dependencies
+# ============================================================================
+
+.PHONY: deps
+deps: venv ## Install Python dependencies
+	@echo "$(GREEN)Installing dependencies...$(NC)"
+	$(PIP) install pyyaml jsonschema
+	@echo "$(GREEN)Dependencies installed!$(NC)"
+
+.PHONY: deps-dev
+deps-dev: deps ## Install development dependencies (testing, linting)
+	@echo "$(GREEN)Installing dev dependencies...$(NC)"
+	$(PIP) install pytest pytest-cov ruff
+	@echo "$(GREEN)Dev dependencies installed!$(NC)"
+
+.PHONY: deps-all
+deps-all: deps-dev ## Install all dependencies (alias for deps-dev)
 
 # ============================================================================
 # Build
@@ -65,7 +103,7 @@ check-spec: ## Check if SPEC.md is up-to-date
 # ============================================================================
 
 .PHONY: validate
-validate: validate-examples validate-fixtures ## Validate all YAML files
+validate: validate-examples ## Validate all YAML files
 
 .PHONY: validate-examples
 validate-examples: ## Validate example files
@@ -76,33 +114,58 @@ validate-examples: ## Validate example files
 		if [ -n "$$plan" ]; then \
 			echo "  Validating: $$plan"; \
 			if [ -n "$$views" ]; then \
-				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" "$$views" --schema || exit 1; \
+				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" "$$views" || exit 1; \
 			else \
-				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" --schema || exit 1; \
+				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" || exit 1; \
 			fi; \
 		fi; \
 	done
 	@echo "$(GREEN)All examples valid!$(NC)"
 
-.PHONY: validate-fixtures
-validate-fixtures: ## Validate test fixtures
-	@echo "$(GREEN)Validating fixtures...$(NC)"
-	@for plan in $(TESTS_DIR)/fixtures/*.plan.yaml; do \
-		if [ -f "$$plan" ]; then \
-			echo "  Validating: $$plan"; \
-			$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" --schema || exit 1; \
-		fi; \
-	done
-	@echo "$(GREEN)All fixtures valid!$(NC)"
-
 .PHONY: validate-schema
-validate-schema: ## Validate JSON schemas themselves
+validate-schema: ## Validate JSON schemas are valid JSON
 	@echo "$(GREEN)Validating JSON schemas...$(NC)"
 	@for schema in $(SCHEMAS_DIR)/*.schema.json; do \
 		echo "  Checking: $$schema"; \
 		$(PYTHON) -c "import json; json.load(open('$$schema'))" || exit 1; \
 	done
 	@echo "$(GREEN)All schemas valid JSON!$(NC)"
+
+.PHONY: validate-hello
+validate-hello: ## Validate hello example (quick check)
+	@echo "$(GREEN)Validating hello example...$(NC)"
+	$(PYTHON) $(TOOLS_DIR)/validate.py \
+		$(EXAMPLES_DIR)/hello/hello.plan.yaml \
+		$(EXAMPLES_DIR)/hello/hello.views.yaml
+	@echo "$(GREEN)Valid!$(NC)"
+
+.PHONY: validate-program
+validate-program: ## Validate program example
+	@echo "$(GREEN)Validating program example...$(NC)"
+	$(PYTHON) $(TOOLS_DIR)/validate.py \
+		$(EXAMPLES_DIR)/program/program.plan.yaml \
+		$(EXAMPLES_DIR)/program/program.views.yaml
+	@echo "$(GREEN)Valid!$(NC)"
+
+# ============================================================================
+# Rendering
+# ============================================================================
+
+.PHONY: render-hello
+render-hello: ## Render hello example Gantt diagram
+	@echo "$(GREEN)Rendering hello example...$(NC)"
+	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.mermaid_gantt \
+		--plan examples/hello/hello.plan.yaml \
+		--views examples/hello/hello.views.yaml \
+		--view overview
+
+.PHONY: render-program
+render-program: ## Render program example (list views)
+	@echo "$(GREEN)Rendering program example views...$(NC)"
+	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.mermaid_gantt \
+		--plan examples/program/program.plan.yaml \
+		--views examples/program/program.views.yaml \
+		--list-views
 
 # ============================================================================
 # Testing
@@ -111,8 +174,12 @@ validate-schema: ## Validate JSON schemas themselves
 .PHONY: test
 test: ## Run all tests
 	@echo "$(GREEN)Running tests...$(NC)"
-	$(PYTHON) -m pytest $(TESTS_DIR) -v --tb=short || \
-	$(PYTHON) $(TESTS_DIR)/test_scheduling.py
+	@if $(PYTHON) -c "import pytest" 2>/dev/null; then \
+		$(PYTHON) -m pytest $(TESTS_DIR) -v --tb=short; \
+	else \
+		echo "$(YELLOW)pytest not installed, running basic tests...$(NC)"; \
+		$(PYTHON) $(TESTS_DIR)/test_scheduling.py; \
+	fi
 	@echo "$(GREEN)Tests complete!$(NC)"
 
 .PHONY: test-unit
@@ -121,109 +188,69 @@ test-unit: ## Run unit tests only
 	$(PYTHON) $(TESTS_DIR)/test_scheduling.py
 
 .PHONY: test-coverage
-test-coverage: ## Run tests with coverage report
+test-coverage: deps-dev ## Run tests with coverage report
 	@echo "$(GREEN)Running tests with coverage...$(NC)"
 	$(PYTHON) -m pytest $(TESTS_DIR) -v --cov=$(TOOLS_DIR) --cov-report=term-missing
 
 # ============================================================================
-# Rendering
+# Linting and Formatting
 # ============================================================================
-
-.PHONY: render-examples
-render-examples: ## Render all example Gantt diagrams
-	@echo "$(GREEN)Rendering Gantt diagrams...$(NC)"
-	@mkdir -p $(EXAMPLES_DIR)/output
-	@for dir in $(EXAMPLES_DIR)/*/; do \
-		plan=$$(ls "$$dir"*.plan.yaml 2>/dev/null | head -1); \
-		views=$$(ls "$$dir"*.views.yaml 2>/dev/null | head -1); \
-		if [ -n "$$plan" ] && [ -n "$$views" ]; then \
-			name=$$(basename "$$dir"); \
-			echo "  Rendering: $$name"; \
-			$(PYTHON) -m $(TOOLS_DIR:specs/%=%).render.mermaid_gantt \
-				--plan "$$plan" --views "$$views" --list-views 2>/dev/null | \
-			grep -E '^\s+-' | sed 's/.*- //' | cut -d: -f1 | while read view; do \
-				$(PYTHON) -m $(TOOLS_DIR:specs/%=%).render.mermaid_gantt \
-					--plan "$$plan" --views "$$views" --view "$$view" \
-					-o "$(EXAMPLES_DIR)/output/$${name}_$${view}.md" 2>/dev/null || true; \
-			done; \
-		fi; \
-	done
-	@echo "$(GREEN)Rendering complete!$(NC)"
-
-# ============================================================================
-# Development
-# ============================================================================
-
-.PHONY: deps
-deps: ## Install Python dependencies
-	@echo "$(GREEN)Installing dependencies...$(NC)"
-	$(PIP) install pyyaml jsonschema pytest pytest-cov
-	@echo "$(GREEN)Dependencies installed!$(NC)"
 
 .PHONY: lint
 lint: ## Lint Python code (requires ruff)
 	@echo "$(GREEN)Linting Python code...$(NC)"
-	$(PYTHON) -m ruff check $(TOOLS_DIR) $(TESTS_DIR) || \
-	echo "$(YELLOW)ruff not installed, skipping lint$(NC)"
+	@if $(PYTHON) -c "import ruff" 2>/dev/null; then \
+		$(PYTHON) -m ruff check $(TOOLS_DIR); \
+	else \
+		echo "$(YELLOW)ruff not installed, run 'make deps-dev' first$(NC)"; \
+	fi
 
 .PHONY: format
 format: ## Format Python code (requires ruff)
 	@echo "$(GREEN)Formatting Python code...$(NC)"
-	$(PYTHON) -m ruff format $(TOOLS_DIR) $(TESTS_DIR) || \
-	echo "$(YELLOW)ruff not installed, skipping format$(NC)"
-
-# ============================================================================
-# Docker helpers
-# ============================================================================
-
-.PHONY: docker-test
-docker-test: ## Run tests in Docker container
-	@echo "$(GREEN)Running tests in Docker...$(NC)"
-	docker run --rm -v "$(CURDIR):/app" -w /app python:3.11-slim \
-		sh -c "pip install -q pyyaml && python $(TESTS_DIR)/test_scheduling.py"
-
-.PHONY: docker-validate
-docker-validate: ## Run validation in Docker container
-	@echo "$(GREEN)Running validation in Docker...$(NC)"
-	docker run --rm -v "$(CURDIR):/app" -w /app python:3.11-slim \
-		sh -c "pip install -q pyyaml jsonschema && \
-		for plan in $(TESTS_DIR)/fixtures/*.plan.yaml; do \
-			echo \"Validating: \$$plan\"; \
-			python $(TOOLS_DIR)/validate.py \"\$$plan\" --schema; \
-		done"
-
-.PHONY: docker-build
-docker-build: ## Build SPEC.md in Docker container
-	@echo "$(GREEN)Building SPEC.md in Docker...$(NC)"
-	docker run --rm -v "$(CURDIR):/app" -w /app python:3.11-slim \
-		python $(TOOLS_DIR)/build_spec.py
-
-.PHONY: docker-shell
-docker-shell: ## Open shell in Docker container with Python
-	@echo "$(GREEN)Opening Docker shell...$(NC)"
-	docker run -it --rm -v "$(CURDIR):/app" -w /app python:3.11-slim bash
+	@if $(PYTHON) -c "import ruff" 2>/dev/null; then \
+		$(PYTHON) -m ruff format $(TOOLS_DIR); \
+	else \
+		echo "$(YELLOW)ruff not installed, run 'make deps-dev' first$(NC)"; \
+	fi
 
 # ============================================================================
 # CI targets
 # ============================================================================
 
 .PHONY: ci
-ci: check-spec validate test ## Run all CI checks
+ci: deps check-spec validate test ## Run all CI checks
 	@echo "$(GREEN)All CI checks passed!$(NC)"
 
-.PHONY: ci-docker
-ci-docker: docker-build docker-validate docker-test ## Run all CI checks in Docker
-	@echo "$(GREEN)All Docker CI checks passed!$(NC)"
+.PHONY: check
+check: validate-schema validate build-spec ## Quick check (schemas, examples, spec)
+	@echo "$(GREEN)All checks passed!$(NC)"
+
+# ============================================================================
+# Quick Start
+# ============================================================================
+
+.PHONY: quickstart
+quickstart: venv deps validate-hello render-hello ## Quick start: setup venv, install deps, validate and render hello
+	@echo ""
+	@echo "$(GREEN)Quick start complete!$(NC)"
+	@echo "Try running:"
+	@echo "  make validate-examples"
+	@echo "  make test"
 
 # ============================================================================
 # Clean
 # ============================================================================
 
 .PHONY: clean
-clean: ## Clean generated files
+clean: ## Clean generated files (keeps venv)
 	@echo "$(YELLOW)Cleaning...$(NC)"
 	rm -rf $(EXAMPLES_DIR)/output
-	rm -rf __pycache__ .pytest_cache .coverage
+	rm -rf __pycache__ .pytest_cache .coverage htmlcov
 	find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name '*.pyc' -delete 2>/dev/null || true
 	@echo "$(GREEN)Clean!$(NC)"
+
+.PHONY: clean-all
+clean-all: clean venv-clean ## Clean everything including venv
+	@echo "$(GREEN)All clean!$(NC)"

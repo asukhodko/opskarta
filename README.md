@@ -40,8 +40,8 @@ nodes:
     title: "Подготовка"
     kind: phase
     parent: root
-    start: 2026-02-01
-    duration: 10d
+    start: "2026-02-01"
+    duration: "10d"
     status: in_progress
 
   rollout:
@@ -49,7 +49,7 @@ nodes:
     kind: phase
     parent: root
     after: [prep]
-    duration: 5d
+    duration: "5d"
     status: not_started
 
   switch:
@@ -57,7 +57,7 @@ nodes:
     kind: task
     parent: rollout
     after: [rollout]
-    duration: 1d
+    duration: "1d"
     status: not_started
     notes: |
       Критичный шаг. Нужен план отката.
