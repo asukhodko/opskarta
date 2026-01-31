@@ -10,8 +10,10 @@
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md)
 - [50-scheduling.md](file://specs/v1/spec/50-scheduling.md)
+- [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md)
 - [60-validation.md](file://specs/v1/spec/60-validation.md)
 - [90-extensibility.md](file://specs/v1/spec/90-extensibility.md)
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml)
@@ -24,12 +26,10 @@
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive Core vs Non-core component distinction system
-- Enhanced node identification guidelines with specific requirements and recommendations
-- Expanded milestone handling documentation with detailed specifications
-- Updated status definitions with structured status objects and validation rules
-- Enhanced Gantt view documentation with renderer profile details
-- Improved validation rules with severity levels and classification
+- Fixed critical syntax errors in Mermaid Gantt examples throughout the specification documents
+- Ensured all Mermaid code examples are syntactically correct and copy-paste ready
+- Updated renderer documentation with properly formatted Mermaid syntax examples
+- Maintained comprehensive coverage of operational map concepts and technical specifications
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -74,6 +74,7 @@ E["spec/40-statuses.md"]
 F["spec/50-scheduling.md"]
 G["spec/60-validation.md"]
 H["spec/90-extensibility.md"]
+I["spec/95-renderer-mermaid.md"]
 end
 subgraph "Schemas"
 S1["schemas/plan.schema.json"]
@@ -111,6 +112,7 @@ X3 --> B
 - [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L140)
 - [90-extensibility.md](file://specs/v1/spec/90-extensibility.md#L1-L26)
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L1-L301)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
@@ -496,6 +498,72 @@ Severity --> Out["Success or detailed error"]
 - [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L326)
 - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
 
+### Mermaid Gantt Renderer Profile
+
+**Updated** Fixed critical syntax errors in Mermaid Gantt examples throughout the specification documents, ensuring developers can copy and paste examples without syntax errors.
+
+The Mermaid Gantt renderer profile provides a standardized way to generate Gantt charts from Opskarta operational maps. All Mermaid code examples in this specification have been verified for syntax correctness.
+
+#### Core Excludes Format
+The renderer outputs core excludes in proper Mermaid format:
+
+```mermaid
+gantt
+title My Project
+dateFormat YYYY-MM-DD
+excludes weekends
+excludes 2024-03-08
+section Tasks
+Task 1 :task1, 2024-03-01, 5d
+```
+
+#### Output Format
+The renderer generates complete Mermaid Gantt code:
+
+```mermaid
+gantt
+title My Project
+dateFormat YYYY-MM-DD
+excludes weekends
+section Development
+✅ Task 1 :done, task1, 2024-03-01, 5d
+🔄 Task 2 :active, task2, after task1, 3d
+```
+
+#### Multiple Dependencies Support
+Mermaid Gantt fully supports multiple dependencies in `after` syntax:
+
+```mermaid
+gantt
+title Multiple Dependencies
+dateFormat YYYY-MM-DD
+section Development
+Task 1 :task1, 2024-03-01, 3d
+Task 2 :task2, 2024-03-01, 2d
+Task 3 :task3, after task1 task2, 3d
+```
+
+#### Milestones Support
+Mermaid Gantt supports milestones as zero-duration events:
+
+```mermaid
+gantt
+title Milestones
+dateFormat YYYY-MM-DD
+section Releases
+Release v1.0 :milestone, release, 2024-03-15, 1d
+```
+
+#### Mermaid Field Mappings
+| Opskarta Field | Mermaid Directive | Description |
+|---------------|-------------------|----------|
+| `date_format` | `dateFormat` | Input date format (default `YYYY-MM-DD`) |
+| `axis_format` | `axisFormat` | Date format on X-axis |
+| `tick_interval` | `tickInterval` | Axis tick interval (optional) |
+
+**Section sources**
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L1-L301)
+
 ## Dependency Analysis
 - Views depend on Plan via project/meta.id
 - Views depend on Plan nodes via lanes[].nodes
@@ -572,3 +640,17 @@ Opskarta v1 provides a minimal yet extensible format for operational maps. Plans
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L1-L752)
+
+### Appendix D: Mermaid Syntax Verification
+All Mermaid Gantt examples in this specification have been verified for syntax correctness and are ready for copy-paste usage. The examples demonstrate proper Mermaid syntax including:
+- Correct directive formatting (gantt, title, dateFormat, excludes)
+- Proper section declarations
+- Valid task syntax with IDs, dates, and durations
+- Correct after dependency syntax for multiple dependencies
+- Proper milestone syntax
+
+**Section sources**
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L142-L151)
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L157-L166)
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L183-L192)
+- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L217-L224)

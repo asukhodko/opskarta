@@ -14,16 +14,20 @@
 - [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml)
 - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml)
 - [README.md](file://README.md)
+- [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml)
+- [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml)
+- [after_no_anchor.plan.yaml](file://specs/v1/tests/fixtures/after_no_anchor.plan.yaml)
+- [test_scheduling.py](file://specs/v1/tests/test_scheduling.py)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive duplicate key detection for YAML files
-- Implemented recursive date normalization from YAML dates to strings
-- Enhanced error reporting with sophisticated severity level classification
-- Added new validation rules for unique node identifiers and color formats
-- Updated architecture diagrams to reflect new validation components
-- Enhanced CLI interface with improved error handling and reporting
+- Added comprehensive finish field validation with strict YYYY-MM-DD regex format
+- Enhanced consistency checks between start, finish, and duration fields
+- Expanded duplicate key detection coverage to include finish field requirements
+- Strengthened format validation with improved error reporting for edge cases
+- Updated validation rules to enforce mutual exclusivity and consistency among temporal fields
+- Enhanced backward scheduling support with finish field calculations
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -39,11 +43,11 @@
 
 ## Introduction
 This document describes the validation system for Opskarta's plan and views file validator. It explains the three-tier validation approach:
-- Syntax validation (YAML parsing with duplicate key detection)
+- Syntax validation (YAML parsing with comprehensive duplicate key detection)
 - Schema validation (JSON Schema compliance)
-- Semantic validation (referential integrity, business rules, and format validation)
+- Semantic validation (referential integrity, business rules, and enhanced format validation)
 
-The system now includes sophisticated error reporting with severity levels, comprehensive duplicate key detection, and enhanced validation rules for unique identifiers and color formats. It covers validation levels, error reporting mechanisms, debugging capabilities, and integration patterns.
+The system now includes sophisticated error reporting with severity levels, comprehensive duplicate key detection, and enhanced validation rules for unique identifiers, color formats, and temporal field consistency. It covers validation levels, error reporting mechanisms, debugging capabilities, and integration patterns.
 
 ## Project Structure
 The validation system lives under the v1 specification and includes:
@@ -51,6 +55,7 @@ The validation system lives under the v1 specification and includes:
 - JSON Schema definitions for plan and views
 - Specification documents detailing validation rules and severity levels
 - Example plan and views files demonstrating validation scenarios
+- Test fixtures covering new finish field requirements and consistency checks
 
 ```mermaid
 graph TB
@@ -66,6 +71,10 @@ E_HELLO_P["specs/v1/examples/hello/hello.plan.yaml"]
 E_HELLO_V["specs/v1/examples/hello/hello.views.yaml"]
 E_ADV_P["specs/v1/examples/advanced/program.plan.yaml"]
 E_ADV_V["specs/v1/examples/advanced/program.views.yaml"]
+TF["specs/v1/tests/fixtures/finish_field.plan.yaml"]
+TSA["specs/v1/tests/fixtures/start_after_conflict.plan.yaml"]
+TAN["specs/v1/tests/fixtures/after_no_anchor.plan.yaml"]
+TS["specs/v1/tests/test_scheduling.py"]
 end
 V --> P
 V --> W
@@ -77,18 +86,26 @@ V --> E_HELLO_P
 V --> E_HELLO_V
 V --> E_ADV_P
 V --> E_ADV_V
+V --> TF
+V --> TSA
+V --> TAN
+V --> TS
 ```
 
 **Diagram sources**
 - [validate.py](file://specs/v1/tools/validate.py#L634-L752)
-- [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L90)
+- [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L299)
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L377)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md#L49-L93)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
 - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L326)
+- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L331)
 - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
+- [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
+- [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
+- [after_no_anchor.plan.yaml](file://specs/v1/tests/fixtures/after_no_anchor.plan.yaml#L1-L27)
+- [test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L403)
 
 **Section sources**
 - [README.md](file://README.md#L68-L83)
@@ -97,16 +114,16 @@ V --> E_ADV_V
 - CLI entrypoint and argument parsing with enhanced error reporting
 - YAML loader with comprehensive duplicate key detection and date normalization
 - JSON Schema loader and validator
-- Plan semantic validator with unique identifier validation and color format checking
+- Plan semantic validator with unique identifier validation, color format checking, and enhanced temporal field validation
 - Views semantic validator with project linkage validation
 - Sophisticated error reporting system with severity levels (error, warn, info)
 - Structured exception handling with detailed error messages
 
 Key responsibilities:
-- Load and parse YAML safely with duplicate key detection
+- Load and parse YAML safely with comprehensive duplicate key detection
 - Normalize YAML dates to standardized string format
 - Optionally validate against built-in or custom JSON Schemas
-- Enforce semantic rules including unique identifiers and color formats
+- Enforce semantic rules including unique identifiers, color formats, and temporal field consistency
 - Detect cycles and format violations
 - Provide hierarchical error reporting with severity classification
 
@@ -119,22 +136,22 @@ Key responsibilities:
 
 ## Architecture Overview
 The validator runs in enhanced stages with sophisticated error handling:
-1. Parse YAML files with duplicate key detection and date normalization
+1. Parse YAML files with comprehensive duplicate key detection and date normalization
 2. Optional JSON Schema validation
-3. Semantic validation with unique identifier and format validation
+3. Semantic validation with unique identifier and enhanced temporal field validation
 4. Report warnings and errors with severity classification, exit with appropriate code
 
 ```mermaid
 sequenceDiagram
 participant U as "User"
 participant CLI as "CLI main()"
-participant Y as "load_yaml() with duplicate key detection"
+participant Y as "load_yaml() with comprehensive duplicate key detection"
 participant DN as "normalize_yaml_dates()"
 participant JS as "load_json_schema()/validate_with_schema()"
-participant VP as "validate_plan() with unique ID & color validation"
+participant VP as "validate_plan() with enhanced temporal field validation"
 participant VV as "validate_views()"
 U->>CLI : "python validate.py [PLAN] [VIEWS] [--schema] [--plan-schema PATH] [--views-schema PATH]"
-CLI->>Y : "load PLAN with duplicate key detection"
+CLI->>Y : "load PLAN with comprehensive duplicate key detection"
 Y->>DN : "normalize YAML dates to strings"
 DN-->>Y : "normalized data"
 alt "--schema"
@@ -143,10 +160,10 @@ JS-->>CLI : "schema"
 CLI->>JS : "validate_with_schema(PARSE_PLAN, SCHEMA)"
 JS-->>CLI : "warnings or ValidationError"
 end
-CLI->>VP : "validate_plan(parsed_plan with unique IDs & colors)"
+CLI->>VP : "validate_plan(parsed_plan with enhanced temporal field validation)"
 VP-->>CLI : "warnings, infos, or ValidationError"
 opt VIEWS provided
-CLI->>Y : "load VIEWS with duplicate key detection"
+CLI->>Y : "load VIEWS with comprehensive duplicate key detection"
 Y->>DN : "normalize YAML dates to strings"
 DN-->>Y : "normalized data"
 alt "--schema"
@@ -228,7 +245,7 @@ Severity levels:
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L36-L68)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L197-L221)
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L215-L244)
 
 ### JSON Schema Validation Mode
 - Optional mode invoked with a flag
@@ -239,40 +256,41 @@ Severity levels:
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L586-L618)
-- [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L90)
+- [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
 
 ### Enhanced Plan Semantic Validation
-Checks:
-- Root fields: version and nodes presence and types
-- Unique node identifier validation: all node_id keys must be unique
-- Nodes: title presence and non-empty string
-- Referential integrity:
-  - parent must reference an existing node ID
-  - after must be a list of existing node IDs
-  - status must reference an existing status key if present
-- Color format validation: hex color format validation for status colors
-- Format validation:
-  - start must match YYYY-MM-DD
-  - duration must match <number><unit> where unit is d or w
-- Cycle detection:
-  - parent chain acyclic
-  - after graph acyclic (DFS with state tracking)
+Enhanced temporal field validation includes:
 
-Warnings:
-- Non-default version triggers a warning
-- Start date conflicts with dependencies trigger warnings
-- Missing duration for planned nodes triggers warnings
+**Finish Field Requirements**:
+- Finish field validation with strict YYYY-MM-DD regex format (`^\d{4}-\d{2}-\d{2}$`)
+- Consistency checks between start, finish, and duration fields
+- Backward scheduling support: finish + duration calculates start date
+- Mutual exclusivity validation: ensure proper field combinations
 
-Infos:
-- Default duration usage for planned nodes
-- Specific dates in excludes (non-core renderer hints)
+**Enhanced Format Validation**:
+- Start field: strict YYYY-MM-DD regex validation with date existence checking
+- Finish field: identical validation to start field for consistency
+- Duration field: enhanced pattern validation `^[1-9][0-9]*[dw]$` with improved error messages
+- Cross-field consistency: validate that start + duration equals computed finish
+
+**Temporal Field Consistency Checks**:
+- All three fields (start, finish, duration) validation when present
+- Computed finish verification against provided finish date
+- Error reporting with expected vs actual values for debugging
+- Graceful handling of edge cases and invalid combinations
+
+**Cycle Detection and Referential Integrity**:
+- Parent chain acyclic validation
+- After graph acyclic validation using DFS with state tracking
+- Enhanced duplicate key detection for node identifiers
+- Improved error reporting for complex validation failures
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L135-L329)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L5-L81)
-- [40-statuses.md](file://specs/v1/spec/40-statuses.md#L49-L93)
-- [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L1-L30)
+- [validate.py](file://specs/v1/tools/validate.py#L262-L558)
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L99-L152)
+- [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
+- [test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L325-L349)
 
 ### Enhanced Views Semantic Validation
 Checks:
@@ -289,7 +307,7 @@ Warnings:
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L431-L579)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L82-L115)
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L154-L203)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
 
 ### Enhanced Error Reporting and Debugging
@@ -307,15 +325,16 @@ Warnings:
 ## Dependency Analysis
 ```mermaid
 graph LR
-CLI["CLI main()"] --> LOAD_YAML["load_yaml() with duplicate key detection"]
+CLI["CLI main()"] --> LOAD_YAML["load_yaml() with comprehensive duplicate key detection"]
 CLI --> LOAD_SCHEMA["load_json_schema()"]
 CLI --> VALIDATE_SCHEMA["validate_with_schema()"]
-CLI --> VALIDATE_PLAN["validate_plan() with unique ID & color validation"]
+CLI --> VALIDATE_PLAN["validate_plan() with enhanced temporal field validation"]
 CLI --> VALIDATE_VIEWS["validate_views()"]
 VALIDATE_PLAN --> CYCLE_PARENT["_check_cycles_parent()"]
 VALIDATE_PLAN --> CYCLE_AFTER["_check_cycles_after()"]
 VALIDATE_PLAN --> DUPLICATE_KEY_CHECKER["_make_duplicate_key_checker()"]
 VALIDATE_PLAN --> DATE_NORMALIZATION["normalize_yaml_dates()"]
+VALIDATE_PLAN --> FINISH_FIELD_VALIDATION["enhanced finish field validation"]
 LOAD_SCHEMA --> PLAN_SCHEMA["plan.schema.json"]
 LOAD_SCHEMA --> VIEWS_SCHEMA["views.schema.json"]
 ```
@@ -327,7 +346,7 @@ LOAD_SCHEMA --> VIEWS_SCHEMA["views.schema.json"]
 - [validate.py](file://specs/v1/tools/validate.py#L135-L329)
 - [validate.py](file://specs/v1/tools/validate.py#L431-L579)
 - [validate.py](file://specs/v1/tools/validate.py#L586-L618)
-- [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L90)
+- [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
 
 **Section sources**
@@ -335,38 +354,55 @@ LOAD_SCHEMA --> VIEWS_SCHEMA["views.schema.json"]
 
 ## Performance Considerations
 - Large operational maps:
-  - YAML parsing with duplicate key detection adds minimal overhead
+  - YAML parsing with comprehensive duplicate key detection adds minimal overhead
   - Date normalization is O(n) where n is total number of data elements
   - JSON Schema validation adds overhead proportional to schema complexity and data size
   - Semantic validation is O(N + E) for N nodes and E edges (dependencies)
+  - Enhanced temporal field validation adds O(N) complexity for date computations
   - Cycle detection uses DFS with O(N + E) time and O(N) space
 - Recommendations:
   - Prefer streaming parsers for extremely large files if needed
   - Use JSON Schema only when required by CI policy
   - Cache loaded schemas when validating many files
   - Split large plans into smaller, cohesive units
-  - Duplicate key detection adds O(k) overhead where k is number of keys processed
+  - Comprehensive duplicate key detection adds O(k) overhead where k is number of keys processed
+  - Enhanced finish field validation performs additional date calculations but maintains linear complexity
 
 ## Troubleshooting Guide
 Common validation errors and remedies:
+
+**Enhanced Temporal Field Errors**:
+- Finish field format validation failures
+  - Ensure finish field matches YYYY-MM-DD regex pattern
+  - Verify date existence in calendar (not February 30th, etc.)
+  - Check consistency with start and duration fields
+- Inconsistent temporal field combinations
+  - When all three fields (start, finish, duration) are present, they must be mutually consistent
+  - Use either forward scheduling (start + duration) or backward scheduling (finish + duration)
+  - Avoid mixing explicit start with implied finish constraints
+
+**Duplicate Key Detection Errors**:
 - Missing or invalid YAML with duplicate keys
   - Ensure the file exists and is valid YAML
   - Verify the root element is an object
-  - Check for duplicate keys in YAML structure
-- Duplicate key detection errors
-  - Remove duplicate keys from YAML files
-  - Use unique identifiers for all nodes and statuses
-- Enhanced format validation failures
-  - Install the required library for schema mode
-  - Use built-in schemas or provide compatible custom schemas
-  - Validate color formats using hex notation (#RRGGBB)
-- Semantic errors with severity classification
-  - Referential integrity: ensure parent, after, and status IDs exist
-  - Format errors: confirm start and duration formats
-  - Cycle detection: remove circular parent/after links
-  - Unique identifier violations: ensure all node_id values are unique
-- Views linkage mismatch
-  - project must equal meta.id from the plan
+  - Check for duplicate keys in YAML structure, including finish field declarations
+- Comprehensive duplicate detection prevents silent data loss
+
+**Enhanced Format Validation Failures**:
+- Install the required library for schema mode
+- Use built-in schemas or provide compatible custom schemas
+- Validate color formats using hex notation (#RRGGBB)
+- Ensure proper field combinations for temporal scheduling
+
+**Semantic Errors with Severity Classification**:
+- Referential integrity: ensure parent, after, and status IDs exist
+- Format errors: confirm start, finish, and duration formats
+- Cycle detection: remove circular parent/after links
+- Unique identifier violations: ensure all node_id values are unique
+- Views linkage mismatch: project must equal meta.id from the plan
+
+**Views Linkage Mismatch**:
+- project must equal meta.id from the plan
 
 Debugging tips:
 - Run with verbose output to see stage-by-stage progress
@@ -374,13 +410,17 @@ Debugging tips:
 - Validate plan and views separately to isolate issues
 - Inspect the printed path and expected value to fix quickly
 - Pay attention to severity level classification for prioritizing fixes
+- Test temporal field combinations incrementally when debugging scheduling issues
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L742-L748)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L124-L140)
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L215-L244)
+- [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
+- [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
+- [after_no_anchor.plan.yaml](file://specs/v1/tests/fixtures/after_no_anchor.plan.yaml#L1-L27)
 
 ## Conclusion
-Opskarta's enhanced validation system provides a robust, layered approach to ensure plan and views correctness with sophisticated error reporting and comprehensive duplicate key detection. By combining syntax checks with duplicate key prevention, JSON Schema enforcement, and semantic validations with severity classification, teams can catch mistakes early, maintain reliable operational maps, and ensure data integrity through comprehensive validation rules.
+Opskarta's enhanced validation system provides a robust, layered approach to ensure plan and views correctness with sophisticated error reporting and comprehensive duplicate key detection. The expanded validation rules now include strict finish field requirements, enhanced temporal field consistency checks, and improved error reporting for edge cases. By combining syntax checks with duplicate key prevention, JSON Schema enforcement, and semantic validations with severity classification, teams can catch mistakes early, maintain reliable operational maps, and ensure data integrity through comprehensive validation rules.
 
 ## Appendices
 
@@ -405,38 +445,62 @@ Opskarta's enhanced validation system provides a robust, layered approach to ens
 - [README.md](file://README.md#L68-L83)
 
 ### Enhanced Validation Rules Summary
-- Plan
-  - Required fields: version (int), nodes (object)
-  - Node required: title (string)
-  - Unique identifier validation: all node_id keys must be unique
-  - Color format validation: hex color format (#RRGGBB) for status colors
-  - Referential integrity: parent, after, status must reference existing IDs
-  - Format: start (YYYY-MM-DD), duration (<number>d|w)
-  - No cycles in parent or after
-- Views
-  - Required fields: version (int), project (string)
-  - project must equal meta.id from plan
-  - gantt_views.lanes must reference existing node IDs
-  - Excludes validation: specific dates vs calendar exclusions
+
+**Plan Validation Enhancements**:
+- Required fields: version (int), nodes (object)
+- Node required: title (string)
+- Unique identifier validation: all node_id keys must be unique
+- Color format validation: hex color format (#RRGGBB) for status colors
+- Enhanced temporal validation:
+  - start: strict YYYY-MM-DD regex format with date existence validation
+  - finish: identical validation to start for consistency
+  - duration: enhanced pattern validation with improved error messages
+  - Cross-field consistency: validate relationships between start, finish, and duration
+  - Backward scheduling: finish + duration calculates start date
+- Referential integrity: parent, after, status must reference existing IDs
+- No cycles in parent or after
+- Enhanced duplicate key detection for all field types
+
+**Views Validation**:
+- Required fields: version (int), project (string)
+- project must equal meta.id from plan
+- gantt_views.lanes must reference existing node IDs
+- Excludes validation: specific dates vs calendar exclusions
 
 **Section sources**
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L5-L115)
+- [60-validation.md](file://specs/v1/spec/60-validation.md#L5-L203)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md#L49-L93)
 - [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L1-L30)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
+- [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
+- [test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L325-L349)
 
 ### Example Files
 - Minimal plan and views
   - [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml#L1-L6)
-- Hello example
+- Hello example with enhanced temporal validation
   - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
   - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
-- Advanced example
-  - [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L326)
+- Advanced example with complex scheduling
+  - [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L331)
   - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
 
 **Section sources**
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
 - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L326)
+- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L331)
 - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
+
+### Test Fixtures Demonstrating New Validation Rules
+- Finish field validation and backward scheduling
+  - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
+- Start and after conflict resolution
+  - [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
+- After chain without anchor validation
+  - [after_no_anchor.plan.yaml](file://specs/v1/tests/fixtures/after_no_anchor.plan.yaml#L1-L27)
+
+**Section sources**
+- [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
+- [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
+- [after_no_anchor.plan.yaml](file://specs/v1/tests/fixtures/after_no_anchor.plan.yaml#L1-L27)
+- [test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L325-L349)
