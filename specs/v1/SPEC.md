@@ -1401,7 +1401,14 @@ gantt
 Mermaid Gantt полностью поддерживает множественные зависимости в синтаксисе `after`:
 
 ```mermaid
-task3    :task3, after task1 task2, 3d
+gantt
+    title Множественные зависимости
+    dateFormat YYYY-MM-DD
+
+    section Разработка
+    Задача 1    :task1, 2024-03-01, 3d
+    Задача 2    :task2, 2024-03-01, 2d
+    Задача 3    :task3, after task1 task2, 3d
 ```
 
 Рендерер opskarta корректно транслирует `after: [task1, task2]` в формат Mermaid `after task1 task2`.
@@ -1428,7 +1435,12 @@ nodes:
 Узел с `milestone: true` генерирует Mermaid-тег `milestone`:
 
 ```mermaid
-Релиз v1.0    :milestone, release, 2024-03-15, 1d
+gantt
+    title Вехи
+    dateFormat YYYY-MM-DD
+
+    section Релизы
+    Релиз v1.0    :milestone, release, 2024-03-15, 1d
 ```
 
 ### Поведение
@@ -1476,7 +1488,8 @@ gantt
     excludes weekends
 
     section Основные задачи
-    ...
+    Задача 1    :task1, 2024-03-01, 5d
+    Задача 2    :task2, after task1, 3d
 ```
 
 ### Формат `axis_format`
