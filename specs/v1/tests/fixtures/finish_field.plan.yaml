@@ -1,0 +1,29 @@
+# Тест поля finish и обратного планирования
+version: 1
+
+meta:
+  id: test-finish-field
+  title: "Тест поля finish"
+
+nodes:
+  # Задача с finish + duration (backward scheduling)
+  task_backward:
+    title: "Задача с дедлайном"
+    finish: "2024-03-15"
+    duration: "5d"
+    # Ожидается: start вычисляется назад = 2024-03-11 (без excludes)
+
+  # Задача с start + finish (duration вычисляется)
+  task_start_finish:
+    title: "Задача с start и finish"
+    start: "2024-03-01"
+    finish: "2024-03-05"
+    duration: "5d"
+    # Все три согласованы (5 календарных дней)
+
+  # Задача с after и finish зависимости
+  task_after_backward:
+    title: "Зависимая задача с дедлайном"
+    after: [task_backward]
+    duration: "3d"
+    # Ожидается: start = next day after task_backward finish

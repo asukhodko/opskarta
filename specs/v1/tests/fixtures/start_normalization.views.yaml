@@ -1,0 +1,17 @@
+# Views для теста нормализации start
+version: 1
+project: test-start-normalization
+
+gantt_views:
+  main:
+    title: "Представление для теста нормализации"
+    excludes:
+      - weekends
+      - "2024-03-08"  # Праздник
+    lanes:
+      tasks:
+        title: "Задачи"
+        nodes:
+          - task_start_on_weekend
+          - milestone_on_sunday
+          - task_start_on_holiday

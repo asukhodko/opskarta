@@ -45,7 +45,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Calendar exclusions (e.g., 'weekends', specific dates)"
+            "description": "Calendar exclusions. Core values: 'weekends' and YYYY-MM-DD dates (affect scheduling). Non-core values are ignored with warning."
           },
           "lanes": {
             "type": "object",

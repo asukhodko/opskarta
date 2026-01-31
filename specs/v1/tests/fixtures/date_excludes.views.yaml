@@ -1,0 +1,17 @@
+# Views для теста исключения дат
+version: 1
+project: test-date-excludes
+
+gantt_views:
+  main:
+    title: "Представление с праздником"
+    excludes:
+      - weekends
+      - "2024-03-08"  # Международный женский день (праздник)
+    lanes:
+      tasks:
+        title: "Задачи"
+        nodes:
+          - task_with_holiday
+          - task_after_holiday
+          - milestone_on_holiday

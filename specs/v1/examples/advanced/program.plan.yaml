@@ -85,6 +85,7 @@ nodes:
     title: "User Service"
     kind: task
     parent: microservices
+    after: [microservices]
     duration: 15d
     status: not_started
 
@@ -102,6 +103,7 @@ nodes:
     title: "Notification Service"
     kind: task
     parent: microservices
+    after: [microservices]
     duration: 10d
     status: not_started
 
@@ -160,6 +162,7 @@ nodes:
     title: "Миграция модуля авторизации"
     kind: task
     parent: ui-migration
+    after: [ui-migration]
     duration: 10d
     status: not_started
     notes: |
@@ -247,6 +250,7 @@ nodes:
     title: "Prometheus + Grafana"
     kind: task
     parent: monitoring
+    after: [monitoring]
     duration: 10d
     status: not_started
 
@@ -254,6 +258,7 @@ nodes:
     title: "Централизованное логирование"
     kind: task
     parent: monitoring
+    after: [monitoring]
     duration: 7d
     status: not_started
 

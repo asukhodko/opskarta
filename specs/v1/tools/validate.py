@@ -449,6 +449,30 @@ def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
                         expected="существующая дата в формате YYYY-MM-DD"
                     )
         
+        # Проверка формата finish (YYYY-MM-DD)
+        if 'finish' in node:
+            finish = node.get('finish')
+            if finish is not None:
+                finish_str = str(finish)
+                if not re.match(r'^\d{4}-\d{2}-\d{2}$', finish_str):
+                    raise ValidationError(
+                        "Неверный формат даты",
+                        path=f"{node_path}.finish",
+                        value=finish,
+                        expected="формат YYYY-MM-DD (например, 2024-01-15)"
+                    )
+                # Проверка корректности даты
+                try:
+                    from datetime import datetime
+                    datetime.strptime(finish_str, '%Y-%m-%d')
+                except ValueError:
+                    raise ValidationError(
+                        "Некорректная дата (не существует в календаре)",
+                        path=f"{node_path}.finish",
+                        value=finish,
+                        expected="существующая дата в формате YYYY-MM-DD"
+                    )
+        
         # Проверка формата duration (<число><единица>)
         if 'duration' in node:
             duration = node.get('duration')
@@ -461,10 +485,32 @@ def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
                         value=duration,
                         expected="формат <число><единица>, где число >= 1, единица: d (дни) или w (недели)"
                     )
+        
+        # Проверка согласованности start + finish + duration
+        start_val = node.get('start')
+        finish_val = node.get('finish')
+        duration_val = node.get('duration')
+        
+        if start_val and finish_val and duration_val:
+            # Все три указаны — проверяем согласованность
+            try:
+                computed_finish = compute_finish_date(str(start_val), str(duration_val))
+                if computed_finish != str(finish_val):
+                    raise ValidationError(
+                        "Несогласованные start, finish и duration",
+                        path=f"{node_path}",
+                        value=f"start={start_val}, finish={finish_val}, duration={duration_val}",
+                        expected=f"finish должен быть {computed_finish} (вычислен из start+duration)"
+                    )
+            except (ValueError, KeyError):
+                pass  # Пропускаем, если формат некорректен (уже поймано выше)
     
     # --- Проверка циклических зависимостей ---
     _check_cycles_parent(nodes)
     _check_cycles_after(nodes)
+    
+    # --- Проверка цепочек after без якоря ---
+    _check_after_chains_have_anchor(nodes, warnings)
     
     # --- Проверка конфликтов start и after ---
     for node_id, node in nodes.items():
@@ -607,6 +653,65 @@ def _build_cycle_path(nodes: Dict[str, Any], start_id: str, field: str) -> str:
     return " -> ".join(path)
 
 
+def _check_after_chains_have_anchor(nodes: Dict[str, Any], warnings: List[str]) -> None:
+    """
+    Проверяет, что цепочки after имеют хотя бы один якорь (start или finish).
+    
+    Узлы с after, ведущими к непланируемым узлам, вызывают ошибку валидации.
+    
+    Args:
+        nodes: Словарь узлов
+        warnings: Список для добавления предупреждений (не используется, ошибка = исключение)
+        
+    Raises:
+        ValidationError: если цепочка after не имеет якоря
+    """
+    # Находим узлы, которые можно распланировать (имеют start, finish или достижимы через after)
+    schedulable: Set[str] = set()
+    
+    # Первый проход: отмечаем узлы с явным start или finish
+    for node_id, node in nodes.items():
+        if not isinstance(node, dict):
+            continue
+        if node.get('start') or node.get('finish'):
+            schedulable.add(node_id)
+    
+    # Второй проход: распространяем планируемость по цепочкам after
+    changed = True
+    while changed:
+        changed = False
+        for node_id, node in nodes.items():
+            if node_id in schedulable:
+                continue
+            if not isinstance(node, dict):
+                continue
+            
+            after = node.get('after', [])
+            if after and isinstance(after, list):
+                # Если все зависимости планируемы, узел тоже планируем
+                if all(dep in schedulable for dep in after if dep in nodes):
+                    schedulable.add(node_id)
+                    changed = True
+    
+    # Третий проход: проверяем узлы с after, которые не стали планируемыми
+    for node_id, node in nodes.items():
+        if not isinstance(node, dict):
+            continue
+        
+        after = node.get('after', [])
+        if after and isinstance(after, list) and after:
+            if node_id not in schedulable:
+                # Находим непланируемые зависимости
+                unschedulable_deps = [dep for dep in after if dep not in schedulable and dep in nodes]
+                if unschedulable_deps:
+                    raise ValidationError(
+                        "Цепочка after не имеет якоря (start/finish) — невозможно распланировать",
+                        path=f"nodes.{node_id}.after",
+                        value=after,
+                        expected=f"хотя бы одна зависимость должна быть планируемой. Непланируемые: {', '.join(unschedulable_deps)}"
+                    )
+
+
 # ============================================================================
 # Валидация views
 # ============================================================================
@@ -707,16 +812,29 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[st
                     expected="object (dict)"
                 )
             
-            # Проверка excludes и информация о конкретных датах
+            # Проверка excludes: core vs non-core
             excludes = view.get('excludes')
             if excludes is not None:
                 if isinstance(excludes, list):
                     for item in excludes:
-                        if isinstance(item, str) and re.match(r'^\d{4}-\d{2}-\d{2}$', item):
-                            infos.append(
-                                f"Информация: {view_path}.excludes содержит конкретную дату '{item}'. "
-                                f"Конкретные даты являются подсказками для рендерера и не влияют на core-алгоритм вычисления дат."
+                        if isinstance(item, str):
+                            # Проверяем, является ли это core exclude
+                            is_core = (
+                                item == "weekends" or
+                                re.match(r'^\d{4}-\d{2}-\d{2}$', item)
                             )
+                            
+                            if is_core:
+                                if re.match(r'^\d{4}-\d{2}-\d{2}$', item):
+                                    infos.append(
+                                        f"Информация: {view_path}.excludes содержит дату '{item}' "
+                                        f"(core exclude, влияет на расчёт дат)."
+                                    )
+                            else:
+                                warnings.append(
+                                    f"Предупреждение: {view_path}.excludes содержит non-core значение '{item}'. "
+                                    f"Non-core excludes не стандартизованы и будут игнорироваться переносимыми инструментами."
+                                )
             
             lanes = view.get('lanes')
             if lanes is None:

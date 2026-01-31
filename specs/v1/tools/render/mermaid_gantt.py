@@ -16,11 +16,12 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 # ============================================================================
@@ -157,26 +158,50 @@ def parse_duration(value: Any) -> int:
     raise SchedulingError(f"Неподдерживаемый формат длительности: {value!r} (ожидается int, 'Nd' или 'Nw')")
 
 
-def is_weekend(d: date) -> bool:
-    """Проверяет, является ли дата выходным днём (суббота или воскресенье)."""
-    return d.weekday() >= 5  # 5=Сб, 6=Вс
+def is_excluded(d: date, excludes: List[str]) -> bool:
+    """
+    Проверяет, является ли дата исключённым днём (выходной или праздник).
+    
+    Args:
+        d: Дата для проверки
+        excludes: Список excludes (weekends, YYYY-MM-DD даты)
+        
+    Returns:
+        True если дата исключена
+    """
+    # Проверка выходных
+    if "weekends" in excludes and d.weekday() >= 5:  # 5=Сб, 6=Вс
+        return True
+    
+    # Проверка конкретных дат (YYYY-MM-DD)
+    date_str = d.isoformat()
+    if date_str in excludes:
+        return True
+    
+    return False
 
 
-def next_workday(d: date) -> date:
+def is_workday(d: date, excludes: List[str]) -> bool:
+    """Проверяет, является ли дата рабочим днём (не исключённым)."""
+    return not is_excluded(d, excludes)
+
+
+def next_workday(d: date, excludes: List[str]) -> date:
     """Возвращает следующий рабочий день после указанной даты."""
     cur = d + timedelta(days=1)
-    while is_weekend(cur):
+    while is_excluded(cur, excludes):
         cur += timedelta(days=1)
     return cur
 
 
-def add_workdays(start: date, workdays: int) -> date:
+def add_workdays(start: date, workdays: int, excludes: List[str]) -> date:
     """
     Добавляет N рабочих дней к начальной дате.
     
     Args:
         start: Начальная дата
         workdays: Количество рабочих дней (может быть 0)
+        excludes: Список excludes
         
     Returns:
         Дата после добавления рабочих дней
@@ -186,12 +211,58 @@ def add_workdays(start: date, workdays: int) -> date:
     remaining = abs(workdays)
     while remaining > 0:
         cur += timedelta(days=step)
-        if not is_weekend(cur):
+        if is_workday(cur, excludes):
             remaining -= 1
     return cur
 
 
-def finish_date(start: date, duration_days: int, exclude_weekends: bool) -> date:
+def sub_workdays(finish: date, workdays: int, excludes: List[str]) -> date:
+    """
+    Вычитает N рабочих дней из конечной даты (идёт назад).
+    
+    Args:
+        finish: Конечная дата
+        workdays: Количество рабочих дней для вычитания
+        excludes: Список excludes
+        
+    Returns:
+        Дата после вычитания рабочих дней
+    """
+    cur = finish
+    subtracted = 0
+    while subtracted < workdays:
+        cur -= timedelta(days=1)
+        if is_workday(cur, excludes):
+            subtracted += 1
+    return cur
+
+
+def normalize_start(start: date, excludes: List[str], is_milestone: bool) -> Tuple[date, bool]:
+    """
+    Нормализует дату начала на следующий рабочий день, если она попала на исключённый день.
+    
+    Args:
+        start: Дата начала
+        excludes: Список excludes
+        is_milestone: Является ли узел вехой (вехи не нормализуются)
+        
+    Returns:
+        Кортеж (нормализованная_дата, была_ли_нормализация)
+    """
+    if is_milestone:
+        return start, False
+    
+    if is_excluded(start, excludes):
+        # Найти следующий рабочий день
+        cur = start
+        while is_excluded(cur, excludes):
+            cur += timedelta(days=1)
+        return cur, True
+    
+    return start, False
+
+
+def finish_date(start: date, duration_days: int, excludes: List[str]) -> date:
     """
     Вычисляет дату окончания задачи.
     
@@ -200,16 +271,46 @@ def finish_date(start: date, duration_days: int, exclude_weekends: bool) -> date
     Args:
         start: Дата начала
         duration_days: Длительность в днях
-        exclude_weekends: Исключать ли выходные
+        excludes: Список excludes
         
     Returns:
         Дата окончания
     """
     if duration_days <= 1:
         return start
-    if exclude_weekends:
-        return add_workdays(start, duration_days - 1)
+    if excludes:  # Если есть excludes, учитываем их
+        return add_workdays(start, duration_days - 1, excludes)
     return start + timedelta(days=duration_days - 1)
+
+
+def get_core_excludes(excludes: List[str]) -> Tuple[List[str], List[str]]:
+    """
+    Разделяет excludes на core и non-core.
+    
+    Core excludes: "weekends" и даты YYYY-MM-DD.
+    Non-core excludes: всё остальное.
+    
+    Args:
+        excludes: Список excludes
+        
+    Returns:
+        Кортеж (core_excludes, non_core_excludes)
+    """
+    core = []
+    non_core = []
+    
+    for item in excludes:
+        if isinstance(item, str):
+            is_core = (
+                item == "weekends" or
+                re.match(r'^\d{4}-\d{2}-\d{2}$', item)
+            )
+            if is_core:
+                core.append(item)
+            else:
+                non_core.append(item)
+    
+    return core, non_core
 
 
 @dataclass(frozen=True)
@@ -220,18 +321,21 @@ class ScheduledNode:
     duration_days: int
 
 
-def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -> Dict[str, ScheduledNode]:
+def compute_schedule(nodes: Dict[str, Dict[str, Any]], excludes: List[str]) -> Dict[str, ScheduledNode]:
     """
-    Вычисляет расписание для узлов на основе явных дат начала и зависимостей `after`.
+    Вычисляет расписание для узлов на основе явных дат начала/окончания и зависимостей `after`.
     
-    Core-поведение: узлы без явного start или after являются непланируемыми (unscheduled).
+    Core-поведение: узлы без явного start, finish или after являются непланируемыми (unscheduled).
     
-    Опциональное расширение: если узел имеет `x.scheduling.anchor_to_parent_start: true`,
-    он может унаследовать дату начала от родителя.
+    Приоритет вычисления start:
+    1. Явный start (если указан) — после нормализации на excluded day
+    2. Явный finish + duration (если start отсутствует) — backward scheduling
+    3. Зависимости after (если start и finish отсутствуют) — next workday после max finish
+    4. Опциональное расширение anchor_to_parent_start
     
     Args:
         nodes: Словарь узлов из плана
-        exclude_weekends: Исключать ли выходные при расчёте
+        excludes: Список excludes (weekends, YYYY-MM-DD даты)
         
     Returns:
         Словарь {node_id: ScheduledNode} с вычисленным расписанием
@@ -239,6 +343,15 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
     Raises:
         SchedulingError: при обнаружении циклов или отсутствующих данных
     """
+    # Проверяем и предупреждаем о non-core excludes
+    core_excludes, non_core_excludes = get_core_excludes(excludes)
+    for nc in non_core_excludes:
+        print(
+            f"Предупреждение: non-core exclude значение '{nc}' будет игнорироваться в расчётах. "
+            f"Core excludes: 'weekends' и даты YYYY-MM-DD.",
+            file=sys.stderr
+        )
+    
     cache: Dict[str, ScheduledNode] = {}
     visiting: Set[str] = set()
     skipped_nodes: List[str] = []
@@ -255,16 +368,50 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
         node = nodes[node_id]
 
         duration_days = parse_duration(node.get("duration"))
+        is_milestone = node.get("milestone", False)
+        
+        # Парсинг start
         start_value = node.get("start")
         start: Optional[date] = None
-
         if isinstance(start_value, datetime):
             start = start_value.date()
         elif isinstance(start_value, date):
             start = start_value
         elif isinstance(start_value, str) and start_value.strip():
             start = parse_date(start_value.strip())
-        else:
+        
+        # Парсинг finish
+        finish_value = node.get("finish")
+        finish: Optional[date] = None
+        if isinstance(finish_value, datetime):
+            finish = finish_value.date()
+        elif isinstance(finish_value, date):
+            finish = finish_value
+        elif isinstance(finish_value, str) and finish_value.strip():
+            finish = parse_date(finish_value.strip())
+        
+        # Приоритет 1: Явный start
+        if start is not None:
+            # Нормализация start, если попал на excluded day
+            normalized_start, was_normalized = normalize_start(start, core_excludes, is_milestone)
+            if was_normalized:
+                print(
+                    f"Предупреждение: nodes.{node_id}.start ({start.isoformat()}) попал на исключённый день, "
+                    f"нормализован на {normalized_start.isoformat()}",
+                    file=sys.stderr
+                )
+            start = normalized_start
+        
+        # Приоритет 2: Явный finish + duration (backward scheduling)
+        elif finish is not None and start is None:
+            # Вычисляем start назад от finish
+            if duration_days > 1:
+                start = sub_workdays(finish, duration_days - 1, core_excludes)
+            else:
+                start = finish
+        
+        # Приоритет 3: Зависимости after
+        elif start is None and finish is None:
             after: List[str] = node.get("after") or []
             if after:
                 # Начинаем после завершения последней зависимости
@@ -276,7 +423,7 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
 
                 if dep_finishes:
                     latest = max(dep_finishes)
-                    start = next_workday(latest) if exclude_weekends else latest + timedelta(days=1)
+                    start = next_workday(latest, core_excludes)
             
             # Опциональное расширение: наследование даты от родителя
             # Активируется только через x.scheduling.anchor_to_parent_start: true
@@ -290,12 +437,7 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
                     if parent_id and parent_id in nodes:
                         parent_sched = resolve(parent_id)
                         if parent_sched:
-                            # Если есть after, берём максимум
-                            if after and start is None:
-                                # after был обработан выше, но не дал результата
-                                start = parent_sched.start
-                            else:
-                                start = parent_sched.start
+                            start = parent_sched.start
 
         visiting.remove(node_id)
         
@@ -304,8 +446,18 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
             skipped_nodes.append(node_id)
             return None
 
-        finish = finish_date(start, duration_days, exclude_weekends)
-        sched = ScheduledNode(start=start, finish=finish, duration_days=duration_days)
+        # Вычисляем finish из start + duration
+        computed_finish = finish_date(start, duration_days, core_excludes)
+        
+        # Если finish был явно указан, проверяем согласованность
+        if finish is not None and computed_finish != finish:
+            print(
+                f"Предупреждение: nodes.{node_id} имеет несогласованные start+duration и finish. "
+                f"Вычисленный finish: {computed_finish.isoformat()}, указанный finish: {finish.isoformat()}",
+                file=sys.stderr
+            )
+        
+        sched = ScheduledNode(start=start, finish=computed_finish, duration_days=duration_days)
         cache[node_id] = sched
         return sched
 
@@ -314,8 +466,7 @@ def compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -
 
     # Выводим предупреждение о пропущенных узлах
     if skipped_nodes:
-        import sys
-        print(f"Предупреждение: следующие узлы не имеют вычислимой даты начала и будут пропущены: {', '.join(skipped_nodes)}", file=sys.stderr)
+        print(f"Информация: следующие узлы не имеют вычислимой даты начала и будут пропущены: {', '.join(skipped_nodes)}", file=sys.stderr)
 
     return cache
 
@@ -396,12 +547,17 @@ def render_mermaid_gantt(
     date_format = view.get("date_format") or "YYYY-MM-DD"
     axis_format = view.get("axis_format")
     excludes = view.get("excludes") or []
-    exclude_weekends = "weekends" in excludes
+    
+    # Разделяем excludes на core и non-core
+    core_excludes, non_core_excludes = get_core_excludes(excludes)
+    exclude_weekends = "weekends" in core_excludes
+    date_excludes = [ex for ex in core_excludes if ex != "weekends"]
 
     nodes: Dict[str, Dict[str, Any]] = plan.get("nodes") or {}
     statuses: Dict[str, Any] = plan.get("statuses") or {}
 
-    schedule = compute_schedule(nodes, exclude_weekends=exclude_weekends)
+    # Передаём полный список excludes в compute_schedule
+    schedule = compute_schedule(nodes, excludes=excludes)
 
     theme_vars = _theme_vars_from_statuses(statuses)
     theme_init = {
@@ -418,8 +574,13 @@ def render_mermaid_gantt(
     lines.append(f"    dateFormat  {date_format}")
     if axis_format:
         lines.append(f"    axisFormat  {axis_format}")
+    
+    # Выводим только core excludes в Mermaid
     if exclude_weekends:
         lines.append("    excludes weekends")
+    for date_ex in date_excludes:
+        lines.append(f"    excludes {date_ex}")
+    
     lines.append("")
 
     lanes = view.get("lanes") or {}

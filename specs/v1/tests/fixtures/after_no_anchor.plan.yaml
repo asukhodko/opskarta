@@ -1,0 +1,26 @@
+# Тест цепочки after без якоря (должно выдать предупреждение)
+version: 1
+
+meta:
+  id: test-after-no-anchor
+  title: "Тест after без якоря"
+
+nodes:
+  # Задача с зависимостью от непланируемого узла
+  task_with_after:
+    title: "Задача с зависимостью"
+    after: [unscheduled_task]
+    duration: "3d"
+    # Ожидается: предупреждение, т.к. unscheduled_task непланируемый
+
+  # Непланируемый узел (нет start, нет finish, нет after)
+  unscheduled_task:
+    title: "Непланируемая задача"
+    duration: "2d"
+    # Нет якоря - непланируемый
+
+  # Планируемый узел для сравнения
+  scheduled_task:
+    title: "Планируемая задача"
+    start: "2024-03-01"
+    duration: "5d"

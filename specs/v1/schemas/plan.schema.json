@@ -65,6 +65,11 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "description": "Planned start date in YYYY-MM-DD format"
           },
+          "finish": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Target completion date or deadline in YYYY-MM-DD format"
+          },
           "duration": {
             "type": "string",
             "pattern": "^[1-9][0-9]*[dw]$",

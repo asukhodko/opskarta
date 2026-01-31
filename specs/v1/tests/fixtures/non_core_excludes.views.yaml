@@ -1,0 +1,17 @@
+# Views для теста non-core excludes (должны выдавать предупреждение)
+version: 1
+project: test-start-normalization
+
+gantt_views:
+  non_core_test:
+    title: "Представление с non-core excludes"
+    excludes:
+      - weekends          # Core
+      - "2024-03-08"      # Core (дата)
+      - "monday"          # Non-core: должно выдать предупреждение
+      - "custom-holiday"  # Non-core: должно выдать предупреждение
+    lanes:
+      tasks:
+        title: "Задачи"
+        nodes:
+          - task_start_on_weekend
