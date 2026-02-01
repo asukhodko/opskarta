@@ -6,6 +6,7 @@
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json)
 - [60-validation.md](file://specs/v1/spec/60-validation.md)
+- [SPEC.md](file://specs/v1/SPEC.md)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md)
 - [10-plan-file.md](file://specs/v1/spec/10-plan-file.md)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md)
@@ -22,10 +23,10 @@
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive finish field validation with strict YYYY-MM-DD regex format
-- Enhanced consistency checks between start, finish, and duration fields
+- Updated validation severity levels to downgrade 'after' dependency chains without anchors from error to warning
+- Enhanced finish field validation rules with strict YYYY-MM-DD regex format and date existence checking
+- Strengthened consistency checks between start, finish, and duration fields
 - Expanded duplicate key detection coverage to include finish field requirements
-- Strengthened format validation with improved error reporting for edge cases
 - Updated validation rules to enforce mutual exclusivity and consistency among temporal fields
 - Enhanced backward scheduling support with finish field calculations
 
@@ -49,6 +50,8 @@ This document describes the validation system for Opskarta's plan and views file
 
 The system now includes sophisticated error reporting with severity levels, comprehensive duplicate key detection, and enhanced validation rules for unique identifiers, color formats, and temporal field consistency. It covers validation levels, error reporting mechanisms, debugging capabilities, and integration patterns.
 
+**Updated** The validation severity levels have been refined to downgrade certain warnings to warnings instead of errors, specifically for 'after' dependency chains without anchors, allowing for more flexible validation while maintaining data integrity.
+
 ## Project Structure
 The validation system lives under the v1 specification and includes:
 - A Python CLI validator script with enhanced error reporting
@@ -64,6 +67,7 @@ V["specs/v1/tools/validate.py"]
 P["specs/v1/schemas/plan.schema.json"]
 W["specs/v1/schemas/views.schema.json"]
 S60["specs/v1/spec/60-validation.md"]
+SPEC["specs/v1/SPEC.md"]
 S40["specs/v1/spec/40-statuses.md"]
 S10["specs/v1/spec/10-plan-file.md"]
 S30["specs/v1/spec/30-views-file.md"]
@@ -79,6 +83,7 @@ end
 V --> P
 V --> W
 V --> S60
+V --> SPEC
 V --> S40
 V --> S10
 V --> S30
@@ -97,6 +102,7 @@ V --> TS
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L377)
+- [SPEC.md](file://specs/v1/SPEC.md#L1434-L1511)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md#L49-L93)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
 - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
@@ -243,9 +249,11 @@ Severity levels:
 - **warn**: Potential issue requiring attention, validation continues
 - **info**: Informational message, validation successful
 
+**Updated** The validation severity levels have been refined to downgrade certain warnings to warnings instead of errors, specifically for 'after' dependency chains without anchors, allowing for more flexible validation while maintaining data integrity.
+
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L36-L68)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L215-L244)
+- [SPEC.md](file://specs/v1/SPEC.md#L1434-L1511)
 
 ### JSON Schema Validation Mode
 - Optional mode invoked with a flag
@@ -286,8 +294,11 @@ Enhanced temporal field validation includes:
 - Enhanced duplicate key detection for node identifiers
 - Improved error reporting for complex validation failures
 
+**Updated** The 'after' dependency chains without anchors now produce warnings instead of errors, allowing for more flexible validation while maintaining the ability to identify potentially problematic dependency chains.
+
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L262-L558)
+- [SPEC.md](file://specs/v1/SPEC.md#L1499-L1511)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L99-L152)
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
 - [test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L325-L349)
@@ -307,6 +318,7 @@ Warnings:
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L431-L579)
+- [SPEC.md](file://specs/v1/SPEC.md#L1499-L1511)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L154-L203)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
 
@@ -335,6 +347,7 @@ VALIDATE_PLAN --> CYCLE_AFTER["_check_cycles_after()"]
 VALIDATE_PLAN --> DUPLICATE_KEY_CHECKER["_make_duplicate_key_checker()"]
 VALIDATE_PLAN --> DATE_NORMALIZATION["normalize_yaml_dates()"]
 VALIDATE_PLAN --> FINISH_FIELD_VALIDATION["enhanced finish field validation"]
+VALIDATE_PLAN --> AFTER_CHAIN_CHECK["_check_after_chains_have_anchor()"]
 LOAD_SCHEMA --> PLAN_SCHEMA["plan.schema.json"]
 LOAD_SCHEMA --> VIEWS_SCHEMA["views.schema.json"]
 ```
@@ -401,6 +414,12 @@ Common validation errors and remedies:
 - Unique identifier violations: ensure all node_id values are unique
 - Views linkage mismatch: project must equal meta.id from the plan
 
+**Updated** 'After' dependency chains without anchors now produce warnings instead of errors:
+- These chains are still detected and reported as warnings
+- The plan remains valid even with such chains
+- Nodes in these chains become unscheduled and won't appear on Gantt diagrams
+- This allows for storing "draft" branches without fake dates
+
 **Views Linkage Mismatch**:
 - project must equal meta.id from the plan
 
@@ -414,13 +433,16 @@ Debugging tips:
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L742-L748)
+- [SPEC.md](file://specs/v1/SPEC.md#L1434-L1511)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L215-L244)
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
 - [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
 - [after_no_anchor.plan.yaml](file://specs/v1/tests/fixtures/after_no_anchor.plan.yaml#L1-L27)
 
 ## Conclusion
-Opskarta's enhanced validation system provides a robust, layered approach to ensure plan and views correctness with sophisticated error reporting and comprehensive duplicate key detection. The expanded validation rules now include strict finish field requirements, enhanced temporal field consistency checks, and improved error reporting for edge cases. By combining syntax checks with duplicate key prevention, JSON Schema enforcement, and semantic validations with severity classification, teams can catch mistakes early, maintain reliable operational maps, and ensure data integrity through comprehensive validation rules.
+Opskarta's enhanced validation system provides a robust, layered approach to ensure plan and views correctness with sophisticated error reporting and comprehensive duplicate key detection. The expanded validation rules now include strict finish field requirements, enhanced temporal field consistency checks, and improved error reporting for edge cases. 
+
+**Updated** The validation severity levels have been refined to provide more nuanced feedback, downgrading 'after' dependency chains without anchors from errors to warnings, allowing for greater flexibility while maintaining data integrity. By combining syntax checks with duplicate key prevention, JSON Schema enforcement, and semantic validations with severity classification, teams can catch mistakes early, maintain reliable operational maps, and ensure data integrity through comprehensive validation rules.
 
 ## Appendices
 
@@ -461,6 +483,12 @@ Opskarta's enhanced validation system provides a robust, layered approach to ens
 - No cycles in parent or after
 - Enhanced duplicate key detection for all field types
 
+**Updated** 'After' dependency chains without anchors:
+- Downgraded from error to warning level
+- Still detected and reported as warnings
+- Plan remains valid despite such chains
+- Nodes in these chains become unscheduled
+
 **Views Validation**:
 - Required fields: version (int), project (string)
 - project must equal meta.id from plan
@@ -468,6 +496,7 @@ Opskarta's enhanced validation system provides a robust, layered approach to ens
 - Excludes validation: specific dates vs calendar exclusions
 
 **Section sources**
+- [SPEC.md](file://specs/v1/SPEC.md#L1434-L1511)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L5-L203)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md#L49-L93)
 - [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L1-L30)

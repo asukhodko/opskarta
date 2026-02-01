@@ -19,15 +19,16 @@
 - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml)
 - [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml)
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml)
+- [validate.py](file://specs/v1/tools/validate.py)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive documentation for the new finish field requirement and validation rules
-- Enhanced scheduling documentation with detailed finish field behavior and backward planning algorithms
-- Updated validation rules to include finish field format validation and consistency checks
-- Added practical examples demonstrating finish field usage in backward scheduling scenarios
-- Updated YAML encoding guidelines to include finish field formatting recommendations
+- Enhanced YAML processing guidelines with comprehensive date normalization requirements
+- Added explicit finish field validation rules and improved encoding standards
+- Updated validation system to include robust date type handling and normalization
+- Expanded YAML encoding guidelines to address YAML 1.1 auto-typification issues
+- Improved error messaging and validation levels for better developer experience
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -35,9 +36,9 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Finish Field Specification](#finish-field-specification)
-7. [YAML Encoding Guidelines](#yaml-encoding-guidelines)
-8. [Enhanced Validation System](#enhanced-validation-system)
+6. [Enhanced YAML Processing Guidelines](#enhanced-yaml-processing-guidelines)
+7. [Finish Field Specification](#finish-field-specification)
+8. [Improved Validation System](#improved-validation-system)
 9. [Dependency Analysis](#dependency-analysis)
 10. [Performance Considerations](#performance-considerations)
 11. [Troubleshooting Guide](#troubleshooting-guide)
@@ -49,14 +50,15 @@ This document describes the opskarta v1 file formats that define operational map
 - Plan files (*.plan.yaml): describe the work items, hierarchy, scheduling, statuses, and metadata.
 - Views files (*.views.yaml): define how to present the plan (e.g., Gantt views) and organize lanes for visualization.
 
-It explains the complete structure of both file types, their interplay, JSON Schema definitions, validation rules, recommended practices, and examples from the repository's hello and advanced samples. The documentation now includes comprehensive YAML encoding guidelines, enhanced validation system details, and detailed coverage of the new finish field specification.
+It explains the complete structure of both file types, their interplay, JSON Schema definitions, validation rules, recommended practices, and examples from the repository's hello and advanced samples. The documentation now includes comprehensive YAML processing guidelines, enhanced validation system with date normalization, and detailed coverage of the finish field specification.
 
 ## Project Structure
 The opskarta v1 specification organizes documentation and examples under specs/v1:
 - schemas: JSON Schema definitions for plan and views files.
-- spec: Markdown documents detailing each aspect of the format, including new YAML encoding guidelines and finish field documentation.
+- spec: Markdown documents detailing each aspect of the format, including enhanced YAML processing guidelines and finish field documentation.
 - examples: Minimal, hello, and advanced examples demonstrating usage.
 - tests: Fixtures and test cases validating finish field functionality.
+- tools: Validation utilities with comprehensive YAML date normalization support.
 
 ```mermaid
 graph TB
@@ -77,6 +79,7 @@ E_adv_plan["examples/advanced/program.plan.yaml"]
 E_adv_views["examples/advanced/program.views.yaml"]
 E_min_plan["examples/minimal/project.plan.yaml"]
 F_finish["tests/fixtures/finish_field.plan.yaml"]
+T_validate["tools/validate.py"]
 end
 ```
 
@@ -97,6 +100,7 @@ end
 - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
 - [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml#L1-L6)
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
 **Section sources**
 - [SPEC.md](file://specs/v1/SPEC.md#L1-L407)
@@ -126,6 +130,7 @@ Plan and views files work together to define an operational map:
 - Plan defines the work model (metadata, statuses, hierarchical nodes, scheduling).
 - Views define presentation layers (Gantt views, lanes) over the plan.
 - Validation ensures referential integrity across files and within each file.
+- Enhanced YAML processing handles date normalization and encoding standards.
 
 ```mermaid
 graph TB
@@ -133,18 +138,22 @@ P["Plan (*.plan.yaml)"]
 V["Views (*.views.yaml)"]
 S_P["Schema: plan.schema.json"]
 S_V["Schema: views.schema.json"]
-VLD["Validation Rules"]
+VLD["Enhanced Validation"]
+NORM["Date Normalization"]
 P --> S_P
 V --> S_V
 P --> VLD
 V --> VLD
 V --> |"project must equal plan.meta.id"| P
+P --> NORM
+V --> NORM
 ```
 
 **Diagram sources**
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L82-L100)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
 ## Detailed Component Analysis
 
@@ -155,7 +164,7 @@ Structure and semantics:
 - statuses: object; recommended keys include not_started, in_progress, done, blocked; each status object has label and color.
 - nodes: object of node_id → node; each node requires title; recommended fields include kind, status, parent, after, start (YYYY-MM-DD), finish (YYYY-MM-DD), duration (<digits>d or <digits>w), issue, notes.
 
-**Updated** Enhanced node specification to include the new finish field alongside existing scheduling fields.
+**Updated** Enhanced node specification to include the new finish field alongside existing scheduling fields with comprehensive validation.
 
 Optional and extension fields:
 - additionalProperties allowed at top level and within meta, statuses, and nodes.
@@ -173,14 +182,15 @@ Common pitfalls and fixes:
 - Non-existing parent or after references.
 - Non-existing status key.
 - Incorrect date or duration formats.
-- **Updated** Finish field format validation and consistency checking.
+- **Updated** Finish field format validation and consistency checking with enhanced YAML processing.
 
 ```mermaid
 flowchart TD
 Start(["Load *.plan.yaml"]) --> CheckVersion["Check 'version' type and value"]
 CheckVersion --> CheckMeta["Check 'meta' has 'id' and 'title'"]
 CheckMeta --> CheckNodes["For each node: require 'title'"]
-CheckNodes --> ValidateFinish["Validate 'finish' format (YYYY-MM-DD)"]
+CheckNodes --> NormalizeDates["Normalize YAML dates to YYYY-MM-DD"]
+NormalizeDates --> ValidateFinish["Validate 'finish' format (YYYY-MM-DD)"]
 ValidateFinish --> CheckConsistency["Check 'start'/'finish'/'duration' consistency"]
 CheckConsistency --> OptionalFields["Allow additionalProperties"]
 OptionalFields --> Done(["Ready for validation"])
@@ -192,6 +202,7 @@ OptionalFields --> Done(["Ready for validation"])
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L38-L95)
 - [20-nodes.md](file://specs/v1/spec/20-nodes.md#L5-L37)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L7-L11)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
 **Section sources**
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
@@ -218,6 +229,7 @@ Practical examples:
 Validation rules:
 - project must equal plan.meta.id.
 - All node_ids in lanes must exist in the plan's nodes.
+- **Updated** Enhanced validation includes date normalization for excludes arrays.
 
 ```mermaid
 sequenceDiagram
@@ -225,10 +237,13 @@ participant Author as "Author"
 participant Plan as "Plan (*.plan.yaml)"
 participant Views as "Views (*.views.yaml)"
 participant Validator as "Validator"
+participant Normalizer as "Date Normalizer"
 Author->>Plan : Write meta.id, statuses, nodes
 Author->>Views : Set project = Plan.meta.id, define gantt_views and lanes
 Validator->>Plan : Validate schema and semantic rules
 Validator->>Views : Validate schema and cross-reference project
+Views->>Normalizer : Normalize YAML dates in excludes[]
+Normalizer-->>Views : Return normalized dates
 Views-->>Author : Rendered views (e.g., Gantt)
 ```
 
@@ -236,6 +251,7 @@ Views-->>Author : Rendered views (e.g., Gantt)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L6-L24)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md#L11-L18)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L82-L100)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
 **Section sources**
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
@@ -264,92 +280,61 @@ Views-->>Author : Rendered views (e.g., Gantt)
 **Section sources**
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
 
-## Finish Field Specification
+## Enhanced YAML Processing Guidelines
 
-**New** The finish field provides target completion date or deadline functionality alongside the existing start and duration fields.
+**Updated** Comprehensive YAML processing guidelines with date normalization requirements and improved encoding standards.
 
-### Field Definition
-- **Name**: finish
-- **Type**: string
-- **Format**: YYYY-MM-DD (ISO 8601 date)
-- **Pattern**: `^\d{4}-\d{2}-\d{2}$`
-- **Description**: Target completion date or deadline in YYYY-MM-DD format
+The opskarta format supports both YAML and JSON serialization. YAML is recommended for human readability, while JSON provides machine-friendly interchange. Proper YAML encoding is crucial for reliable parsing and validation, especially given YAML 1.1's auto-typification behavior.
 
-### Behavior and Algorithms
+### Date Normalization Requirements
 
-#### Backward Scheduling (finish + duration → start)
-When finish and duration are specified but start is omitted:
-1. Calculate the number of working days from duration
-2. Subtract working days from finish, moving backwards
-3. Result is the calculated start date
+YAML-1.1 parsers (particularly PyYAML) automatically convert strings resembling dates into special date/datetime objects. This can cause unexpected behavior in downstream processing. The opskarta specification mandates comprehensive date normalization to ensure consistent processing.
 
-**Algorithm**: `start = sub_workdays(finish, duration_days - 1)`
+#### Canonical Date Format
+All date fields must be normalized to the canonical string format `YYYY-MM-DD`:
+- `start` field: `YYYY-MM-DD` string
+- `finish` field: `YYYY-MM-DD` string  
+- `excludes[]` elements: `YYYY-MM-DD` string for date entries
+- `duration` field: `<digits>d` or `<digits>w` string format
 
-**Example**: `finish: "2024-03-15"`, `duration: "5d"` → `start: "2024-03-11"`
+#### Normalization Process
+The normalization process converts YAML date objects to standardized string representations:
 
-#### Forward Calculation (start + finish → duration)
-When start and finish are specified but duration is omitted:
-1. Calculate the number of working days between start and finish
-2. Result is the calculated duration
+```python
+def normalize_date_field(value):
+    """Нормализует значение даты (start, finish) к строке YYYY-MM-DD."""
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, str):
+        return value.strip()
+    raise ValueError(f"Invalid date type: {type(value)}")
 
-**Algorithm**: `duration = working_days_between(start, finish)`
+def normalize_start(value):
+    """Нормализует значение start к строке YYYY-MM-DD."""
+    return normalize_date_field(value)
 
-**Example**: `start: "2024-03-11"`, `finish: "2024-03-15"` → `duration: "5d"`
+def normalize_finish(value):
+    """Нормализует значение finish к строке YYYY-MM-DD."""
+    return normalize_date_field(value)
 
-#### Consistency Validation (all three fields)
-When start, finish, and duration are all specified:
-- They must be mathematically consistent
-- Calculated finish from start + duration must equal specified finish
-- Inconsistency is considered an error
-
-### Practical Examples
-
-#### Backward Planning Scenario
-```yaml
-nodes:
-  release_prep:
-    title: "Release Preparation"
-    finish: "2024-03-15"  # Deadline
-    duration: "5d"
-    # start calculated: 2024-03-11 (5 working days before finish)
+def normalize_excludes(excludes_list):
+    """Нормализует список excludes, преобразуя YAML-даты в строки."""
+    result = []
+    for item in excludes_list:
+        if isinstance(item, (date, datetime)):
+            result.append(item.isoformat() if isinstance(item, date) else item.date().isoformat())
+        else:
+            result.append(str(item))
+    return result
 ```
 
-#### Mixed Scheduling Scenario
-```yaml
-nodes:
-  task_with_all_fields:
-    title: "Task with All Fields"
-    start: "2024-03-01"
-    finish: "2024-03-05"
-    duration: "5d"
-    # All three fields consistent (5 working days)
-```
+### Date Formatting Recommendations
 
-#### Dependency with Finish Field
-```yaml
-nodes:
-  dependent_task:
-    title: "Dependent Task"
-    after: [parent_task_with_finish]
-    duration: "3d"
-    # start = next working day after parent_task_with_finish.finish
-```
+#### Recommended Format
+Always quote date values in YAML files to prevent auto-typification:
 
-**Section sources**
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L56-L83)
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L198-L226)
-- [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
-
-## YAML Encoding Guidelines
-
-**Updated** Enhanced YAML encoding guidelines to include finish field formatting recommendations.
-
-The opskarta format supports both YAML and JSON serialization. YAML is recommended for human readability, while JSON provides machine-friendly interchange. Proper YAML encoding is crucial for reliable parsing and validation.
-
-### Date Formatting (start and finish fields)
-YAML parsers may automatically convert strings resembling dates into special date types. To prevent parsing issues, always quote date values in the `start` and `finish` fields.
-
-**Recommended format:**
 ```yaml
 nodes:
   task1:
@@ -359,7 +344,9 @@ nodes:
     duration: "5d"
 ```
 
-**Potentially problematic format:**
+#### Risky Format
+Avoid unquoted dates that may be auto-converted:
+
 ```yaml
 nodes:
   task1:
@@ -369,7 +356,7 @@ nodes:
     duration: 5d        # Without quotes - may cause parsing errors
 ```
 
-### Duration Specifications (duration field)
+### Duration Specifications
 The `duration` value MUST be a string in `<number><unit>` format (e.g., `5d`, `2w`).
 
 **Correct examples:**
@@ -472,20 +459,98 @@ nodes:
 
 **Section sources**
 - [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md#L1-L137)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
-## Enhanced Validation System
+## Finish Field Specification
 
-**Updated** Enhanced validation system with improved error messaging, finish field validation, and consistency checking.
+**New** The finish field provides target completion date or deadline functionality alongside the existing start and duration fields.
 
-The validation system operates on multiple levels to ensure data integrity and consistency across opskarta files.
+### Field Definition
+- **Name**: finish
+- **Type**: string
+- **Format**: YYYY-MM-DD (ISO 8601 date)
+- **Pattern**: `^\d{4}-\d{2}-\d{2}$`
+- **Description**: Target completion date or deadline in YYYY-MM-DD format
+
+### Behavior and Algorithms
+
+#### Backward Scheduling (finish + duration → start)
+When finish and duration are specified but start is omitted:
+1. Calculate the number of working days from duration
+2. Subtract working days from finish, moving backwards
+3. Result is the calculated start date
+
+**Algorithm**: `start = sub_workdays(finish, duration_days - 1)`
+
+**Example**: `finish: "2024-03-15"`, `duration: "5d"` → `start: "2024-03-11"`
+
+#### Forward Calculation (start + finish → duration)
+When start and finish are specified but duration is omitted:
+1. Calculate the number of working days between start and finish
+2. Result is the calculated duration
+
+**Algorithm**: `duration = working_days_between(start, finish)`
+
+**Example**: `start: "2024-03-11"`, `finish: "2024-03-15"` → `duration: "5d"`
+
+#### Consistency Validation (all three fields)
+When start, finish, and duration are all specified:
+- They must be mathematically consistent
+- Calculated finish from start + duration must equal specified finish
+- Inconsistency is considered an error
+
+### Practical Examples
+
+#### Backward Planning Scenario
+```yaml
+nodes:
+  release_prep:
+    title: "Release Preparation"
+    finish: "2024-03-15"  # Deadline
+    duration: "5d"
+    # start calculated: 2024-03-11 (5 working days before finish)
+```
+
+#### Mixed Scheduling Scenario
+```yaml
+nodes:
+  task_with_all_fields:
+    title: "Task with All Fields"
+    start: "2024-03-01"
+    finish: "2024-03-05"
+    duration: "5d"
+    # All three fields consistent (5 working days)
+```
+
+#### Dependency with Finish Field
+```yaml
+nodes:
+  dependent_task:
+    title: "Dependent Task"
+    after: [parent_task_with_finish]
+    duration: "3d"
+    # start = next working day after parent_task_with_finish.finish
+```
+
+**Section sources**
+- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L56-L83)
+- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L198-L226)
+- [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
+
+## Improved Validation System
+
+**Updated** Enhanced validation system with comprehensive date normalization, finish field validation, and improved error messaging.
+
+The validation system operates on multiple levels to ensure data integrity and consistency across opskarta files, with enhanced support for YAML date normalization.
 
 ### Validation Levels
 
 1. **Syntax Level** - Validates correct YAML/JSON syntax
 2. **Schema Level** - Ensures field types, required fields, and formats match JSON Schema
 3. **Semantic Level** - Verifies referential integrity, business rules, and date correctness
+4. **Normalization Level** - Converts YAML date objects to canonical string format
 
-### Error Message Standards
+### Enhanced Error Message Standards
 
 The validator must provide clear, actionable error messages containing:
 - Path to the problematic field (e.g., `nodes.task2.parent`)
@@ -517,7 +582,7 @@ Both plan and views files use comprehensive JSON Schema validation:
 - Node validation: each node requires title; supports kind, status, parent, after, start (YYYY-MM-DD), finish (YYYY-MM-DD), duration (<digits>d or <digits>w), issue, notes
 - Additional properties allowed throughout for extensibility
 
-**Updated** Finish field validation now includes format checking and consistency validation with start/duration fields.
+**Updated** Finish field validation now includes format checking and consistency validation with start/duration fields, plus comprehensive YAML date normalization.
 
 **Views Schema Validation:**
 - Required fields: version, project
@@ -532,12 +597,40 @@ The system validates relationships between plan and views files:
 - All node_ids in views must exist in plan.nodes
 - Duration formats must follow `<number><unit>` pattern
 - Start and finish dates must follow YYYY-MM-DD format
-- **Updated** Finish field format validation and consistency checking
+- **Updated** Finish field format validation and consistency checking with enhanced YAML processing
+
+### Date Normalization Integration
+
+The validation system includes comprehensive date normalization:
+
+```python
+def normalize_yaml_dates(data: Any) -> Any:
+    """
+    Рекурсивно нормализует YAML-даты к строкам формата YYYY-MM-DD.
+    
+    Args:
+        data: Данные из YAML-парсера
+        
+    Returns:
+        Нормализованные данные
+    """
+    if isinstance(data, datetime):
+        return data.date().isoformat()
+    elif isinstance(data, date):
+        return data.isoformat()
+    elif isinstance(data, dict):
+        return {k: normalize_yaml_dates(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [normalize_yaml_dates(item) for item in data]
+    else:
+        return data
+```
 
 **Section sources**
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L377)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
 ## Dependency Analysis
 - Referential integrity:
@@ -547,7 +640,7 @@ The system validates relationships between plan and views files:
   - views.project must equal plan.meta.id.
   - views.lanes[].nodes[] entries must reference existing node_ids.
 
-**Updated** Added finish field validation to ensure proper date format and consistency.
+**Updated** Added finish field validation to ensure proper date format and consistency, plus comprehensive YAML date normalization.
 
 ```mermaid
 graph LR
@@ -558,6 +651,8 @@ V["views.project"] --> M["plan.meta.id"]
 L["views.lanes[*].nodes[*]"] --> N2
 F["nodes.*.finish"] --> D["YYYY-MM-DD format"]
 S["nodes.*.start"] --> D
+NORM["YAML Date Normalization"] --> F
+NORM --> S
 ```
 
 **Diagram sources**
@@ -565,11 +660,13 @@ S["nodes.*.start"] --> D
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L89-L100)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L102-L104)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L63-L72)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
 **Section sources**
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L13-L75)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L89-L104)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L63-L72)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
 ## Performance Considerations
 - Keep nodes flat or reasonably deep to simplify rendering and dependency resolution.
@@ -577,10 +674,11 @@ S["nodes.*.start"] --> D
 - Limit excessive custom extensions to reduce parsing overhead in downstream tools.
 - Use quoted strings for dates and durations to prevent YAML parsing overhead.
 - **Updated** Finish field processing adds minimal computational overhead compared to start/duration calculations.
+- **Updated** Date normalization occurs once during YAML loading and is cached for subsequent validations.
 
 ## Troubleshooting Guide
 
-**Updated** Enhanced troubleshooting guide with finish field validation and backward planning considerations.
+**Updated** Enhanced troubleshooting guide with finish field validation, backward planning considerations, and comprehensive YAML date normalization.
 
 ### Common YAML Formatting Errors and Resolutions
 
@@ -615,9 +713,15 @@ S["nodes.*.start"] --> D
 
 **Enhanced Validation Messages:**
 - Use clear error paths (e.g., nodes.task2.parent) and expected values.
-- Pay attention to validation level indicators (syntax, schema, semantic).
+- Pay attention to validation level indicators (syntax, schema, semantic, normalization).
 - Check both plan and views file validation results.
 - **Updated** Finish field validation provides specific error messages for format and consistency issues.
+- **Updated** Date normalization errors clearly indicate which fields failed conversion.
+
+**Date Normalization Issues:**
+- **YAML date objects**: Ensure all date fields are properly normalized to strings
+- **Excludes normalization**: Calendar exclusion dates must be normalized consistently
+- **Type conversion errors**: Handle cases where YAML parser returns unexpected types
 
 **Section sources**
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L7-L11)
@@ -627,6 +731,7 @@ S["nodes.*.start"] --> D
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L124-L139)
 - [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md#L5-L137)
 - [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L56-L83)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)
 
 ## Conclusion
 The opskarta v1 file formats provide a compact, extensible foundation for operational maps:
@@ -635,6 +740,7 @@ The opskarta v1 file formats provide a compact, extensible foundation for operat
 - Enhanced validation rules ensure consistency across files and within each file.
 - Comprehensive YAML encoding guidelines prevent parsing issues and ensure reliable data interchange.
 - **Updated** The new finish field specification enables flexible scheduling approaches including backward planning and deadline-driven project management.
+- **Updated** Enhanced YAML processing guarantees consistent date handling across different YAML parsers.
 - Extensibility allows teams to tailor the format to their needs while preserving compatibility.
 
 ## Appendices
@@ -654,6 +760,12 @@ The opskarta v1 file formats provide a compact, extensible foundation for operat
 - Use start + finish for milestone tracking and progress monitoring.
 - Maintain consistency between all three scheduling fields when specifying all three.
 
+**Date Normalization Best Practices:**
+- **Updated** Always quote date values in YAML to prevent auto-typification.
+- **Updated** Ensure all date fields (start, finish, excludes[]) are normalized to YYYY-MM-DD strings.
+- **Updated** Test YAML files with different parsers to ensure consistent behavior.
+- **Updated** Use validation tools to verify proper date normalization.
+
 **File Organization and Naming Conventions:**
 - Plan files: *.plan.yaml
 - Views files: *.views.yaml
@@ -668,6 +780,7 @@ The opskarta v1 file formats provide a compact, extensible foundation for operat
 - Run syntax validation first to catch YAML/JSON parsing errors.
 - Execute schema validation to ensure field types and formats are correct.
 - Perform semantic validation to verify referential integrity and business rules.
+- **Updated** Include date normalization validation to ensure consistent date handling.
 - Review validation messages carefully, focusing on error paths and expected formats.
 - **Updated** Include finish field validation in the comprehensive validation process.
 
@@ -677,3 +790,4 @@ The opskarta v1 file formats provide a compact, extensible foundation for operat
 - [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md#L1-L137)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L197-L220)
 - [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L56-L83)
+- [validate.py](file://specs/v1/tools/validate.py#L114-L133)

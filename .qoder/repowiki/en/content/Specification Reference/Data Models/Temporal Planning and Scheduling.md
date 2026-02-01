@@ -18,6 +18,7 @@
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml)
 - [weeks_duration.plan.yaml](file://specs/v1/tests/fixtures/weeks_duration.plan.yaml)
 - [weekends_exclusion.plan.yaml](file://specs/v1/tests/fixtures/weekends_exclusion.plan.yaml)
+- [extensions.plan.yaml](file://specs/v1/tests/fixtures/extensions.plan.yaml)
 </cite>
 
 ## Update Summary
@@ -28,6 +29,8 @@
 - Expanded duration parsing to support weeks ('w') units with standardized 5-day workweek
 - Improved date computation standards with consistent business day arithmetic
 - Added backward scheduling validation and conflict detection
+- Enhanced milestone handling rules with special treatment for milestone nodes
+- Added comprehensive test coverage for all new scheduling features
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -51,7 +54,7 @@ This document explains temporal planning and scheduling for operational maps in 
 - Scheduling validation rules, constraint checking, and performance considerations for large operational maps.
 - Edge cases such as circular dependencies, missing dates, and schedule updates.
 
-**Updated** Enhanced with comprehensive finish field support, backward scheduling algorithms, and improved calendar exclusion handling.
+**Updated** Enhanced with comprehensive finish field support, backward scheduling algorithms, milestone handling rules, and improved calendar exclusion handling.
 
 ## Project Structure
 The scheduling and rendering logic is implemented in Python tools under specs/v1/tools. The specification and examples live under specs/v1.
@@ -76,6 +79,7 @@ TE1["specs/v1/tests/test_scheduling.py"]
 TE2["specs/v1/tests/fixtures/finish_field.plan.yaml"]
 TE3["specs/v1/tests/fixtures/weeks_duration.plan.yaml"]
 TE4["specs/v1/tests/fixtures/weekends_exclusion.plan.yaml"]
+TE5["specs/v1/tests/fixtures/extensions.plan.yaml"]
 end
 subgraph "Examples"
 E1["specs/v1/examples/hello/hello.plan.yaml"]
@@ -95,13 +99,14 @@ TE1 --> T2
 TE2 --> T2
 TE3 --> T2
 TE4 --> T2
+TE5 --> T1
 ```
 
 **Diagram sources**
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L474)
+- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L600)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L140)
-- [validate.py](file://specs/v1/tools/validate.py#L135-L782)
-- [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L217-L576)
+- [validate.py](file://specs/v1/tools/validate.py#L135-L1082)
+- [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L217-L737)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L66)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
@@ -110,10 +115,11 @@ TE4 --> T2
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
 - [weeks_duration.plan.yaml](file://specs/v1/tests/fixtures/weeks_duration.plan.yaml#L1-L24)
 - [weekends_exclusion.plan.yaml](file://specs/v1/tests/fixtures/weekends_exclusion.plan.yaml#L1-L21)
+- [extensions.plan.yaml](file://specs/v1/tests/fixtures/extensions.plan.yaml#L1-L22)
 
 **Section sources**
 - [SPEC.md](file://specs/v1/SPEC.md#L1-L407)
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L474)
+- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L600)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L140)
 
 ## Core Components
@@ -125,20 +131,21 @@ TE4 --> T2
 - **Improved**: Core/non-core calendar exclusion handling with strict validation rules.
 - Dependency graph validation: cycles and dangling references are detected during semantic validation.
 - Rendering: Mermaid Gantt generation from computed schedules and view exclusions.
+- **New**: Milestone handling with special treatment for milestone nodes in dependency calculations.
 
-**Updated** Enhanced with comprehensive finish field support, backward scheduling algorithms, and improved calendar exclusion handling.
+**Updated** Enhanced with comprehensive finish field support, backward scheduling algorithms, milestone handling rules, and improved calendar exclusion handling.
 
 Key implementation references:
 - Scheduling engine and business day helpers: [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L92-L207)
 - Schedule computation with dependency resolution and parent inheritance: [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L223-L321)
 - Validation of plan semantics (cycles, dangling refs, formats): [validate.py](file://specs/v1/tools/validate.py#L135-L414)
-- Scheduling spec and notes: [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L474), [SPEC.md](file://specs/v1/SPEC.md#L159-L239)
+- Scheduling spec and notes: [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L600), [SPEC.md](file://specs/v1/SPEC.md#L159-L239)
 
 **Section sources**
 - [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L92-L207)
 - [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L223-L321)
 - [validate.py](file://specs/v1/tools/validate.py#L135-L414)
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L474)
+- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L600)
 - [SPEC.md](file://specs/v1/SPEC.md#L159-L239)
 
 ## Architecture Overview
@@ -175,8 +182,9 @@ The scheduling engine computes per-node start/finish/duration considering:
 - **Improved**: Duration parsing supports integer days, "Nd" format, and "Nw" format (1w = 5 working days).
 - **Enhanced**: Weekend exclusion toggled by view excludes with strict core/non-core distinction.
 - **New**: Effective start normalization ensures schedule integrity when start dates fall on excluded days.
+- **New**: Milestone handling with special treatment - milestones start on the same day as dependencies without adding extra workdays.
 
-**Updated** Enhanced with comprehensive finish field support, backward scheduling algorithms, and improved calendar exclusion handling.
+**Updated** Enhanced with comprehensive finish field support, backward scheduling algorithms, milestone handling rules, and improved calendar exclusion handling.
 
 ```mermaid
 flowchart TD
@@ -195,11 +203,14 @@ FinishBackward --> FinishImplicit["finish_date(start, dur, exclude)"]
 HasFinish --> |No| AfterDeps["after deps exist?"]
 AfterDeps --> |Yes| ResolveDeps["resolve(dep) for all deps"]
 ResolveDeps --> Latest["latest(dep.finish)"]
-Latest --> NextWD{"exclude weekends?"}
+Latest --> Milestone{"is milestone?"}
+Milestone --> |Yes| StartSameDay["start = max_finish (no +1 day)"]
+Milestone --> |No| NextWD{"exclude weekends?"}
 NextWD --> |Yes| StartNextWD["next_workday(latest)"]
 NextWD --> |No| StartNextDay["latest + 1 day"]
 StartNextWD --> FinishImplicit
 StartNextDay --> FinishImplicit
+StartSameDay --> FinishImplicit
 AfterDeps --> |No| TryParent["try parent.start"]
 TryParent --> ParentOk{"parent cached?"}
 ParentOk --> |Yes| FinishImplicitFromParent["finish_date(parent.start, dur, exclude)"]
@@ -223,9 +234,10 @@ Store --> End(["return ScheduledNode"])
 - Critical path is the longest path in the DAG; it determines earliest possible completion of dependent tasks.
 - The scheduler resolves each node by computing the latest finish among dependencies and advancing to the next working day when applicable.
 - **Enhanced**: Backward scheduling creates reverse dependencies from finish dates to start dates.
+- **New**: Milestone nodes have special handling - they don't add an extra workday when calculating start from dependencies.
 - Cycles are prevented by validation and runtime checks.
 
-**Updated** Improved dependency computation with enhanced error handling, backward scheduling support, and better parent inheritance logic.
+**Updated** Improved dependency computation with enhanced error handling, backward scheduling support, milestone handling rules, and better parent inheritance logic.
 
 ```mermaid
 flowchart TD
@@ -255,8 +267,9 @@ style F stroke-dasharray: 0
   - Sub workdays moves backward, skipping weekends.
   - Finish date uses either inclusive-day semantics for 1-day duration or adds workdays minus 1.
 - **New**: Effective start normalization ensures schedule integrity when start dates fall on excluded days.
+- **New**: Milestone handling with special treatment for milestone nodes.
 
-**Updated** Comprehensive duration parsing with weeks support, backward scheduling algorithms, and improved validation logic.
+**Updated** Comprehensive duration parsing with weeks support, backward scheduling algorithms, milestone handling rules, and improved validation logic.
 
 ```mermaid
 flowchart TD
@@ -291,8 +304,10 @@ IsStr --> |No| ErrDur
 - Example: Hello Upgrade program demonstrates explicit start and after dependencies with weekend exclusion.
 - Example: Advanced Program shows cross-track dependencies and multiple lanes with holiday exclusions.
 - **New**: Finish field examples demonstrate backward scheduling with deadline-driven planning.
+- **New**: Weeks duration examples show 1w = 5 working days calculation.
+- **New**: Milestone examples demonstrate special handling for milestone nodes.
 
-**Updated** Added comprehensive examples demonstrating weeks duration, weekend exclusion handling, and backward scheduling scenarios.
+**Updated** Added comprehensive examples demonstrating weeks duration, weekend exclusion handling, backward scheduling scenarios, and milestone handling.
 
 References:
 - Hello plan and views: [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44), [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
@@ -300,6 +315,7 @@ References:
 - Finish field fixture: [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
 - Weeks duration fixture: [weeks_duration.plan.yaml](file://specs/v1/tests/fixtures/weeks_duration.plan.yaml#L1-L24)
 - Weekends exclusion fixture: [weekends_exclusion.plan.yaml](file://specs/v1/tests/fixtures/weekends_exclusion.plan.yaml#L1-L21)
+- Extensions fixture: [extensions.plan.yaml](file://specs/v1/tests/fixtures/extensions.plan.yaml#L1-L22)
 
 **Section sources**
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
@@ -309,10 +325,13 @@ References:
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
 - [weeks_duration.plan.yaml](file://specs/v1/tests/fixtures/weeks_duration.plan.yaml#L1-L24)
 - [weekends_exclusion.plan.yaml](file://specs/v1/tests/fixtures/weekends_exclusion.plan.yaml#L1-L21)
+- [extensions.plan.yaml](file://specs/v1/tests/fixtures/extensions.plan.yaml#L1-L22)
 
 ### Conflict Resolution and Updates
 - Conflicts arise when dependencies cannot be satisfied (e.g., cycles) or when required dates are missing.
 - **Enhanced**: Backward scheduling conflicts when finish dates precede calculated start dates.
+- **New**: Finish field conflicts when both start and finish are specified but inconsistent.
+- **New**: Milestone conflicts when milestone dependencies are not properly handled.
 - Resolution strategies:
   - Fix cycles in after dependencies.
   - Provide explicit start or resolve dependencies to establish a baseline.
@@ -320,8 +339,9 @@ References:
   - **New**: Validate finish vs start consistency when both are specified.
   - Updates propagate forward: changing a dependency's finish advances downstream nodes accordingly.
   - **New**: Backward scheduling updates propagate backward through finish-dependent chains.
+  - **New**: Milestone handling ensures proper dependency calculation without extra workday.
 
-**Updated** Enhanced conflict resolution with improved error reporting for weeks duration, weekend exclusion, and backward scheduling scenarios.
+**Updated** Enhanced conflict resolution with improved error reporting for weeks duration, weekend exclusion, backward scheduling, milestone handling, and effective start normalization scenarios.
 
 Validation ensures correctness before rendering.
 
@@ -348,14 +368,14 @@ R --> BD["business day helpers"]
 ```
 
 **Diagram sources**
-- [validate.py](file://specs/v1/tools/validate.py#L135-L782)
-- [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L223-L576)
+- [validate.py](file://specs/v1/tools/validate.py#L135-L1082)
+- [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L223-L737)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L66)
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L135-L782)
-- [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L223-L576)
+- [validate.py](file://specs/v1/tools/validate.py#L135-L1082)
+- [mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py#L223-L737)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L66)
 
@@ -363,11 +383,12 @@ R --> BD["business day helpers"]
 - Topological resolution: The scheduler uses a recursive resolver with memoization and a visiting-state to detect cycles and avoid recomputation. Complexity is O(V + E) per node resolved, with caching reducing repeated work.
 - Large maps: Prefer precomputing and caching schedules; avoid redundant passes over the graph.
 - **Enhanced**: Backward scheduling requires additional computation for finish-dependent chains.
+- **New**: Milestone handling adds minimal overhead for milestone detection.
 - Exclusions: Weekend exclusion adds iteration per workday; keep exclusions minimal or precompute extended calendars for very large datasets.
 - **New**: Effective start normalization adds minimal overhead for excluded day detection.
 - Rendering: Limit visible lanes and date ranges to reduce output size and improve readability.
 
-**Updated** Performance considerations now account for weeks duration calculations, backward scheduling, and effective start normalization.
+**Updated** Performance considerations now account for weeks duration calculations, backward scheduling, milestone handling, and effective start normalization.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -377,17 +398,19 @@ Common issues and resolutions:
 - Missing start and after: Node remains unscheduled; add explicit start or dependencies.
 - **New**: Finish field conflicts: When both start and finish are specified, they must be consistent; adjust one to match the other.
 - **New**: Backward scheduling errors: Ensure finish dates are after calculated start dates considering exclusions.
+- **New**: Milestone handling issues: Ensure milestone dependencies are properly calculated without extra workday.
 - Exclusions mismatch: Verify view excludes align with intended calendar behavior.
 - Weeks duration errors: Ensure weeks format follows "Nw" pattern with positive integer values.
 - **New**: Effective start normalization warnings: When start dates fall on excluded days, they are automatically normalized.
+- **New**: Extension field validation: Custom fields in x: namespace are supported but validated separately.
 
-**Updated** Added troubleshooting guidance for finish field, backward scheduling, effective start normalization, and weeks duration scenarios.
+**Updated** Added troubleshooting guidance for finish field, backward scheduling, milestone handling, effective start normalization, weeks duration, and extension field scenarios.
 
 Validation messages include:
 - Field path, value, expected format, and available options.
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L135-L782)
+- [validate.py](file://specs/v1/tools/validate.py#L135-L1082)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L140)
 
 ## Conclusion
@@ -397,25 +420,28 @@ opskarta v1 provides a robust, extensible framework for temporal planning:
 - Implicit scheduling driven by dependencies and hierarchy.
 - Business-day-aware calculations with weekend exclusion.
 - **Improved**: Core/non-core calendar exclusion handling with strict validation.
+- **New**: Milestone handling with special treatment for milestone nodes.
 - Strong validation against cycles, dangling references, and format errors.
 - **New**: Effective start normalization ensures schedule integrity across different calendar configurations.
+- **New**: Comprehensive test coverage validates all scheduling features.
 - Practical examples demonstrate cross-track dependencies, calendar exclusions, and critical path focus.
 
-**Updated** Enhanced with comprehensive finish field support, backward scheduling algorithms, effective start normalization, and improved calendar exclusion handling for more flexible scheduling scenarios.
+**Updated** Enhanced with comprehensive finish field support, backward scheduling algorithms, milestone handling rules, effective start normalization, and improved calendar exclusion handling for more flexible scheduling scenarios.
 
 ## Appendices
 
 ### Scheduling Specification Highlights
 - Fields: start (ISO date), finish (ISO date), duration ("Nd" or "Nw"), after (list of node IDs).
 - **Enhanced**: Finish field enables backward scheduling (deadline-driven planning).
+- **New**: Milestone field enables milestone handling with special dependency rules.
 - Interaction with views: excludes (weekends and specific dates), lanes.
 - **New**: Effective start normalization for excluded day handling.
 - **Improved**: Core/non-core calendar exclusion distinction with validation.
 
-**Updated** Enhanced duration format specification with weeks support and comprehensive finish field documentation.
+**Updated** Enhanced duration format specification with weeks support, comprehensive finish field documentation, milestone handling rules, and effective start normalization.
 
 **Section sources**
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L474)
+- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L600)
 - [SPEC.md](file://specs/v1/SPEC.md#L159-L239)
 
 ### Example Workflows
@@ -424,8 +450,10 @@ opskarta v1 provides a robust, extensible framework for temporal planning:
 - **New**: Finish field examples: Deadline-driven planning with backward scheduling.
 - Weeks Duration Testing: Demonstrates 1w = 5 working days calculation.
 - Weekend Exclusion Testing: Demonstrates proper weekend skipping in schedule computation.
+- **New**: Milestone Handling: Demonstrates special treatment for milestone nodes in dependencies.
+- **New**: Extension Fields: Demonstrates custom fields support in plan files.
 
-**Updated** Added comprehensive examples for finish field, backward scheduling, weeks duration, and weekend exclusion scenarios.
+**Updated** Added comprehensive examples for finish field, backward scheduling, weeks duration, weekend exclusion, milestone handling, and extension fields scenarios.
 
 **Section sources**
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
@@ -436,3 +464,4 @@ opskarta v1 provides a robust, extensible framework for temporal planning:
 - [README.md (Advanced Examples)](file://specs/v1/examples/advanced/README.md#L82-L113)
 - [weeks_duration.plan.yaml](file://specs/v1/tests/fixtures/weeks_duration.plan.yaml#L1-L24)
 - [weekends_exclusion.plan.yaml](file://specs/v1/tests/fixtures/weekends_exclusion.plan.yaml#L1-L21)
+- [extensions.plan.yaml](file://specs/v1/tests/fixtures/extensions.plan.yaml#L1-L22)

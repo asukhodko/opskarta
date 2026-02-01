@@ -6,9 +6,13 @@
 - [CONTRIBUTING.md](file://CONTRIBUTING.md)
 - [CODE_OF_CONDUCT.md](file://CODE_OF_CONDUCT.md)
 - [SECURITY.md](file://SECURITY.md)
+- [CHANGELOG.md](file://CHANGELOG.md)
+- [Makefile](file://Makefile)
 - [specs/v1/README.md](file://specs/v1/README.md)
 - [specs/v1/SPEC.md](file://specs/v1/SPEC.md)
 - [specs/v1/examples/README.md](file://specs/v1/examples/README.md)
+- [specs/v1/examples/hello/README.md](file://specs/v1/examples/hello/README.md)
+- [specs/v1/examples/hello/hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml)
 - [specs/v1/tools/README.md](file://specs/v1/tools/README.md)
 - [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py)
@@ -24,39 +28,119 @@
 - [specs/v1/tests/fixtures/start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml)
 - [specs/v1/tests/fixtures/weekends_exclusion.plan.yaml](file://specs/v1/tests/fixtures/weekends_exclusion.plan.yaml)
 - [specs/v1/tests/fixtures/weeks_duration.plan.yaml](file://specs/v1/tests/fixtures/weeks_duration.plan.yaml)
-- [Makefile](file://Makefile)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive Makefile infrastructure documentation with 230 lines of build automation
-- Documented complete CI/CD pipeline support with Docker integration
-- Enhanced testing framework with pytest integration and coverage reporting
-- Added validation systems for examples, fixtures, and JSON schemas
-- Documented rendering capabilities for Gantt diagrams
-- Updated development workflow with automated dependency management
+- Updated Python version requirements to Python 3.12+ throughout the documentation
+- Enhanced virtual environment management documentation with comprehensive venv support
+- Expanded Makefile infrastructure documentation with 257 lines of workflow automation
+- Added detailed quickstart procedures and development setup instructions
+- Updated contribution guidelines to reflect current development practices
+- Enhanced testing framework documentation with pytest integration
+- Improved specification evolution and versioning documentation
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Contribution Workflow](#contribution-workflow)
-10. [Specification Evolution and Versioning](#specification-evolution-and-versioning)
-11. [Testing and Quality Assurance](#testing-and-quality-assurance)
-12. [Extending the Specification](#extending-the-specification)
-13. [Continuous Integration Guidance](#continuous-integration-guidance)
-14. [Makefile Infrastructure](#makefile-infrastructure)
-15. [Conclusion](#conclusion)
+2. [Development Environment Setup](#development-environment-setup)
+3. [Project Structure](#project-structure)
+4. [Core Components](#core-components)
+5. [Architecture Overview](#architecture-overview)
+6. [Detailed Component Analysis](#detailed-component-analysis)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Contribution Workflow](#contribution-workflow)
+11. [Specification Evolution and Versioning](#specification-evolution-and-versioning)
+12. [Testing and Quality Assurance](#testing-and-quality-assurance)
+13. [Extending the Specification](#extending-the-specification)
+14. [Continuous Integration Guidance](#continuous-integration-guidance)
+15. [Makefile Infrastructure](#makefile-infrastructure)
+16. [Quickstart Procedures](#quickstart-procedures)
+17. [Conclusion](#conclusion)
 
 ## Introduction
 This document provides a complete guide for developers and contributors working on Opskarta. It covers development environment setup, testing frameworks, code standards, specification evolution, versioning, contribution workflow, and quality assurance processes. The goal is to enable both bug fixes and feature contributions with clear expectations around documentation, examples, and ecosystem compatibility.
 
-**Updated** Added comprehensive Makefile infrastructure providing build automation, validation systems, pytest integration, and CI/CD pipeline support for opskarta v1 specification project.
+**Updated** Enhanced with comprehensive development setup documentation including Python 3.12+ requirements, virtual environment management, Makefile workflow automation, and quickstart procedures.
+
+## Development Environment Setup
+
+### System Requirements
+Opskarta requires Python 3.12+ for optimal development experience. The project is designed to work best on Unix-like systems, with Windows users strongly encouraged to use WSL (Windows Subsystem for Linux).
+
+**Minimum Requirements:**
+- Python 3.12+ (recommended: latest stable)
+- make utility for build automation
+- WSL or Unix-like system for Windows users
+- Git for version control
+
+### Installation Methods
+
+#### Method 1: Quickstart (Recommended)
+The fastest way to get started with Opskarta development:
+
+```bash
+# Navigate to the v1 specification directory
+cd specs/v1
+
+# Run the quickstart procedure (creates venv, installs deps, validates hello example)
+make quickstart
+
+# Activate the virtual environment
+source venv/bin/activate
+
+# Verify installation
+make help
+```
+
+#### Method 2: Manual Setup
+For granular control over the setup process:
+
+```bash
+# Create virtual environment
+make venv
+
+# Install dependencies
+make deps
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Verify setup
+python -c "import yaml; print('PyYAML:', yaml.__version__)"
+```
+
+#### Method 3: Development Dependencies
+For full development capabilities including testing and linting:
+
+```bash
+# Install development dependencies
+make deps-dev
+
+# This installs: pytest, pytest-cov, ruff
+```
+
+### Virtual Environment Management
+The project uses Python's built-in venv module for isolation. The Makefile provides comprehensive venv management:
+
+```bash
+# Create virtual environment
+make venv
+
+# Remove virtual environment
+make venv-clean
+
+# Activate venv (required before using tools)
+source venv/bin/activate
+```
+
+**Important:** Always activate the virtual environment before running any development tools. The Makefile automatically detects and uses the venv if present, falling back to system Python otherwise.
+
+**Section sources**
+- [README.md](file://README.md#L85-L107)
+- [Makefile](file://Makefile#L48-L62)
+- [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt#L1-L10)
 
 ## Project Structure
 Opskarta is organized around a single specification version (v1) with supporting tools, examples, schemas, and a comprehensive test suite. The repository is designed so that the specification is the core, and tools are reference implementations that remain lightweight and optional.
@@ -70,6 +154,7 @@ readme_root["README.md"]
 contributing["CONTRIBUTING.md"]
 coc["CODE_OF_CONDUCT.md"]
 security["SECURITY.md"]
+changelog["CHANGELOG.md"]
 subgraph "specs/v1/"
 v1_readme["specs/v1/README.md"]
 v1_spec["specs/v1/SPEC.md"]
@@ -85,6 +170,7 @@ root --> readme_root
 root --> contributing
 root --> coc
 root --> security
+root --> changelog
 specs --> v1_readme
 specs --> v1_spec
 specs --> v1_examples
@@ -95,26 +181,26 @@ specs --> v1_spec_parts
 ```
 
 **Diagram sources**
-- [README.md](file://README.md#L1-L96)
+- [README.md](file://README.md#L1-L150)
 - [specs/v1/README.md](file://specs/v1/README.md#L1-L27)
 - [specs/v1/SPEC.md](file://specs/v1/SPEC.md#L1-L407)
 
 **Section sources**
-- [README.md](file://README.md#L1-L96)
+- [README.md](file://README.md#L1-L150)
 - [specs/v1/README.md](file://specs/v1/README.md#L1-L27)
 
 ## Core Components
-- Specification v1: Defines the YAML/JSON format for plans and views, validation rules, scheduling semantics, statuses, and extensibility.
-- Tools: Reference implementations for validating files, building the specification, and rendering Mermaid Gantt charts.
-- Examples: Minimal, hello, and advanced example sets demonstrating plan and view usage.
-- Schemas: JSON Schema definitions for machine-readable validation.
+- **Specification v1**: Defines the YAML/JSON format for plans and views, validation rules, scheduling semantics, statuses, and extensibility.
+- **Tools**: Reference implementations for validating files, building the specification, and rendering Mermaid Gantt charts.
+- **Examples**: Minimal, hello, and advanced example sets demonstrating plan and view usage.
+- **Schemas**: JSON Schema definitions for machine-readable validation.
 - **Tests**: Comprehensive test suite with 304 lines of scheduling tests and fixture-based scenarios covering various scheduling edge cases.
 
 Key responsibilities:
 - Maintain the specification as the single source of truth.
 - Keep tools small, deterministic, and compatible with the spec.
 - Provide clear examples and validation to ensure interoperability.
-- **Ensure comprehensive test coverage for all scheduling functionality and edge cases.**
+- Ensure comprehensive test coverage for all scheduling functionality and edge cases.
 
 **Section sources**
 - [specs/v1/SPEC.md](file://specs/v1/SPEC.md#L1-L407)
@@ -130,7 +216,8 @@ The development architecture centers on the specification and reference tools wi
 ```mermaid
 graph TB
 user["Developer / Contributor"]
-makefile["Makefile<br/>230 lines of automation"]
+makefile["Makefile<br/>257 lines of automation"]
+venv["Virtual Environment<br/>venv/"]
 cli["CLI Tools<br/>validate.py, build_spec.py"]
 renderer["Renderer<br/>render.mermaid_gantt"]
 spec["SPEC.md<br/>and spec/*.md"]
@@ -141,9 +228,8 @@ fixtures["Test Fixtures<br/>5 scenario files"]
 coverage["Coverage Reporting<br/>pytest-cov"]
 docker["Docker Integration<br/>Containerized testing"]
 user --> makefile
-user --> cli
-user --> renderer
-user --> tests
+user --> venv
+makefile --> venv
 makefile --> cli
 makefile --> renderer
 makefile --> tests
@@ -160,8 +246,8 @@ spec --> schemas
 ```
 
 **Diagram sources**
-- [Makefile](file://Makefile#L1-L230)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
+- [Makefile](file://Makefile#L1-L257)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L1082)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
 - [specs/v1/tools/README.md](file://specs/v1/tools/README.md#L1-L126)
 - [specs/v1/SPEC.md](file://specs/v1/SPEC.md#L1-L407)
@@ -174,7 +260,7 @@ spec --> schemas
 
 ### Validation Tool (validate.py)
 Responsibilities:
-- Parse YAML safely.
+- Parse YAML safely with duplicate key detection.
 - Validate semantic correctness against the specification (required fields, referential integrity, cycles, formats).
 - Optional JSON Schema validation for stricter machine-checking.
 - Provide actionable error messages with paths, values, and expected formats.
@@ -198,10 +284,10 @@ ReportOK --> End(["End"])
 ```
 
 **Diagram sources**
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L634-L751)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L136-L192)
 
 **Section sources**
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L782)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L1082)
 
 ### Spec Builder (build_spec.py)
 Responsibilities:
@@ -243,7 +329,7 @@ Usage highlights:
 - [specs/v1/tools/README.md](file://specs/v1/tools/README.md#L69-L92)
 
 ### Test Infrastructure (test_scheduling.py)
-**New** Comprehensive test suite covering scheduling functionality with 304 lines of tests:
+**Updated** Comprehensive test suite covering scheduling functionality with 304 lines of tests:
 
 Responsibilities:
 - **Duration parsing tests**: Validate day and week duration formats ("5d", "1w" = 5 workdays).
@@ -283,7 +369,7 @@ TestSuite --> Coverage
 - [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
 
 ### Test Fixtures
-**New** Five comprehensive fixture files covering different scheduling scenarios:
+**Updated** Five comprehensive fixture files covering different scheduling scenarios:
 
 - **extensions.plan.yaml**: Custom extension fields using x: namespace for team assignments and risk assessment.
 - **parent_inheritance.plan.yaml**: Opt-in parent inheritance via x.scheduling.anchor_to_parent_start configuration.
@@ -299,32 +385,37 @@ TestSuite --> Coverage
 - [specs/v1/tests/fixtures/weeks_duration.plan.yaml](file://specs/v1/tests/fixtures/weeks_duration.plan.yaml#L1-L24)
 
 ## Dependency Analysis
-- Python runtime: The tools require Python 3.11+.
-- Dependencies:
-  - PyYAML for parsing YAML.
-  - Optional: jsonschema for JSON Schema validation.
+- **Python runtime**: The tools require Python 3.12+ for optimal compatibility.
+- **Dependencies**:
+  - PyYAML >= 6.0 for parsing YAML.
+  - Optional: jsonschema >= 4.0 for JSON Schema validation.
   - **pytest and pytest-cov for comprehensive testing and coverage reporting.**
-- Internal dependencies:
+  - **ruff for code linting and formatting (development dependencies).**
+- **Internal dependencies**:
   - validate.py depends on JSON Schemas for optional strict validation.
   - build_spec.py depends on spec/*.md files to generate SPEC.md.
   - **test_scheduling.py imports validation and rendering functions for comprehensive testing.**
 
 ```mermaid
 graph LR
-py["Python >= 3.11"]
+py["Python >= 3.12"]
 yaml["PyYAML >= 6.0"]
 js["jsonschema (optional)"]
 pytest["pytest & pytest-cov"]
+ruff["ruff (dev)"]
 tools["Reference Tools"]
 schemas["JSON Schemas"]
 spec_src["spec/*.md"]
 fixtures["Test Fixtures"]
 test_suite["Test Suite<br/>304 lines"]
+venv["Virtual Environment"]
+py --> venv
 py --> tools
 py --> test_suite
 yaml --> tools
 js --> tools
 pytest --> test_suite
+ruff --> tools
 schemas --> tools
 spec_src --> tools
 fixtures --> test_suite
@@ -332,7 +423,7 @@ fixtures --> test_suite
 
 **Diagram sources**
 - [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt#L1-L10)
-- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L16)
+- [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L1-L30)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L24)
 - [Makefile](file://Makefile#L158-L161)
 
@@ -341,10 +432,10 @@ fixtures --> test_suite
 - [Makefile](file://Makefile#L158-L161)
 
 ## Performance Considerations
-- Validation complexity:
+- **Validation complexity**:
   - Semantic checks are linear in the number of nodes and edges.
   - Cycle detection uses DFS and is O(V + E) for parent and after relations.
-- Rendering:
+- **Rendering**:
   - Date computation and Gantt generation are linear in the number of nodes and lanes.
 - **Testing performance**:
   - Test suite runs efficiently with pytest parallelization support.
@@ -354,23 +445,28 @@ fixtures --> test_suite
   - Containerized testing reduces environment setup overhead.
   - Parallel validation of multiple files improves throughput.
   - Cached dependencies minimize installation time.
-- Recommendations:
+- **Virtual environment benefits**:
+  - Isolated dependencies prevent conflicts with system packages.
+  - Faster activation/deactivation compared to system-wide installations.
+- **Recommendations**:
   - Keep PRs small to minimize validation overhead.
   - Prefer incremental spec updates and targeted examples.
   - **Use pytest markers and selective test execution for faster development cycles.**
 
 ## Troubleshooting Guide
 Common issues and resolutions:
-- YAML parse errors: Ensure files are valid YAML and use UTF-8 encoding.
-- Missing required fields: Add version, nodes, and title per specification.
-- Referential integrity errors: Fix parent, after, and status references to existing node IDs.
-- Cyclic dependencies: Remove cycles in parent and after chains.
-- JSON Schema validation failures: Align data types and formats with schemas.
-- Tool installation: Install dependencies from requirements.txt.
+- **YAML parse errors**: Ensure files are valid YAML and use UTF-8 encoding.
+- **Missing required fields**: Add version, nodes, and title per specification.
+- **Referential integrity errors**: Fix parent, after, and status references to existing node IDs.
+- **Cyclic dependencies**: Remove cycles in parent and after chains.
+- **JSON Schema validation failures**: Align data types and formats with schemas.
+- **Tool installation**: Install dependencies from requirements.txt.
+- **Virtual environment issues**: Use `make venv` to recreate venv, ensure proper activation.
 - **Test failures**: Use pytest verbose mode (-v) and coverage reports (--cov) to identify failing test cases.
 - **Coverage gaps**: Analyze missing branch coverage and add targeted test cases.
 - **Makefile issues**: Use `make help` to see available targets and ensure proper Python/Docker detection.
 - **Docker problems**: Verify Docker installation and network connectivity for containerized operations.
+- **Windows-specific issues**: Use WSL for development, ensure proper path handling.
 
 **Section sources**
 - [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py#L135-L329)
@@ -380,12 +476,12 @@ Common issues and resolutions:
 - [Makefile](file://Makefile#L14-L28)
 
 ## Contribution Workflow
-- Issue-first collaboration: Open an issue describing the problem, proposal, or question.
-- Provide examples: Include before/after YAML samples for format changes; show input and expected output for tools.
-- Keep PRs small and focused.
-- New fields must be optional (unless introducing a new major version), semantically clear, and documented in the specification.
+- **Issue-first collaboration**: Open an issue describing the problem, proposal, or question.
+- **Provide examples**: Include before/after YAML samples for format changes; show input and expected output for tools.
+- **Keep PRs small and focused**.
+- **New fields must be optional** (unless introducing a new major version), semantically clear, and documented in the specification.
 - **Code standards**:
-  - Python >= 3.11.
+  - **Python >= 3.12** (updated from 3.11).
   - Formatting/linting with ruff (where applicable).
   - **Add comprehensive tests with pytest for all new functionality.**
   - **Maintain or improve test coverage for existing functionality.**
@@ -395,14 +491,14 @@ Common issues and resolutions:
 - [CONTRIBUTING.md](file://CONTRIBUTING.md#L14-L31)
 
 ## Specification Evolution and Versioning
-- Current state: v1 is Alpha and Draft.
-- Versioning strategy:
+- **Current state**: v1 is Alpha and Draft.
+- **Versioning strategy**:
   - The version field in the root documents identifies the schema version.
   - Extensibility is encouraged; unknown fields should be preserved and ignored by base tools.
-- Backward compatibility:
+- **Backward compatibility**:
   - New fields should be optional until a new major version.
   - Base tools must ignore unknown fields and preserve formatting when applicable.
-- Change management:
+- **Change management**:
   - Update spec/*.md files in order (numeric prefix).
   - Regenerate SPEC.md using the spec builder.
   - Run the spec builder in check mode to prevent drift.
@@ -450,7 +546,7 @@ Common issues and resolutions:
 - [specs/v1/tests/fixtures/start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
 - [specs/v1/tests/fixtures/weekends_exclusion.plan.yaml](file://specs/v1/tests/fixtures/weekends_exclusion.plan.yaml#L1-L21)
 - [specs/v1/tests/fixtures/weeks_duration.plan.yaml](file://specs/v1/tests/fixtures/weeks_duration.plan.yaml#L1-L24)
-- [Makefile](file://Makefile#L111-L127)
+- [Makefile](file://Makefile#L174-L194)
 
 ## Extending the Specification
 Guidelines for extending the specification and maintaining ecosystem compatibility:
@@ -499,8 +595,8 @@ CI-->>Dev : Report status
 ```
 
 **Diagram sources**
-- [Makefile](file://Makefile#L210-L217)
-- [Makefile](file://Makefile#L111-L127)
+- [Makefile](file://Makefile#L221-L227)
+- [Makefile](file://Makefile#L174-L194)
 - [Makefile](file://Makefile#L158-L161)
 
 ### Docker Integration
@@ -516,13 +612,13 @@ CI-->>Dev : Report status
 - **Schema validation**: JSON schema syntax verification.
 
 **Section sources**
-- [Makefile](file://Makefile#L210-L217)
-- [Makefile](file://Makefile#L111-L127)
+- [Makefile](file://Makefile#L221-L227)
+- [Makefile](file://Makefile#L174-L194)
 - [Makefile](file://Makefile#L158-L161)
 - [Makefile](file://Makefile#L179-L204)
 
 ## Makefile Infrastructure
-**New** Comprehensive 230-line Makefile providing complete build automation, validation systems, and CI/CD pipeline support:
+**Updated** Comprehensive 257-line Makefile providing complete build automation, validation systems, and CI/CD pipeline support:
 
 ### Core Build Targets
 - **`make build`**: Complete build including SPEC.md generation and validation
@@ -532,8 +628,9 @@ CI-->>Dev : Report status
 ### Validation Systems
 - **`make validate`**: Comprehensive validation of all examples and fixtures
 - **`make validate-examples`**: Validate all example files (minimal, hello, advanced)
-- **`make validate-fixtures`**: Validate test fixture files
 - **`make validate-schema`**: Validate JSON schema syntax
+- **`make validate-hello`**: Validate hello example (quick check)
+- **`make validate-program`**: Validate program example
 
 ### Testing Framework
 - **`make test`**: Run complete test suite with pytest fallback
@@ -541,10 +638,19 @@ CI-->>Dev : Report status
 - **`make test-coverage`**: Generate coverage reports with pytest-cov
 
 ### Rendering Capabilities
-- **`make render-examples`**: Generate Gantt diagrams for all examples
+- **`make render-hello`**: Generate Gantt diagram for hello example
+- **`make render-program`**: List available views for program example
 
 ### Development Tools
-- **`make deps`**: Install Python dependencies (pyyaml, jsonschema, pytest, pytest-cov)
+- **`make deps`**: Install Python dependencies (pyyaml, jsonschema)
+- **`make deps-dev`**: Install development dependencies (pytest, pytest-cov, ruff)
+- **`make deps-all`**: Alias for deps-dev
+
+### Virtual Environment Management
+- **`make venv`**: Create virtual environment
+- **`make venv-clean`**: Remove virtual environment
+
+### Linting and Formatting
 - **`make lint`**: Run code linting with ruff (if available)
 - **`make format`**: Auto-format code with ruff (if available)
 
@@ -556,10 +662,11 @@ CI-->>Dev : Report status
 
 ### CI/CD Targets
 - **`make ci`**: Run all CI checks (check-spec, validate, test)
-- **`make ci-docker`**: Run all CI checks in Docker containers
+- **`make check`**: Quick check (schemas, examples, spec)
 
 ### Cleanup Operations
 - **`make clean`**: Remove generated files (output, cache, coverage)
+- **`make clean-all`**: Clean everything including venv
 
 ### Environment Detection
 The Makefile automatically detects Python and Docker availability:
@@ -568,9 +675,82 @@ The Makefile automatically detects Python and Docker availability:
 - Supports both python3 and python commands
 
 **Section sources**
-- [Makefile](file://Makefile#L1-L230)
+- [Makefile](file://Makefile#L1-L257)
+
+## Quickstart Procedures
+**New** Streamlined development setup with comprehensive quickstart procedures:
+
+### One-Command Setup
+The fastest way to get started:
+
+```bash
+# Navigate to specs/v1 directory
+cd specs/v1
+
+# Run quickstart (creates venv, installs deps, validates hello example)
+make quickstart
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Verify setup
+make help
+```
+
+### Step-by-Step Setup
+For manual control over the process:
+
+```bash
+# 1. Create virtual environment
+make venv
+
+# 2. Install dependencies
+make deps
+
+# 3. Activate venv
+source venv/bin/activate
+
+# 4. Validate hello example
+make validate-hello
+
+# 5. Render Gantt diagram
+make render-hello
+
+# 6. Run tests
+make test
+```
+
+### Verification Steps
+After setup completion:
+
+```bash
+# Check virtual environment
+python --version
+
+# Verify dependencies
+python -c "import yaml; print('PyYAML:', yaml.__version__)"
+
+# Validate all examples
+make validate-examples
+
+# Generate coverage report
+make test-coverage
+
+# Build specification
+make build-spec
+```
+
+### Common Quickstart Issues
+- **Virtual environment not activating**: Ensure you're using `source venv/bin/activate` (not `venv/bin/activate`)
+- **Permission denied**: On Windows, use WSL or run as administrator
+- **Python version mismatch**: Ensure Python 3.12+ is installed
+- **Make not found**: Install make utility or use PowerShell equivalents
+
+**Section sources**
+- [README.md](file://README.md#L85-L107)
+- [Makefile](file://Makefile#L233-L240)
 
 ## Conclusion
-Opskarta's development model emphasizes a clear specification, minimal reference tools, practical examples, and comprehensive testing infrastructure. The addition of the 304-line test suite with fixture-based scenarios ensures robust quality assurance and regression prevention. The comprehensive 230-line Makefile infrastructure provides complete build automation, validation systems, pytest integration, and CI/CD pipeline support, making development workflows efficient and reproducible across different environments.
+Opskarta's development model emphasizes a clear specification, minimal reference tools, practical examples, and comprehensive testing infrastructure. The addition of the 304-line test suite with fixture-based scenarios ensures robust quality assurance and regression prevention. The comprehensive 257-line Makefile infrastructure provides complete build automation, validation systems, pytest integration, and CI/CD pipeline support, making development workflows efficient and reproducible across different environments.
 
-Contributors should focus on small, well-scoped changes, maintain backward compatibility, ensure spec and tooling integrity, and leverage the comprehensive testing framework and Makefile automation. By following the contribution workflow, testing practices, extension guidelines, and CI/CD integration, you can confidently add features and improve the ecosystem while preserving interoperability and maintaining high code quality standards. The Makefile infrastructure ensures consistent development experiences whether working locally or in CI/CD pipelines, with Docker support for reproducible containerized environments.
+**Updated** The development setup now requires Python 3.12+, includes comprehensive virtual environment management, and provides streamlined quickstart procedures. Contributors should focus on small, well-scoped changes, maintain backward compatibility, ensure spec and tooling integrity, and leverage the comprehensive testing framework and Makefile automation. By following the contribution workflow, testing practices, extension guidelines, and CI/CD integration, you can confidently add features and improve the ecosystem while preserving interoperability and maintaining high code quality standards. The Makefile infrastructure ensures consistent development experiences whether working locally or in CI/CD pipelines, with Docker support for reproducible containerized environments.
