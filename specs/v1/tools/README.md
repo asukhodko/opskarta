@@ -1,125 +1,191 @@
-# Референсные инструменты opskarta v1
+# opskarta v1 Reference Tools
 
-Этот каталог содержит референсные инструменты для работы с форматом opskarta v1.
-Инструменты автономны и не требуют установки пакета.
+This directory contains reference tools for working with the opskarta v1 format.
+The tools are standalone and do not require package installation.
 
-## Установка зависимостей
+## Installing Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Инструменты
+## Tools
 
-### validate.py — Валидатор
+### validate.py - Validator
 
-Валидирует файлы плана и представлений на соответствие спецификации.
+Validates plan and views files against the specification.
 
-**Использование:**
+**Usage:**
 
 ```bash
-# Валидация плана
+# Validate plan
 python validate.py plan.yaml
 
-# Валидация плана и представлений
+# Validate plan and views
 python validate.py plan.yaml views.yaml
 
-# Валидация через JSON Schema (требует jsonschema)
+# Validate with JSON Schema (requires jsonschema)
 python validate.py --schema plan.yaml
 
-# Указание пользовательских схем
+# Specify custom schemas
 python validate.py --schema --plan-schema custom.schema.json plan.yaml
 ```
 
-**Уровни валидации:**
+**Validation levels:**
 
-1. **Синтаксис** — корректность YAML
-2. **Схема** — соответствие JSON Schema (опционально, с флагом `--schema`)
-3. **Семантика** — ссылочная целостность, бизнес-правила
+1. **Syntax** - YAML correctness
+2. **Schema** - JSON Schema compliance (optional, with `--schema` flag)
+3. **Semantics** - referential integrity, business rules
 
-**Проверяемые правила:**
+**Validated rules:**
 
-- Обязательные поля (`version`, `nodes`, `title` для узлов)
-- Ссылочная целостность (`parent`, `after`, `status`)
-- Отсутствие циклических зависимостей
-- Формат полей планирования (`start`, `duration`)
-- Соответствие `project` и `meta.id` для views
+- Required fields (`version`, `nodes`, `title` for nodes)
+- Referential integrity (`parent`, `after`, `status`)
+- No cyclic dependencies
+- Scheduling field formats (`start`, `duration`)
+- Matching `project` and `meta.id` for views
 
-### build_spec.py — Сборщик спецификации
+### build_spec.py - Specification Builder
 
-Собирает части спецификации из `spec/` в единый файл `SPEC.md`.
+Assembles specification parts from `spec/` into a single `SPEC.md` file.
 
-**Использование:**
+**Usage:**
 
 ```bash
-# Генерация SPEC.md
+# Generate SPEC.md
 python build_spec.py
 
-# Проверка актуальности SPEC.md (для CI/CD)
+# Check if SPEC.md is up-to-date (for CI/CD)
 python build_spec.py --check
 ```
 
-**Алгоритм работы:**
+**Algorithm:**
 
-1. Находит все `*.md` файлы в `spec/` с форматом имени `NN-*.md`
-2. Сортирует по числовому префиксу
-3. Извлекает заголовки первого уровня для оглавления
-4. Собирает в единый файл с автоматическим оглавлением
+1. Finds all `*.md` files in `spec/` with naming format `NN-*.md`
+2. Sorts by numeric prefix
+3. Extracts first-level headings for table of contents
+4. Assembles into single file with automatic TOC
 
-### render/mermaid_gantt.py — Рендерер Mermaid Gantt
+### render/plan2gantt.py - Mermaid Gantt Renderer
 
-Генерирует диаграммы Gantt в формате Mermaid на основе файла плана и представлений.
+Generates Gantt diagrams in Mermaid format based on plan and views files.
 
-**Использование:**
+**Usage:**
 
 ```bash
-# Рендеринг диаграммы в stdout
-python -m render.mermaid_gantt --plan plan.yaml --views views.yaml --view overview
+# Render diagram to stdout
+python -m render.plan2gantt --plan plan.yaml --views views.yaml --view overview
 
-# Сохранение в файл
-python -m render.mermaid_gantt --plan plan.yaml --views views.yaml --view overview --output gantt.md
+# List available views
+python -m render.plan2gantt --plan plan.yaml --views views.yaml --list-views
 
-# Список доступных представлений
-python -m render.mermaid_gantt --plan plan.yaml --views views.yaml --list-views
+# Save to file
+python -m render.plan2gantt --plan plan.yaml --views views.yaml --view overview --output gantt.md
+
+# Output with markdown fence wrapper
+python -m render.plan2gantt --plan plan.yaml --views views.yaml --view overview --markdown
+
+# Combine: save to file with markdown fence
+python -m render.plan2gantt --plan plan.yaml --views views.yaml --view overview --output gantt.md --markdown
 ```
 
-**Возможности:**
+**Features:**
 
-- Автоматическое вычисление дат на основе зависимостей (`after`)
-- Поддержка исключения выходных дней (`excludes: weekends`)
-- Цветовая кодировка статусов задач
-- Эмодзи для визуального различения статусов
+- Automatic date calculation based on dependencies (`after`)
+- Weekend exclusion support (`excludes: weekends`)
+- Status-based color coding
+- Emoji prefixes for visual status distinction
+- Title fallback chain: view.title -> plan.meta.title -> "opskarta gantt"
+- Extension support: `x.scheduling.anchor_to_parent_start` for parent-anchored scheduling
 
-## Зависимости
+**Core scheduling algorithm:**
 
-| Зависимость | Версия | Назначение | Обязательность |
-|-------------|--------|------------|----------------|
-| PyYAML | ≥6.0 | Парсинг YAML файлов | Обязательно |
-| jsonschema | ≥4.0 | Валидация через JSON Schema | Опционально |
+1. Explicit `start` (normalized to next workday if falls on excluded day)
+2. `finish` + `duration` (backward planning)
+3. `after` dependencies (start = next_workday(max_finish_deps))
+4. Extension: `anchor_to_parent_start` (non-core, opt-in)
+5. Otherwise: node is unscheduled (not rendered on Gantt)
 
-## Примеры
+### render/plan2dag.py - Mermaid DAG Renderer
 
-Примеры файлов плана и представлений находятся в каталоге [`../examples/`](../examples/):
+Generates dependency graphs (DAG) as Mermaid flowcharts from plan files.
 
-- [`minimal/`](../examples/minimal/) — минимальный пример (только план)
-- [`hello/`](../examples/hello/) — базовый пример с планом и представлениями
-- [`advanced/`](../examples/advanced/) — продвинутый пример с несколькими треками
-
-### Быстрый старт
+**Usage:**
 
 ```bash
-# Перейти в каталог tools
+# Render DAG flowchart to stdout
+python -m render.plan2dag --plan plan.yaml
+
+# Specify graph direction
+python -m render.plan2dag --plan plan.yaml --direction LR
+
+# Wrap node labels at specific column
+python -m render.plan2dag --plan plan.yaml --wrap-column 26
+
+# Filter to specific track(s)
+python -m render.plan2dag --plan plan.yaml --track track-spirit-code
+
+# Multiple tracks
+python -m render.plan2dag --plan plan.yaml --track track-backend --track track-frontend
+
+# Combined options
+python -m render.plan2dag --plan plan.yaml --direction LR --wrap-column 26 --track track-spirit-code
+```
+
+**CLI options:**
+
+| Option | Description |
+|--------|-------------|
+| `--plan` | Path to *.plan.yaml (required) |
+| `--direction` | Graph direction: LR, TB, BT, RL (default: LR) |
+| `--wrap-column` | Wrap node labels at this column (0 = no wrap) |
+| `--track` | Limit diagram to specific track(s), can be repeated |
+
+**Features:**
+
+- Visualizes both decomposition hierarchy (parent-child) and dependency graph (after)
+- Dashed arrows for parent relationships (structure)
+- Solid arrows for after dependencies (flow)
+- Status-based coloring with emoji prefixes
+- Owner display (reads from `node.x.owner` or legacy `node.owner`)
+- Smart arrow rendering that avoids redundant parent arrows when sibling dependencies exist
+- Warnings for after-chains without anchor (no start/finish/end in closure)
+
+## Dependencies
+
+| Dependency | Version | Purpose | Required |
+|------------|---------|---------|----------|
+| PyYAML | >=6.0 | YAML file parsing | Yes |
+| jsonschema | >=4.0 | JSON Schema validation | Optional |
+
+## Examples
+
+Example plan and views files are located in the [`../examples/`](../examples/) directory:
+
+- [`minimal/`](../examples/minimal/) - minimal example (plan only)
+- [`hello/`](../examples/hello/) - basic example with plan and views
+- [`advanced/`](../examples/advanced/) - advanced example with multiple tracks
+
+### Quick Start
+
+```bash
+# Navigate to tools directory
 cd specs/v1/tools
 
-# Установить зависимости
+# Install dependencies
 pip install -r requirements.txt
 
-# Валидировать пример
+# Validate example
 python validate.py ../examples/hello/hello.plan.yaml ../examples/hello/hello.views.yaml
 
-# Сгенерировать Gantt диаграмму
-python -m render.mermaid_gantt \
+# Generate Gantt diagram
+python -m render.plan2gantt \
     --plan ../examples/hello/hello.plan.yaml \
     --views ../examples/hello/hello.views.yaml \
     --view overview
+
+# Generate DAG flowchart
+python -m render.plan2dag \
+    --plan ../examples/hello/hello.plan.yaml \
+    --direction LR
 ```
