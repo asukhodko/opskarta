@@ -43,7 +43,7 @@ nodes:
 
 ```bash
 cd specs/v1
-python tools/validate.py examples/minimal/project.plan.yaml
+python tools/validate.py ru/examples/minimal/project.plan.yaml
 ```
 
 ## Когда использовать

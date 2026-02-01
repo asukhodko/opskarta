@@ -1,0 +1,12 @@
+version: 1
+project: hello-upgrade
+
+gantt_views:
+  overview:
+    title: "Hello Upgrade — Overview"
+    excludes: ["weekends"]
+
+    lanes:
+      main:
+        title: "Main Flow"
+        nodes: [prep, rollout, switch]

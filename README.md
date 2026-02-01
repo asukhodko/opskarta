@@ -3,41 +3,41 @@
 > OpsKarta — Operational map format for complex programs (plan‑as‑code).  
 > OpsCarto — Operational cartography for programs: model once, render many views. *(synonym)*
 
-**opskarta** — открытый формат данных (YAML/JSON) для *оперативной карты программы/проекта*: единого артефакта, в котором менеджер фиксирует свою актуальную интерпретацию структуры работ и зависимостей, а затем генерирует из неё сколько угодно представлений (Gantt, граф зависимостей, чек‑листы, отчёты и т.д.).
+**opskarta** — an open data format (YAML/JSON) for an *operational map of a program/project*: a single artifact where a manager captures their current interpretation of work structure and dependencies, then generates any number of views from it (Gantt, dependency graphs, checklists, reports, etc.).
 
-Ключевая идея: **«источник истины» — не Jira, не Confluence и не "в голове", а твой версионируемый файл‑план**.
+Key idea: **"source of truth" — not Jira, not Confluence, not "in your head", but your version-controlled plan file**.
 
 ## Specification Versions
 
-| Версия | Статус | Описание |
-|--------|--------|----------|
-| [v1](specs/v1/) \| [SPEC.md](specs/v1/SPEC.md) | Alpha | Начальная версия спецификации |
+| Version | Status | Language | Description |
+|---------|--------|----------|-------------|
+| [v1](specs/v1/) | Alpha | [EN](specs/v1/en/SPEC.md) (canonical) \| [RU](specs/v1/ru/SPEC.md) | Initial specification version |
 
-## Как это выглядит
+## What It Looks Like
 
-Файл плана (`hello.plan.yaml`):
+Plan file (`hello.plan.yaml`):
 
 ```yaml
 version: 1
 
 meta:
   id: hello-upgrade
-  title: "Пример: обновление Git-сервиса"
+  title: "Example: Git Service Upgrade"
 
 statuses:
-  not_started: { label: "Не начато",     color: "#9ca3af" }
-  in_progress: { label: "В работе",      color: "#0ea5e9" }
-  done:        { label: "Готово",        color: "#22c55e" }
-  blocked:     { label: "Заблокировано", color: "#fecaca" }
+  not_started: { label: "Not Started", color: "#9ca3af" }
+  in_progress: { label: "In Progress", color: "#0ea5e9" }
+  done:        { label: "Done",        color: "#22c55e" }
+  blocked:     { label: "Blocked",     color: "#fecaca" }
 
 nodes:
   root:
-    title: "Обновление Git-сервиса"
+    title: "Git Service Upgrade"
     kind: summary
     status: in_progress
 
   prep:
-    title: "Подготовка"
+    title: "Preparation"
     kind: phase
     parent: root
     start: "2026-02-01"
@@ -45,7 +45,7 @@ nodes:
     status: in_progress
 
   rollout:
-    title: "Раскатка"
+    title: "Rollout"
     kind: phase
     parent: root
     after: [prep]
@@ -53,97 +53,103 @@ nodes:
     status: not_started
 
   switch:
-    title: "Переключение трафика"
+    title: "Traffic Switch"
     kind: task
     parent: rollout
     after: [rollout]
     duration: "1d"
     status: not_started
     notes: |
-      Критичный шаг. Нужен план отката.
+      Critical step. Rollback plan needed.
 ```
 
-Из этого плана можно генерировать Gantt-диаграммы, графы зависимостей, отчёты — см. [полную спецификацию v1](specs/v1/).
+From this plan you can generate Gantt charts, dependency graphs, reports — see the [full v1 specification](specs/v1/).
 
 ## Quick Start
 
-Текущая рекомендуемая версия — **[v1](specs/v1/)**.
+Current recommended version — **[v1](specs/v1/)**.
 
 ```bash
 cd specs/v1
 
-# Валидация примера
-python tools/validate.py examples/hello/hello.plan.yaml examples/hello/hello.views.yaml
+# Validate example
+python tools/validate.py en/examples/hello/hello.plan.yaml en/examples/hello/hello.views.yaml
 
-# Генерация Mermaid Gantt
-python -m tools.render.mermaid_gantt \
-    --plan examples/hello/hello.plan.yaml \
-    --views examples/hello/hello.views.yaml \
+# Generate Mermaid Gantt
+python -m tools.render.plan2gantt \
+    --plan en/examples/hello/hello.plan.yaml \
+    --views en/examples/hello/hello.views.yaml \
     --view overview
 ```
 
 ## Development Setup
 
-Проект использует Python 3.12+ и виртуальное окружение (venv).
+The project uses Python 3.12+ and virtual environment (venv).
 
-### Требования
+### Requirements
 
 - Python 3.12+
-- make (для автоматизации)
-- WSL (рекомендуется для Windows) или Linux/macOS
+- make (for automation)
+- WSL (recommended for Windows) or Linux/macOS
 
-### Установка
+### Installation
 
 ```bash
-# Создание виртуального окружения и установка зависимостей
+# Create virtual environment and install dependencies
 make venv
 make deps
 
-# Активация venv (обязательно для работы с инструментами)
+# Activate venv (required for working with tools)
 source venv/bin/activate
 
-# Или одной командой для быстрого старта
+# Or one command for quick start
 make quickstart
 ```
 
-### Основные команды
+### Main Commands
 
 ```bash
-# Сборка SPEC.md из исходников
-make build-spec
+# Build SPEC.md from sources (both languages)
+make spec-all
 
-# Проверка актуальности SPEC.md
-make check-spec
+# Build English spec only
+make spec-en
 
-# Валидация всех примеров
-make validate-examples
+# Build Russian spec only
+make spec-ru
 
-# Запуск тестов
+# Check if SPEC.md is up-to-date
+make check-spec-all
+
+# Validate all examples (both languages)
+make validate-examples-all
+
+# Run tests
 make test
 
-# Все проверки CI
+# All CI checks
 make ci
 
-# Справка по всем командам
+# Help for all commands
 make help
 ```
 
-### Важно для Windows
+### Important for Windows
 
-Виртуальное окружение создаётся с Unix-структурой (`venv/bin/`). Для работы:
+Virtual environment is created with Unix structure (`venv/bin/`). For working:
 
-- **Рекомендуется**: использовать WSL (Windows Subsystem for Linux)
-- Все команды `make` и `python` выполнять внутри WSL
-- Перед работой всегда активировать venv: `source venv/bin/activate`
+- **Recommended**: use WSL (Windows Subsystem for Linux)
+- Execute all `make` and `python` commands inside WSL
+- Always activate venv before working: `source venv/bin/activate`
 
 ## Documentation
 
-- [Философия и метод](docs/method.md) — зачем нужна opskarta и как её использовать
-- [Contributing](CONTRIBUTING.md) — как внести вклад в проект
-- [Code of Conduct](CODE_OF_CONDUCT.md) — правила поведения
-- [Security](SECURITY.md) — политика безопасности
-- [Changelog](CHANGELOG.md) — история изменений
+- [Philosophy and Method](docs/method.md) — why opskarta exists and how to use it
+- [Contributing](CONTRIBUTING.md) — how to contribute to the project
+- [Code of Conduct](CODE_OF_CONDUCT.md) — code of conduct
+- [Security](SECURITY.md) — security policy
+- [Changelog](CHANGELOG.md) — change history
 
 ## License
 
-Apache License 2.0 — см. файл [LICENSE](LICENSE).
+Apache License 2.0 — see [LICENSE](LICENSE) file.

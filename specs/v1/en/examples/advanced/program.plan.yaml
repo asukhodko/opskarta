@@ -1,0 +1,330 @@
+version: 1
+
+meta:
+  id: platform-modernization
+  title: "Platform Modernization Program"
+
+statuses:
+  not_started:  { label: "Not Started",  color: "#9ca3af" }
+  planning:     { label: "Planning",     color: "#a78bfa" }
+  in_progress:  { label: "In Progress",  color: "#0ea5e9" }
+  review:       { label: "In Review",    color: "#f59e0b" }
+  done:         { label: "Done",         color: "#22c55e" }
+  blocked:      { label: "Blocked",      color: "#ef4444" }
+  on_hold:      { label: "On Hold",      color: "#6b7280" }
+
+nodes:
+  # ============================================================
+  # Root program node
+  # ============================================================
+  program:
+    title: "Platform Modernization Q1-Q2 2026"
+    kind: summary
+    status: in_progress
+    notes: |
+      Program includes three main directions:
+      - Backend modernization (transition to microservices)
+      - Frontend update (new UI framework)
+      - Infrastructure improvement (Kubernetes, monitoring)
+
+  # ============================================================
+  # TRACK 1: Backend
+  # ============================================================
+  backend:
+    title: "Backend"
+    kind: phase
+    parent: program
+    status: in_progress
+
+  # --- Epic: API Gateway ---
+  api-gateway:
+    title: "API Gateway"
+    kind: epic
+    parent: backend
+    start: "2026-01-15"
+    duration: 30d
+    status: in_progress
+
+  gateway-design:
+    title: "API Gateway Design"
+    kind: task
+    parent: api-gateway
+    start: "2026-01-15"
+    duration: 5d
+    status: done
+
+  gateway-impl:
+    title: "API Gateway Implementation"
+    kind: task
+    parent: api-gateway
+    after: [gateway-design]
+    duration: 15d
+    status: in_progress
+    notes: |
+      Using Kong Gateway.
+      Integration with existing auth service required.
+
+  gateway-testing:
+    title: "API Gateway Testing"
+    kind: task
+    parent: api-gateway
+    after: [gateway-impl]
+    duration: 10d
+    status: not_started
+
+  # --- Epic: Microservices ---
+  microservices:
+    title: "Microservices Decomposition"
+    kind: epic
+    parent: backend
+    after: [api-gateway]
+    duration: 45d
+    status: planning
+
+  user-service:
+    title: "User Service"
+    kind: task
+    parent: microservices
+    after: [microservices]
+    duration: 15d
+    status: not_started
+
+  order-service:
+    title: "Order Service"
+    kind: task
+    parent: microservices
+    after: [user-service]
+    duration: 20d
+    status: not_started
+    notes: |
+      Depends on User Service for authorization.
+
+  notification-service:
+    title: "Notification Service"
+    kind: task
+    parent: microservices
+    after: [microservices]
+    duration: 10d
+    status: not_started
+
+  # ============================================================
+  # TRACK 2: Frontend
+  # ============================================================
+  frontend:
+    title: "Frontend"
+    kind: phase
+    parent: program
+    status: planning
+
+  # --- Epic: Design System ---
+  design-system:
+    title: "Design System"
+    kind: epic
+    parent: frontend
+    start: "2026-02-01"
+    duration: 25d
+    status: planning
+
+  ds-tokens:
+    title: "Design Tokens"
+    kind: task
+    parent: design-system
+    start: "2026-02-01"
+    duration: 5d
+    status: not_started
+
+  ds-components:
+    title: "Base Components"
+    kind: task
+    parent: design-system
+    after: [ds-tokens]
+    duration: 15d
+    status: not_started
+
+  ds-docs:
+    title: "Storybook Documentation"
+    kind: task
+    parent: design-system
+    after: [ds-components]
+    duration: 5d
+    status: not_started
+
+  # --- Epic: UI Migration ---
+  ui-migration:
+    title: "UI Migration"
+    kind: epic
+    parent: frontend
+    after: [design-system]
+    duration: 40d
+    status: not_started
+
+  migrate-auth:
+    title: "Auth Module Migration"
+    kind: task
+    parent: ui-migration
+    after: [ui-migration]
+    duration: 10d
+    status: not_started
+    notes: |
+      Critical module. Thorough testing required.
+
+  migrate-dashboard:
+    title: "Dashboard Migration"
+    kind: task
+    parent: ui-migration
+    after: [migrate-auth]
+    duration: 15d
+    status: not_started
+
+  migrate-settings:
+    title: "Settings Migration"
+    kind: task
+    parent: ui-migration
+    after: [migrate-auth]
+    duration: 10d
+    status: not_started
+
+  ui-e2e-tests:
+    title: "E2E Testing"
+    kind: task
+    parent: ui-migration
+    after: [migrate-dashboard, migrate-settings]
+    duration: 5d
+    status: not_started
+
+  # ============================================================
+  # TRACK 3: Infrastructure
+  # ============================================================
+  infrastructure:
+    title: "Infrastructure"
+    kind: phase
+    parent: program
+    status: in_progress
+
+  # --- Epic: Kubernetes ---
+  k8s:
+    title: "Kubernetes Migration"
+    kind: epic
+    parent: infrastructure
+    start: "2026-01-20"
+    duration: 35d
+    status: in_progress
+
+  k8s-cluster:
+    title: "Cluster Setup"
+    kind: task
+    parent: k8s
+    start: "2026-01-20"
+    duration: 10d
+    status: done
+
+  k8s-helm:
+    title: "Helm Charts for Services"
+    kind: task
+    parent: k8s
+    after: [k8s-cluster]
+    duration: 15d
+    status: in_progress
+
+  k8s-ci-cd:
+    title: "CI/CD Pipelines"
+    kind: task
+    parent: k8s
+    after: [k8s-helm]
+    duration: 10d
+    status: not_started
+    notes: |
+      GitLab CI integration.
+      ArgoCD for GitOps.
+
+  # --- Epic: Monitoring ---
+  monitoring:
+    title: "Monitoring System"
+    kind: epic
+    parent: infrastructure
+    after: [k8s]
+    duration: 20d
+    status: not_started
+
+  prometheus:
+    title: "Prometheus + Grafana"
+    kind: task
+    parent: monitoring
+    after: [monitoring]
+    duration: 10d
+    status: not_started
+
+  logging:
+    title: "Centralized Logging"
+    kind: task
+    parent: monitoring
+    after: [monitoring]
+    duration: 7d
+    status: not_started
+
+  alerting:
+    title: "Alerting Setup"
+    kind: task
+    parent: monitoring
+    after: [prometheus, logging]
+    duration: 3d
+    status: not_started
+
+  # ============================================================
+  # Cross-track dependencies
+  # ============================================================
+  integration-testing:
+    title: "Integration Testing"
+    kind: epic
+    parent: program
+    after: [gateway-testing, ui-e2e-tests, k8s-ci-cd]
+    duration: 15d
+    status: not_started
+    notes: |
+      Final testing of all components together.
+      Requires completion of work on all tracks.
+
+  release:
+    title: "Release v2.0"
+    kind: task
+    parent: program
+    after: [integration-testing, alerting]
+    duration: 5d
+    status: not_started
+    notes: |
+      Staged rollout:
+      1. Canary (5% traffic)
+      2. Expand to 50%
+      3. Full release
+
+# ============================================================
+# Extensions (custom fields)
+# ============================================================
+x:
+  team_assignments:
+    backend: ["alice", "bob", "charlie"]
+    frontend: ["diana", "eve"]
+    infrastructure: ["frank", "grace"]
+  
+  risk_register:
+    - id: R001
+      description: "API Gateway delivery delay"
+      probability: medium
+      impact: high
+      mitigation: "Parallel mock service development"
+    - id: R002
+      description: "Design token incompatibility"
+      probability: low
+      impact: medium
+      mitigation: "Early prototyping"
+  
+  milestones:
+    - date: "2026-02-15"
+      name: "API Gateway Ready"
+      nodes: [gateway-testing]
+    - date: "2026-03-01"
+      name: "Design System Complete"
+      nodes: [ds-docs]
+    - date: "2026-04-15"
+      name: "Platform v2.0 Release"
+      nodes: [release]

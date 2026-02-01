@@ -1,26 +1,54 @@
 # opskarta Specification v1
 
-**Статус**: Alpha
-**Релиз**: Draft
+This directory contains the opskarta specification in two languages.
 
-## Обзор
+## Languages
 
-Версия 1 спецификации opskarta — первая формальная версия формата для описания планов работ. Спецификация определяет структуру YAML-файлов для планов (`.plan.yaml`) и представлений (`.views.yaml`), а также правила их валидации и интерпретации.
+| Language | Directory | Description |
+|----------|-----------|-------------|
+| **English** | [en/](en/) | Primary specification (canonical) |
+| **Russian** | [ru/](ru/) | Translation |
 
-Основные возможности v1:
-- Иерархическая структура узлов (программы, проекты, задачи)
-- Гибкая система статусов
-- Планирование с зависимостями (`after`) и длительностями (`duration`)
-- Множественные представления одного плана (Gantt, Kanban, списки)
-- Расширяемость через пользовательские поля (секция `x:`)
+## Structure
 
-## Изменения относительно предыдущей версии
+```
+specs/v1/
+├── en/                     # English (primary)
+│   ├── SPEC.md             # Full specification
+│   ├── SPEC.min.md         # Compact version
+│   ├── README.md
+│   ├── spec/               # Source sections
+│   └── examples/           # Example files
+├── ru/                     # Russian (translation)
+│   ├── SPEC.md
+│   ├── SPEC.min.md
+│   ├── README.md
+│   ├── spec/
+│   └── examples/
+├── schemas/                # JSON Schemas (shared)
+├── tests/                  # Test suite (shared)
+└── tools/                  # Build and validation tools
+```
 
-Это первая версия спецификации opskarta. Предыдущих версий не существует.
+## Quick Start
 
-## Быстрые ссылки
+```bash
+# Build specification (both languages)
+make spec-all
 
-- [Полная спецификация](SPEC.md)
-- [Примеры](examples/) — minimal, hello, advanced
-- [JSON Schema](schemas/)
-- [Референсные инструменты](tools/)
+# Build English only
+make spec-en
+
+# Build Russian only
+make spec-ru
+
+# Validate examples
+make validate-examples-all
+```
+
+## Tools
+
+See [tools/README.md](tools/README.md) for documentation on:
+- `build_spec.py` — Assembles SPEC.md from sections
+- `validate.py` — Validates plan and view files
+- `render/` — Gantt diagram renderers

@@ -1,0 +1,43 @@
+version: 1
+
+meta:
+  id: hello-upgrade
+  title: "Example: Git Service Upgrade"
+
+statuses:
+  not_started: { label: "Not Started", color: "#9ca3af" }
+  in_progress: { label: "In Progress", color: "#0ea5e9" }
+  done:        { label: "Done",        color: "#22c55e" }
+  blocked:     { label: "Blocked",     color: "#fecaca" }
+
+nodes:
+  root:
+    title: "Git Service Upgrade"
+    kind: summary
+    status: in_progress
+
+  prep:
+    title: "Preparation"
+    kind: phase
+    parent: root
+    start: "2026-02-01"
+    duration: 10d
+    status: in_progress
+
+  rollout:
+    title: "Rollout"
+    kind: phase
+    parent: root
+    after: [prep]
+    duration: 5d
+    status: not_started
+
+  switch:
+    title: "Traffic Switch"
+    kind: task
+    parent: rollout
+    after: [rollout]
+    duration: 1d
+    status: not_started
+    notes: |
+      Critical step. Rollback plan needed.

@@ -47,16 +47,20 @@ python validate.py --schema --plan-schema custom.schema.json plan.yaml
 
 ### build_spec.py - Specification Builder
 
-Assembles specification parts from `spec/` into a single `SPEC.md` file.
+Assembles specification parts from `<lang>/spec/` into a single `<lang>/SPEC.md` file.
 
 **Usage:**
 
 ```bash
-# Generate SPEC.md
-python build_spec.py
+# Generate English SPEC.md (default)
+python build_spec.py --lang en
+
+# Generate Russian SPEC.md
+python build_spec.py --lang ru
 
 # Check if SPEC.md is up-to-date (for CI/CD)
-python build_spec.py --check
+python build_spec.py --lang en --check
+python build_spec.py --lang ru --check
 ```
 
 **Algorithm:**
@@ -160,11 +164,17 @@ python -m render.plan2dag --plan plan.yaml --direction LR --wrap-column 26 --tra
 
 ## Examples
 
-Example plan and views files are located in the [`../examples/`](../examples/) directory:
+Example plan and views files are located in the language-specific directories:
 
-- [`minimal/`](../examples/minimal/) - minimal example (plan only)
-- [`hello/`](../examples/hello/) - basic example with plan and views
-- [`advanced/`](../examples/advanced/) - advanced example with multiple tracks
+**English (canonical):**
+- [`../en/examples/minimal/`](../en/examples/minimal/) - minimal example (plan only)
+- [`../en/examples/hello/`](../en/examples/hello/) - basic example with plan and views
+- [`../en/examples/advanced/`](../en/examples/advanced/) - advanced example with multiple tracks
+
+**Russian:**
+- [`../ru/examples/minimal/`](../ru/examples/minimal/) - minimal example (plan only)
+- [`../ru/examples/hello/`](../ru/examples/hello/) - basic example with plan and views
+- [`../ru/examples/advanced/`](../ru/examples/advanced/) - advanced example with multiple tracks
 
 ### Quick Start
 
@@ -175,17 +185,17 @@ cd specs/v1/tools
 # Install dependencies
 pip install -r requirements.txt
 
-# Validate example
-python validate.py ../examples/hello/hello.plan.yaml ../examples/hello/hello.views.yaml
+# Validate example (English)
+python validate.py ../en/examples/hello/hello.plan.yaml ../en/examples/hello/hello.views.yaml
 
 # Generate Gantt diagram
 python -m render.plan2gantt \
-    --plan ../examples/hello/hello.plan.yaml \
-    --views ../examples/hello/hello.views.yaml \
+    --plan ../en/examples/hello/hello.plan.yaml \
+    --views ../en/examples/hello/hello.views.yaml \
     --view overview
 
 # Generate DAG flowchart
 python -m render.plan2dag \
-    --plan ../examples/hello/hello.plan.yaml \
+    --plan ../en/examples/hello/hello.plan.yaml \
     --direction LR
 ```

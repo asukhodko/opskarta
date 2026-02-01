@@ -1,56 +1,110 @@
 #!/usr/bin/env python3
 """
-Spec Builder — скрипт для сборки частей спецификации в единый SPEC.md.
+Spec Builder — script for assembling specification parts into a single SPEC.md.
 
-Использование:
-    python build_spec.py          # Генерирует SPEC.md
-    python build_spec.py --check  # Проверяет актуальность SPEC.md
+Usage:
+    python build_spec.py                    # Generates en/SPEC.md (default)
+    python build_spec.py --lang ru          # Generates ru/SPEC.md
+    python build_spec.py --lang en --check  # Checks if en/SPEC.md is up-to-date
 
-Алгоритм:
-    1. Найти все *.md файлы в spec/
-    2. Отсортировать по числовому префиксу
-    3. Извлечь заголовки первого уровня для оглавления
-    4. Собрать в единый файл с оглавлением
+Algorithm:
+    1. Find all *.md files in <lang>/spec/
+    2. Sort by numeric prefix
+    3. Extract first-level headings for table of contents
+    4. Assemble into single file with table of contents
 """
 
 import argparse
-import os
 import re
 import sys
 from pathlib import Path
 from typing import List, Tuple, Optional
 
 
-# Паттерн для имени файла: NN-*.md где NN — числовой префикс
+# Pattern for filename: NN-*.md where NN is numeric prefix
 FILENAME_PATTERN = re.compile(r'^(\d+)-.*\.md$')
 
-# Паттерн для заголовка первого уровня
+# Pattern for first-level heading
 HEADING_PATTERN = re.compile(r'^#\s+(.+)$', re.MULTILINE)
+
+# Supported languages
+SUPPORTED_LANGS = ['en', 'ru']
+
+# Language-specific strings
+STRINGS = {
+    'en': {
+        'toc_title': '## Table of Contents',
+        'header_auto': '<!-- This file is auto-generated. Do not edit manually! -->',
+        'header_edit': '<!-- To make changes, edit files in spec/ and run: python tools/build_spec.py --lang {language} -->',
+        'warning_skip': "Warning: file '{name}' does not match format NN-*.md, skipping",
+        'error_duplicate': "Error: duplicate numeric prefix {prefix:02d}:",
+        'error_dir_not_found': "Error: directory '{path}' not found",
+        'error_no_files': "Error: no specification files found in '{path}'",
+        'found_files': "Found {count} specification files:",
+        'file_up_to_date': "✓ File '{name}' is up to date",
+        'file_outdated': "✗ File '{name}' is outdated",
+        'run_to_generate': "Run 'python tools/build_spec.py --lang {language}' to generate",
+        'run_to_update': "Run 'python tools/build_spec.py --lang {language}' to update",
+        'generated': "✓ Generated file '{path}'",
+        'error_no_write': "Error: no write permission for '{path}'",
+        'error_write': "Error writing file: {error}",
+        'error_file_not_exist': "Error: file '{path}' does not exist",
+    },
+    'ru': {
+        'toc_title': '## Оглавление',
+        'header_auto': '<!-- Этот файл сгенерирован автоматически. Не редактируйте вручную! -->',
+        'header_edit': '<!-- Для изменений редактируйте файлы в spec/ и запустите: python tools/build_spec.py --lang {language} -->',
+        'warning_skip': "Предупреждение: файл '{name}' не соответствует формату NN-*.md, пропускаем",
+        'error_duplicate': "Ошибка: дублирующийся числовой префикс {prefix:02d}:",
+        'error_dir_not_found': "Ошибка: директория '{path}' не найдена",
+        'error_no_files': "Ошибка: в директории '{path}' не найдено файлов спецификации",
+        'found_files': "Найдено {count} файлов спецификации:",
+        'file_up_to_date': "✓ Файл '{name}' актуален",
+        'file_outdated': "✗ Файл '{name}' устарел",
+        'run_to_generate': "Запустите 'python tools/build_spec.py --lang {language}' для генерации",
+        'run_to_update': "Запустите 'python tools/build_spec.py --lang {language}' для обновления",
+        'generated': "✓ Сгенерирован файл '{path}'",
+        'error_no_write': "Ошибка: нет прав на запись в '{path}'",
+        'error_write': "Ошибка записи файла: {error}",
+        'error_file_not_exist': "Ошибка: файл '{path}' не существует",
+    }
+}
+
+
+def get_string(lang: str, key: str, **kwargs) -> str:
+    """Get localized string with optional formatting."""
+    template = STRINGS[lang][key]
+    return template.format(**kwargs) if kwargs else template
 
 
 def get_script_dir() -> Path:
-    """Возвращает директорию, в которой находится скрипт."""
+    """Returns directory where script is located."""
     return Path(__file__).parent.resolve()
 
 
-def get_spec_dir() -> Path:
-    """Возвращает путь к директории spec/ относительно скрипта."""
-    return get_script_dir().parent / 'spec'
+def get_lang_dir(lang: str) -> Path:
+    """Returns path to language directory (e.g., specs/v1/en/)."""
+    return get_script_dir().parent / lang
 
 
-def get_output_path() -> Path:
-    """Возвращает путь к выходному файлу SPEC.md."""
-    return get_script_dir().parent / 'SPEC.md'
+def get_spec_dir(lang: str) -> Path:
+    """Returns path to spec/ directory for given language."""
+    return get_lang_dir(lang) / 'spec'
 
 
-def find_spec_files(spec_dir: Path) -> List[Tuple[int, Path]]:
+def get_output_path(lang: str) -> Path:
+    """Returns path to output SPEC.md file."""
+    return get_lang_dir(lang) / 'SPEC.md'
+
+
+def find_spec_files(spec_dir: Path, lang: str) -> List[Tuple[int, Path]]:
     """
-    Находит все файлы спецификации в директории spec/.
+    Finds all specification files in spec/ directory.
     
-    Возвращает список кортежей (числовой_префикс, путь_к_файлу),
-    отсортированный по числовому префиксу.
+    Returns list of tuples (numeric_prefix, file_path),
+    sorted by numeric prefix.
     
-    Файлы с некорректным форматом имени пропускаются с предупреждением.
+    Files with incorrect name format are skipped with warning.
     """
     if not spec_dir.exists():
         return []
@@ -64,15 +118,15 @@ def find_spec_files(spec_dir: Path) -> List[Tuple[int, Path]]:
             
         match = FILENAME_PATTERN.match(file_path.name)
         if not match:
-            print(f"Предупреждение: файл '{file_path.name}' не соответствует формату NN-*.md, пропускаем",
+            print(get_string(lang, 'warning_skip', name=file_path.name),
                   file=sys.stderr)
             continue
         
         prefix = int(match.group(1))
         
-        # Проверка на дубликаты числового префикса
+        # Check for duplicate numeric prefix
         if prefix in prefixes_seen:
-            print(f"Ошибка: дублирующийся числовой префикс {prefix:02d}:",
+            print(get_string(lang, 'error_duplicate', prefix=prefix),
                   file=sys.stderr)
             print(f"  - {prefixes_seen[prefix].name}", file=sys.stderr)
             print(f"  - {file_path.name}", file=sys.stderr)
@@ -81,16 +135,16 @@ def find_spec_files(spec_dir: Path) -> List[Tuple[int, Path]]:
         prefixes_seen[prefix] = file_path
         files.append((prefix, file_path))
     
-    # Сортировка по числовому префиксу
+    # Sort by numeric prefix
     files.sort(key=lambda x: x[0])
     return files
 
 
 def extract_first_heading(content: str) -> Optional[str]:
     """
-    Извлекает первый заголовок первого уровня из Markdown-контента.
+    Extracts first level-1 heading from Markdown content.
     
-    Возвращает текст заголовка без символа # или None, если заголовок не найден.
+    Returns heading text without # symbol or None if not found.
     """
     match = HEADING_PATTERN.search(content)
     if match:
@@ -100,33 +154,33 @@ def extract_first_heading(content: str) -> Optional[str]:
 
 def generate_anchor(heading: str) -> str:
     """
-    Генерирует якорь для ссылки в оглавлении.
+    Generates anchor for table of contents link.
     
-    Преобразует заголовок в формат, совместимый с GitHub Markdown:
-    - Приводит к нижнему регистру
-    - Заменяет пробелы на дефисы
-    - Удаляет специальные символы (кроме дефисов и подчёркиваний)
+    Converts heading to GitHub Markdown compatible format:
+    - Converts to lowercase
+    - Replaces spaces with hyphens
+    - Removes special characters (except hyphens and underscores)
     """
-    # Приводим к нижнему регистру
+    # Convert to lowercase
     anchor = heading.lower()
-    # Заменяем пробелы на дефисы
+    # Replace spaces with hyphens
     anchor = anchor.replace(' ', '-')
-    # Удаляем специальные символы, оставляем буквы, цифры, дефисы, подчёркивания
+    # Remove special characters, keep letters, digits, hyphens, underscores
     anchor = re.sub(r'[^\w\-]', '', anchor, flags=re.UNICODE)
-    # Убираем множественные дефисы
+    # Remove multiple hyphens
     anchor = re.sub(r'-+', '-', anchor)
-    # Убираем дефисы в начале и конце
+    # Remove hyphens at start and end
     anchor = anchor.strip('-')
     return anchor
 
 
-def build_toc(files: List[Tuple[int, Path]]) -> str:
+def build_toc(files: List[Tuple[int, Path]], lang: str) -> str:
     """
-    Генерирует оглавление (Table of Contents) на основе заголовков файлов.
+    Generates Table of Contents based on file headings.
     
-    Возвращает строку с Markdown-списком ссылок на разделы.
+    Returns string with Markdown list of section links.
     """
-    toc_lines = ["## Оглавление", ""]
+    toc_lines = [get_string(lang, 'toc_title'), ""]
     
     for _, file_path in files:
         content = file_path.read_text(encoding='utf-8')
@@ -136,102 +190,109 @@ def build_toc(files: List[Tuple[int, Path]]) -> str:
             anchor = generate_anchor(heading)
             toc_lines.append(f"- [{heading}](#{anchor})")
         else:
-            # Если заголовок не найден, используем имя файла
+            # If heading not found, use filename
             name = file_path.stem
             toc_lines.append(f"- [{name}](#{name})")
     
-    toc_lines.append("")  # Пустая строка в конце
+    toc_lines.append("")  # Empty line at end
     return '\n'.join(toc_lines)
 
 
-def build_spec(files: List[Tuple[int, Path]]) -> str:
+def build_spec(files: List[Tuple[int, Path]], lang: str) -> str:
     """
-    Собирает полную спецификацию из частей.
+    Assembles complete specification from parts.
     
-    Возвращает строку с полным содержимым SPEC.md.
+    Returns string with full SPEC.md content.
     """
-    # Заголовок документа
+    # Document header
     header = [
-        "<!-- Этот файл сгенерирован автоматически. Не редактируйте вручную! -->",
-        "<!-- Для изменений редактируйте файлы в spec/ и запустите: python tools/build_spec.py -->",
+        get_string(lang, 'header_auto'),
+        get_string(lang, 'header_edit', language=lang),
         "",
     ]
     
-    # Генерируем оглавление
-    toc = build_toc(files)
+    # Generate table of contents
+    toc = build_toc(files, lang)
     
-    # Собираем содержимое всех файлов
+    # Collect content from all files
     sections = []
     for _, file_path in files:
         content = file_path.read_text(encoding='utf-8').strip()
         sections.append(content)
     
-    # Объединяем всё вместе
+    # Combine everything
     parts = header + [toc] + ['\n\n---\n\n'.join(sections)]
     return '\n'.join(parts)
 
 
 def main():
-    """Главная функция скрипта."""
+    """Main script function."""
     parser = argparse.ArgumentParser(
-        description='Сборка спецификации из частей в единый SPEC.md'
+        description='Build specification from parts into single SPEC.md'
+    )
+    parser.add_argument(
+        '--lang',
+        choices=SUPPORTED_LANGS,
+        default='en',
+        help='Language to build (default: en)'
     )
     parser.add_argument(
         '--check',
         action='store_true',
-        help='Проверить актуальность SPEC.md без перезаписи'
+        help='Check if SPEC.md is up-to-date without overwriting'
     )
     args = parser.parse_args()
     
-    spec_dir = get_spec_dir()
-    output_path = get_output_path()
+    lang = args.lang
+    spec_dir = get_spec_dir(lang)
+    output_path = get_output_path(lang)
     
-    # Проверяем существование директории spec/
+    # Check if spec/ directory exists
     if not spec_dir.exists():
-        print(f"Ошибка: директория '{spec_dir}' не найдена", file=sys.stderr)
+        print(get_string(lang, 'error_dir_not_found', path=spec_dir), file=sys.stderr)
         sys.exit(1)
     
-    # Находим файлы спецификации
-    files = find_spec_files(spec_dir)
+    # Find specification files
+    files = find_spec_files(spec_dir, lang)
     
     if not files:
-        print(f"Ошибка: в директории '{spec_dir}' не найдено файлов спецификации",
+        print(get_string(lang, 'error_no_files', path=spec_dir),
               file=sys.stderr)
         sys.exit(1)
     
-    print(f"Найдено {len(files)} файлов спецификации:")
+    print(get_string(lang, 'found_files', count=len(files)))
     for prefix, file_path in files:
         print(f"  {prefix:02d}: {file_path.name}")
     
-    # Собираем спецификацию
-    spec_content = build_spec(files)
+    # Build specification
+    spec_content = build_spec(files, lang)
     
     if args.check:
-        # Режим проверки: сравниваем с существующим файлом
+        # Check mode: compare with existing file
         if not output_path.exists():
-            print(f"\nОшибка: файл '{output_path}' не существует", file=sys.stderr)
-            print("Запустите 'python tools/build_spec.py' для генерации", file=sys.stderr)
+            print(f"\n{get_string(lang, 'error_file_not_exist', path=output_path)}", file=sys.stderr)
+            print(get_string(lang, 'run_to_generate', language=lang), file=sys.stderr)
             sys.exit(1)
         
         existing_content = output_path.read_text(encoding='utf-8')
         
         if existing_content == spec_content:
-            print(f"\n✓ Файл '{output_path.name}' актуален")
+            print(f"\n{get_string(lang, 'file_up_to_date', name=output_path.name)}")
             sys.exit(0)
         else:
-            print(f"\n✗ Файл '{output_path.name}' устарел", file=sys.stderr)
-            print("Запустите 'python tools/build_spec.py' для обновления", file=sys.stderr)
+            print(f"\n{get_string(lang, 'file_outdated', name=output_path.name)}", file=sys.stderr)
+            print(get_string(lang, 'run_to_update', language=lang), file=sys.stderr)
             sys.exit(1)
     else:
-        # Режим генерации: записываем файл
+        # Generate mode: write file
         try:
             output_path.write_text(spec_content, encoding='utf-8')
-            print(f"\n✓ Сгенерирован файл '{output_path}'")
+            print(f"\n{get_string(lang, 'generated', path=output_path)}")
         except PermissionError:
-            print(f"\nОшибка: нет прав на запись в '{output_path}'", file=sys.stderr)
+            print(f"\n{get_string(lang, 'error_no_write', path=output_path)}", file=sys.stderr)
             sys.exit(1)
         except OSError as e:
-            print(f"\nОшибка записи файла: {e}", file=sys.stderr)
+            print(f"\n{get_string(lang, 'error_write', error=e)}", file=sys.stderr)
             sys.exit(1)
 
 

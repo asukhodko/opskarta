@@ -31,16 +31,16 @@ root (Обновление Git-сервиса)
 
 ```bash
 cd specs/v1
-python tools/validate.py examples/hello/hello.plan.yaml examples/hello/hello.views.yaml
+python tools/validate.py ru/examples/hello/hello.plan.yaml ru/examples/hello/hello.views.yaml
 ```
 
 ### Генерация Mermaid Gantt
 
 ```bash
 cd specs/v1
-python -m tools.render.mermaid_gantt \
-  --plan examples/hello/hello.plan.yaml \
-  --views examples/hello/hello.views.yaml \
+python -m tools.render.plan2gantt \
+  --plan ru/examples/hello/hello.plan.yaml \
+  --views ru/examples/hello/hello.views.yaml \
   --view overview
 ```
 

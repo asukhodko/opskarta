@@ -1,0 +1,92 @@
+version: 1
+project: platform-modernization
+
+gantt_views:
+  # ============================================================
+  # Overview of entire program
+  # ============================================================
+  overview:
+    title: "Platform Modernization — Overview"
+    excludes: ["weekends", "2026-02-23", "2026-03-08", "2026-05-01", "2026-05-09"]
+
+    lanes:
+      backend:
+        title: "Backend"
+        nodes: [api-gateway, microservices]
+
+      frontend:
+        title: "Frontend"
+        nodes: [design-system, ui-migration]
+
+      infra:
+        title: "Infrastructure"
+        nodes: [k8s, monitoring]
+
+      milestones:
+        title: "Milestones"
+        nodes: [integration-testing, release]
+
+  # ============================================================
+  # Backend detailed view
+  # ============================================================
+  backend-detail:
+    title: "Backend — Detailed Plan"
+    excludes: ["weekends"]
+
+    lanes:
+      gateway:
+        title: "API Gateway"
+        nodes: [gateway-design, gateway-impl, gateway-testing]
+
+      services:
+        title: "Microservices"
+        nodes: [user-service, order-service, notification-service]
+
+  # ============================================================
+  # Frontend detailed view
+  # ============================================================
+  frontend-detail:
+    title: "Frontend — Detailed Plan"
+    excludes: ["weekends"]
+
+    lanes:
+      design:
+        title: "Design System"
+        nodes: [ds-tokens, ds-components, ds-docs]
+
+      migration:
+        title: "UI Migration"
+        nodes: [migrate-auth, migrate-dashboard, migrate-settings, ui-e2e-tests]
+
+  # ============================================================
+  # Infrastructure detailed view
+  # ============================================================
+  infrastructure-detail:
+    title: "Infrastructure — Detailed Plan"
+    excludes: ["weekends"]
+
+    lanes:
+      kubernetes:
+        title: "Kubernetes"
+        nodes: [k8s-cluster, k8s-helm, k8s-ci-cd]
+
+      observability:
+        title: "Observability"
+        nodes: [prometheus, logging, alerting]
+
+  # ============================================================
+  # Critical path view
+  # ============================================================
+  critical-path:
+    title: "Critical Path to Release"
+    excludes: ["weekends"]
+
+    lanes:
+      path:
+        title: "Critical Path"
+        nodes:
+          - gateway-design
+          - gateway-impl
+          - gateway-testing
+          - integration-testing
+          - release

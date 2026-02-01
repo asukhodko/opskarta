@@ -85,7 +85,7 @@ program (Модернизация платформы Q1-Q2 2026)
 
 ```bash
 cd specs/v1
-python tools/validate.py examples/advanced/program.plan.yaml examples/advanced/program.views.yaml
+python tools/validate.py ru/examples/advanced/program.plan.yaml ru/examples/advanced/program.views.yaml
 ```
 
 ### Генерация Mermaid Gantt
@@ -94,21 +94,21 @@ python tools/validate.py examples/advanced/program.plan.yaml examples/advanced/p
 cd specs/v1
 
 # Обзорное представление
-python -m tools.render.mermaid_gantt \
-  --plan examples/advanced/program.plan.yaml \
-  --views examples/advanced/program.views.yaml \
+python -m tools.render.plan2gantt \
+  --plan ru/examples/advanced/program.plan.yaml \
+  --views ru/examples/advanced/program.views.yaml \
   --view overview
 
 # Детальный план бэкенда
-python -m tools.render.mermaid_gantt \
-  --plan examples/advanced/program.plan.yaml \
-  --views examples/advanced/program.views.yaml \
+python -m tools.render.plan2gantt \
+  --plan ru/examples/advanced/program.plan.yaml \
+  --views ru/examples/advanced/program.views.yaml \
   --view backend-detail
 
 # Критический путь
-python -m tools.render.mermaid_gantt \
-  --plan examples/advanced/program.plan.yaml \
-  --views examples/advanced/program.views.yaml \
+python -m tools.render.plan2gantt \
+  --plan ru/examples/advanced/program.plan.yaml \
+  --views ru/examples/advanced/program.views.yaml \
   --view critical-path
 ```
 

@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-Валидатор файлов плана и представлений opskarta.
+Validator for opskarta plan and views files.
 
-Использование:
-    python validate.py plan.yaml                    # Валидация плана
-    python validate.py plan.yaml views.yaml         # Валидация плана и views
-    python validate.py --schema plan.yaml           # Валидация через JSON Schema
+Usage:
+    python validate.py plan.yaml                    # Validate plan
+    python validate.py plan.yaml views.yaml         # Validate plan and views
+    python validate.py --schema plan.yaml           # Validate using JSON Schema
 
-Уровни валидации:
-    1. Синтаксис — корректность YAML
-    2. Схема — соответствие JSON Schema (опционально)
-    3. Семантика — ссылочная целостность, бизнес-правила
+Validation levels:
+    1. Syntax — YAML correctness
+    2. Schema — JSON Schema compliance (optional)
+    3. Semantics — referential integrity, business rules
 
-Уровни серьёзности:
-    - error: критическая ошибка, валидация завершается неудачей
-    - warn: потенциальная проблема, валидация успешна
-    - info: информационное сообщение
+Severity levels:
+    - error: critical error, validation fails
+    - warn: potential issue, validation succeeds
+    - info: informational message
 
-Зависимости: PyYAML (pip install pyyaml)
+Dependencies: PyYAML (pip install pyyaml)
 """
 
 import argparse
@@ -30,11 +30,11 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 # ============================================================================
-# Исключения
+# Exceptions
 # ============================================================================
 
 class ValidationError(Exception):
-    """Ошибка валидации с информацией о пути к полю."""
+    """Validation error with field path information."""
     
     def __init__(self, message: str, path: Optional[str] = None, 
                  value: Any = None, expected: Optional[str] = None,
@@ -47,42 +47,42 @@ class ValidationError(Exception):
         super().__init__(self._format_message())
     
     def _format_message(self) -> str:
-        """Форматирует сообщение об ошибке."""
+        """Formats error message."""
         lines = []
         
         if self.path:
-            lines.append(f"Ошибка: {self.message}")
-            lines.append(f"  Путь: {self.path}")
+            lines.append(f"Error: {self.message}")
+            lines.append(f"  Path: {self.path}")
         else:
-            lines.append(f"Ошибка: {self.message}")
+            lines.append(f"Error: {self.message}")
         
         if self.value is not None:
-            lines.append(f"  Значение: {repr(self.value)}")
+            lines.append(f"  Value: {repr(self.value)}")
         
         if self.expected:
-            lines.append(f"  Ожидается: {self.expected}")
+            lines.append(f"  Expected: {self.expected}")
         
         if self.available:
-            lines.append(f"  Доступные: {', '.join(sorted(self.available))}")
+            lines.append(f"  Available: {', '.join(sorted(self.available))}")
         
         return '\n'.join(lines)
 
 
 # ============================================================================
-# Загрузка файлов
+# File Loading
 # ============================================================================
 
 class DuplicateKeyError(Exception):
-    """Ошибка при обнаружении дубликата ключа в YAML."""
+    """Error when duplicate key is found in YAML."""
     pass
 
 
 def _make_duplicate_key_checker():
     """
-    Создаёт YAML загрузчик, который обнаруживает дубликаты ключей.
+    Creates YAML loader that detects duplicate keys.
     
     Returns:
-        Класс загрузчика с проверкой дубликатов
+        Loader class with duplicate checking
     """
     import yaml
     
@@ -95,11 +95,11 @@ def _make_duplicate_key_checker():
         keys = [key for key, _ in pairs]
         duplicates = [key for key in keys if keys.count(key) > 1]
         if duplicates:
-            # Находим первый дубликат
+            # Find first duplicate
             seen = set()
             for key in keys:
                 if key in seen:
-                    raise DuplicateKeyError(f"Дубликат ключа: {key!r}")
+                    raise DuplicateKeyError(f"Duplicate key: {key!r}")
                 seen.add(key)
         return dict(pairs)
     
@@ -113,13 +113,13 @@ def _make_duplicate_key_checker():
 
 def normalize_yaml_dates(data: Any) -> Any:
     """
-    Рекурсивно нормализует YAML-даты к строкам формата YYYY-MM-DD.
+    Recursively normalizes YAML dates to YYYY-MM-DD strings.
     
     Args:
-        data: Данные из YAML-парсера
+        data: Data from YAML parser
         
     Returns:
-        Нормализованные данные
+        Normalized data
     """
     if isinstance(data, datetime):
         return data.date().isoformat()
@@ -135,29 +135,29 @@ def normalize_yaml_dates(data: Any) -> Any:
 
 def load_yaml(file_path: Path) -> Dict[str, Any]:
     """
-    Загружает YAML файл с проверкой дубликатов ключей и нормализацией дат.
+    Loads YAML file with duplicate key checking and date normalization.
     
     Raises:
-        ValidationError: если файл не найден, содержит невалидный YAML,
-                        или содержит дубликаты ключей
+        ValidationError: if file not found, contains invalid YAML,
+                        or contains duplicate keys
     """
     try:
         import yaml
     except ImportError:
-        print("Ошибка: модуль PyYAML не установлен", file=sys.stderr)
-        print("Установите: pip install pyyaml", file=sys.stderr)
+        print("Error: PyYAML module is not installed", file=sys.stderr)
+        print("Install: pip install pyyaml", file=sys.stderr)
         sys.exit(1)
     
     if not file_path.exists():
         raise ValidationError(
-            f"Файл не найден: {file_path}",
-            expected="существующий файл"
+            f"File not found: {file_path}",
+            expected="existing file"
         )
     
     try:
         content = file_path.read_text(encoding='utf-8')
         
-        # Используем загрузчик с проверкой дубликатов ключей
+        # Use loader with duplicate key checking
         DuplicateKeyLoader = _make_duplicate_key_checker()
         data = yaml.load(content, Loader=DuplicateKeyLoader)
         
@@ -166,13 +166,13 @@ def load_yaml(file_path: Path) -> Dict[str, Any]:
         
         if not isinstance(data, dict):
             raise ValidationError(
-                "Корневой элемент должен быть объектом",
-                path="(корень)",
+                "Root element must be an object",
+                path="(root)",
                 value=type(data).__name__,
                 expected="object (dict)"
             )
         
-        # Нормализуем YAML-даты к строкам
+        # Normalize YAML dates to strings
         data = normalize_yaml_dates(data)
         
         return data
@@ -181,22 +181,22 @@ def load_yaml(file_path: Path) -> Dict[str, Any]:
         raise ValidationError(
             str(e),
             path=str(file_path),
-            expected="уникальные ключи"
+            expected="unique keys"
         )
         
     except yaml.YAMLError as e:
         raise ValidationError(
-            f"Ошибка парсинга YAML: {e}",
+            f"YAML parsing error: {e}",
             path=str(file_path)
         )
 
 
 def load_json_schema(schema_path: Path) -> Dict[str, Any]:
-    """Загружает JSON Schema файл."""
+    """Loads JSON Schema file."""
     if not schema_path.exists():
         raise ValidationError(
-            f"Файл схемы не найден: {schema_path}",
-            expected="существующий файл JSON Schema"
+            f"Schema file not found: {schema_path}",
+            expected="existing JSON Schema file"
         )
     
     try:
@@ -204,24 +204,24 @@ def load_json_schema(schema_path: Path) -> Dict[str, Any]:
         return json.loads(content)
     except json.JSONDecodeError as e:
         raise ValidationError(
-            f"Ошибка парсинга JSON Schema: {e}",
+            f"JSON Schema parsing error: {e}",
             path=str(schema_path)
         )
 
 
 # ============================================================================
-# Валидация плана
+# Plan Validation
 # ============================================================================
 
 def parse_duration_days(duration: str) -> int:
     """
-    Парсит строку duration и возвращает количество рабочих дней.
+    Parses duration string and returns number of workdays.
     
     Args:
-        duration: Строка формата Nd или Nw
+        duration: String in format Nd or Nw
         
     Returns:
-        Количество рабочих дней
+        Number of workdays
     """
     if duration.endswith('w'):
         return int(duration[:-1]) * 5
@@ -231,158 +231,158 @@ def parse_duration_days(duration: str) -> int:
 
 def compute_finish_date(start_str: str, duration_str: str, excludes_weekends: bool = False) -> str:
     """
-    Вычисляет дату окончания задачи.
+    Computes task finish date.
     
     Args:
-        start_str: Дата начала в формате YYYY-MM-DD
-        duration_str: Длительность в формате Nd или Nw
-        excludes_weekends: Учитывать ли выходные
+        start_str: Start date in YYYY-MM-DD format
+        duration_str: Duration in Nd or Nw format
+        excludes_weekends: Whether to account for weekends
         
     Returns:
-        Дата окончания в формате YYYY-MM-DD
+        Finish date in YYYY-MM-DD format
     """
     start = datetime.strptime(start_str, '%Y-%m-%d').date()
     duration_days = parse_duration_days(duration_str)
     
     if excludes_weekends:
-        # Пропускаем выходные
+        # Skip weekends
         days_added = 0
         current = start
         while days_added < duration_days - 1:
             current += __import__('datetime').timedelta(days=1)
-            if current.weekday() < 5:  # Пн-Пт
+            if current.weekday() < 5:  # Mon-Fri
                 days_added += 1
         return current.isoformat()
     else:
-        # Календарные дни
+        # Calendar days
         finish = start + __import__('datetime').timedelta(days=duration_days - 1)
         return finish.isoformat()
 
 
 def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
     """
-    Валидирует файл плана.
+    Validates plan file.
     
-    Проверяет:
-    - Обязательные поля (version, nodes)
-    - Ссылочную целостность (parent, after, status)
-    - Формат полей планирования (start, duration)
-    - Отсутствие циклических зависимостей
-    - Конфликты start и after
+    Checks:
+    - Required fields (version, nodes)
+    - Referential integrity (parent, after, status)
+    - Scheduling field formats (start, duration)
+    - Absence of circular dependencies
+    - start and after conflicts
     
     Returns:
-        Кортеж (warnings, infos)
+        Tuple (warnings, infos)
     
     Raises:
-        ValidationError: при обнаружении критической ошибки
+        ValidationError: when critical error is found
     """
     warnings: List[str] = []
     infos: List[str] = []
     
-    # --- Проверка version ---
+    # --- Check version ---
     if 'version' not in plan:
         raise ValidationError(
-            "Отсутствует обязательное поле 'version'",
+            "Missing required field 'version'",
             path="version",
-            expected="целое число (например, 1)"
+            expected="integer (e.g., 1)"
         )
     
     version = plan.get('version')
     if not isinstance(version, int):
         raise ValidationError(
-            "Поле 'version' должно быть целым числом",
+            "Field 'version' must be an integer",
             path="version",
             value=version,
             expected="int"
         )
     
     if version != 1:
-        warnings.append(f"Предупреждение: version={version}, валидатор поддерживает только version=1")
+        warnings.append(f"Warning: version={version}, validator only supports version=1")
     
-    # --- Проверка nodes ---
+    # --- Check nodes ---
     if 'nodes' not in plan:
         raise ValidationError(
-            "Отсутствует обязательное поле 'nodes'",
+            "Missing required field 'nodes'",
             path="nodes",
-            expected="объект с узлами"
+            expected="object with nodes"
         )
     
     nodes = plan.get('nodes')
     if not isinstance(nodes, dict):
         raise ValidationError(
-            "Поле 'nodes' должно быть объектом",
+            "Field 'nodes' must be an object",
             path="nodes",
             value=type(nodes).__name__,
             expected="object (dict)"
         )
     
-    # Собираем множество всех node_id для проверки ссылок
+    # Collect all node_ids for reference checking
     node_ids: Set[str] = set(nodes.keys())
     
-    # Собираем множество статусов (если определены)
+    # Collect statuses (if defined)
     statuses: Set[str] = set()
     if 'statuses' in plan:
         statuses_data = plan.get('statuses')
         if isinstance(statuses_data, dict):
             statuses = set(statuses_data.keys())
     
-    # --- Валидация каждого узла ---
+    # --- Validate each node ---
     for node_id, node in nodes.items():
         node_path = f"nodes.{node_id}"
         
-        # Проверка типа узла
+        # Check node type
         if not isinstance(node, dict):
             raise ValidationError(
-                "Узел должен быть объектом",
+                "Node must be an object",
                 path=node_path,
                 value=type(node).__name__,
                 expected="object (dict)"
             )
         
-        # Проверка обязательного поля title
+        # Check required field title
         if 'title' not in node:
             raise ValidationError(
-                "Отсутствует обязательное поле 'title'",
+                "Missing required field 'title'",
                 path=f"{node_path}.title",
-                expected="непустая строка"
+                expected="non-empty string"
             )
         
         title = node.get('title')
         if not isinstance(title, str) or not title.strip():
             raise ValidationError(
-                "Поле 'title' должно быть непустой строкой",
+                "Field 'title' must be a non-empty string",
                 path=f"{node_path}.title",
                 value=title,
-                expected="непустая строка"
+                expected="non-empty string"
             )
         
-        # Проверка parent (ссылочная целостность)
+        # Check parent (referential integrity)
         if 'parent' in node:
             parent = node.get('parent')
             if parent is not None:
                 if not isinstance(parent, str):
                     raise ValidationError(
-                        "Поле 'parent' должно быть строкой",
+                        "Field 'parent' must be a string",
                         path=f"{node_path}.parent",
                         value=parent,
                         expected="string (node_id)"
                     )
                 if parent not in node_ids:
                     raise ValidationError(
-                        "Ссылка на несуществующий узел",
+                        "Reference to non-existent node",
                         path=f"{node_path}.parent",
                         value=parent,
-                        expected="существующий node_id",
+                        expected="existing node_id",
                         available=list(node_ids)
                     )
         
-        # Проверка after (ссылочная целостность)
+        # Check after (referential integrity)
         if 'after' in node:
             after = node.get('after')
             if after is not None:
                 if not isinstance(after, list):
                     raise ValidationError(
-                        "Поле 'after' должно быть списком",
+                        "Field 'after' must be a list",
                         path=f"{node_path}.after",
                         value=type(after).__name__,
                         expected="list of strings"
@@ -391,128 +391,128 @@ def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
                 for i, dep in enumerate(after):
                     if not isinstance(dep, str):
                         raise ValidationError(
-                            "Элемент списка 'after' должен быть строкой",
+                            "Element of 'after' list must be a string",
                             path=f"{node_path}.after[{i}]",
                             value=dep,
                             expected="string (node_id)"
                         )
                     if dep not in node_ids:
                         raise ValidationError(
-                            "Ссылка на несуществующий узел в зависимостях",
+                            "Reference to non-existent node in dependencies",
                             path=f"{node_path}.after[{i}]",
                             value=dep,
-                            expected="существующий node_id",
+                            expected="existing node_id",
                             available=list(node_ids)
                         )
         
-        # Проверка status (ссылочная целостность)
+        # Check status (referential integrity)
         if 'status' in node:
             status = node.get('status')
             if status is not None:
                 if not isinstance(status, str):
                     raise ValidationError(
-                        "Поле 'status' должно быть строкой",
+                        "Field 'status' must be a string",
                         path=f"{node_path}.status",
                         value=status,
                         expected="string (status_id)"
                     )
                 if statuses and status not in statuses:
                     raise ValidationError(
-                        "Ссылка на несуществующий статус",
+                        "Reference to non-existent status",
                         path=f"{node_path}.status",
                         value=status,
-                        expected="существующий status_id",
+                        expected="existing status_id",
                         available=list(statuses)
                     )
         
-        # Проверка формата start (YYYY-MM-DD)
+        # Check start format (YYYY-MM-DD)
         if 'start' in node:
             start = node.get('start')
             if start is not None:
                 start_str = str(start)
                 if not re.match(r'^\d{4}-\d{2}-\d{2}$', start_str):
                     raise ValidationError(
-                        "Неверный формат даты",
+                        "Invalid date format",
                         path=f"{node_path}.start",
                         value=start,
-                        expected="формат YYYY-MM-DD (например, 2024-01-15)"
+                        expected="format YYYY-MM-DD (e.g., 2024-01-15)"
                     )
-                # Проверка корректности даты
+                # Check date validity
                 try:
                     from datetime import datetime
                     datetime.strptime(start_str, '%Y-%m-%d')
                 except ValueError:
                     raise ValidationError(
-                        "Некорректная дата (не существует в календаре)",
+                        "Invalid date (does not exist in calendar)",
                         path=f"{node_path}.start",
                         value=start,
-                        expected="существующая дата в формате YYYY-MM-DD"
+                        expected="existing date in YYYY-MM-DD format"
                     )
         
-        # Проверка формата finish (YYYY-MM-DD)
+        # Check finish format (YYYY-MM-DD)
         if 'finish' in node:
             finish = node.get('finish')
             if finish is not None:
                 finish_str = str(finish)
                 if not re.match(r'^\d{4}-\d{2}-\d{2}$', finish_str):
                     raise ValidationError(
-                        "Неверный формат даты",
+                        "Invalid date format",
                         path=f"{node_path}.finish",
                         value=finish,
-                        expected="формат YYYY-MM-DD (например, 2024-01-15)"
+                        expected="format YYYY-MM-DD (e.g., 2024-01-15)"
                     )
-                # Проверка корректности даты
+                # Check date validity
                 try:
                     from datetime import datetime
                     datetime.strptime(finish_str, '%Y-%m-%d')
                 except ValueError:
                     raise ValidationError(
-                        "Некорректная дата (не существует в календаре)",
+                        "Invalid date (does not exist in calendar)",
                         path=f"{node_path}.finish",
                         value=finish,
-                        expected="существующая дата в формате YYYY-MM-DD"
+                        expected="existing date in YYYY-MM-DD format"
                     )
         
-        # Проверка формата duration (<число><единица>)
+        # Check duration format (<number><unit>)
         if 'duration' in node:
             duration = node.get('duration')
             if duration is not None:
                 duration_str = str(duration)
                 if not re.match(r'^[1-9][0-9]*[dw]$', duration_str):
                     raise ValidationError(
-                        "Неверный формат длительности",
+                        "Invalid duration format",
                         path=f"{node_path}.duration",
                         value=duration,
-                        expected="формат <число><единица>, где число >= 1, единица: d (дни) или w (недели)"
+                        expected="format <number><unit>, where number >= 1, unit: d (days) or w (weeks)"
                     )
         
-        # Проверка согласованности start + finish + duration
+        # Check consistency of start + finish + duration
         start_val = node.get('start')
         finish_val = node.get('finish')
         duration_val = node.get('duration')
         
         if start_val and finish_val and duration_val:
-            # Все три указаны — проверяем согласованность
+            # All three specified — check consistency
             try:
                 computed_finish = compute_finish_date(str(start_val), str(duration_val))
                 if computed_finish != str(finish_val):
                     raise ValidationError(
-                        "Несогласованные start, finish и duration",
+                        "Inconsistent start, finish and duration",
                         path=f"{node_path}",
                         value=f"start={start_val}, finish={finish_val}, duration={duration_val}",
-                        expected=f"finish должен быть {computed_finish} (вычислен из start+duration)"
+                        expected=f"finish should be {computed_finish} (computed from start+duration)"
                     )
             except (ValueError, KeyError):
-                pass  # Пропускаем, если формат некорректен (уже поймано выше)
+                pass  # Skip if format is incorrect (already caught above)
     
-    # --- Проверка циклических зависимостей ---
+    # --- Check circular dependencies ---
     _check_cycles_parent(nodes)
     _check_cycles_after(nodes)
     
-    # --- Проверка цепочек after без якоря ---
+    # --- Check after chains without anchor ---
     _check_after_chains_have_anchor(nodes, warnings)
     
-    # --- Проверка конфликтов start и after ---
+    # --- Check start and after conflicts ---
     for node_id, node in nodes.items():
         if not isinstance(node, dict):
             continue
@@ -521,10 +521,10 @@ def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
         after = node.get('after')
         
         if start and after and isinstance(after, list):
-            # Узел имеет и start, и after — проверяем конфликт
+            # Node has both start and after — check for conflict
             start_str = str(start)
             
-            # Вычисляем максимальный finish среди зависимостей
+            # Compute maximum finish among dependencies
             max_finish = None
             for dep_id in after:
                 dep_node = nodes.get(dep_id)
@@ -532,7 +532,7 @@ def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
                     continue
                 
                 dep_start = dep_node.get('start')
-                dep_duration = dep_node.get('duration', '1d')  # По умолчанию 1d
+                dep_duration = dep_node.get('duration', '1d')  # Default 1d
                 
                 if dep_start:
                     try:
@@ -540,19 +540,19 @@ def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
                         if max_finish is None or dep_finish > max_finish:
                             max_finish = dep_finish
                     except (ValueError, KeyError):
-                        pass  # Пропускаем некорректные данные
+                        pass  # Skip incorrect data
             
             if max_finish and start_str < max_finish:
                 warnings.append(
-                    f"Предупреждение: nodes.{node_id}.start ({start_str}) раньше "
-                    f"завершения зависимостей ({max_finish}). Это может быть намеренным "
-                    f"(параллельная работа) или ошибкой в планировании."
+                    f"Warning: nodes.{node_id}.start ({start_str}) is before "
+                    f"dependency finish ({max_finish}). This may be intentional "
+                    f"(parallel work) or a planning error."
                 )
         
-        # Проверка отсутствия duration у планируемого узла (info)
+        # Check missing duration for scheduled node (info)
         if start and 'duration' not in node:
             infos.append(
-                f"Информация: nodes.{node_id} не имеет duration, используется значение по умолчанию 1d"
+                f"Info: nodes.{node_id} has no duration, using default value 1d"
             )
     
     return warnings, infos
@@ -560,10 +560,10 @@ def validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
 
 def _check_cycles_parent(nodes: Dict[str, Any]) -> None:
     """
-    Проверяет отсутствие циклических ссылок через parent.
+    Checks for absence of circular references via parent.
     
     Raises:
-        ValidationError: при обнаружении цикла
+        ValidationError: when cycle is found
     """
     for node_id in nodes:
         visited: Set[str] = set()
@@ -571,13 +571,13 @@ def _check_cycles_parent(nodes: Dict[str, Any]) -> None:
         
         while current:
             if current in visited:
-                # Нашли цикл
+                # Found cycle
                 cycle_path = _build_cycle_path(nodes, node_id, 'parent')
                 raise ValidationError(
-                    "Обнаружена циклическая ссылка через parent",
+                    "Circular reference detected via parent",
                     path=f"nodes.{node_id}.parent",
                     value=cycle_path,
-                    expected="ациклический граф родительских связей"
+                    expected="acyclic parent relationship graph"
                 )
             
             visited.add(current)
@@ -587,14 +587,14 @@ def _check_cycles_parent(nodes: Dict[str, Any]) -> None:
 
 def _check_cycles_after(nodes: Dict[str, Any]) -> None:
     """
-    Проверяет отсутствие циклических зависимостей через after.
+    Checks for absence of circular dependencies via after.
     
-    Использует алгоритм поиска в глубину (DFS) для обнаружения циклов.
+    Uses depth-first search (DFS) algorithm to detect cycles.
     
     Raises:
-        ValidationError: при обнаружении цикла
+        ValidationError: when cycle is found
     """
-    # Состояния: 0 = не посещён, 1 = в процессе, 2 = завершён
+    # States: 0 = not visited, 1 = in progress, 2 = completed
     state: Dict[str, int] = {node_id: 0 for node_id in nodes}
     
     def dfs(node_id: str, path: List[str]) -> None:
@@ -602,14 +602,14 @@ def _check_cycles_after(nodes: Dict[str, Any]) -> None:
             return
         
         if state[node_id] == 1:
-            # Нашли цикл
+            # Found cycle
             cycle_start = path.index(node_id)
             cycle = path[cycle_start:] + [node_id]
             raise ValidationError(
-                "Обнаружена циклическая зависимость через after",
+                "Circular dependency detected via after",
                 path=f"nodes.{node_id}.after",
                 value=" -> ".join(cycle),
-                expected="ациклический граф зависимостей"
+                expected="acyclic dependency graph"
             )
         
         state[node_id] = 1
@@ -632,7 +632,7 @@ def _check_cycles_after(nodes: Dict[str, Any]) -> None:
 
 
 def _build_cycle_path(nodes: Dict[str, Any], start_id: str, field: str) -> str:
-    """Строит строковое представление цикла для сообщения об ошибке."""
+    """Builds string representation of cycle for error message."""
     path = [start_id]
     current = start_id
     
@@ -655,28 +655,28 @@ def _build_cycle_path(nodes: Dict[str, Any], start_id: str, field: str) -> str:
 
 def _check_after_chains_have_anchor(nodes: Dict[str, Any], warnings: List[str]) -> None:
     """
-    Проверяет, что цепочки after имеют хотя бы один якорь (start или finish).
+    Checks that after chains have at least one anchor (start or finish).
     
-    Узлы с after, ведущими к непланируемым узлам, вызывают ошибку валидации.
+    Nodes with after leading to unscheduled nodes cause validation error.
     
     Args:
-        nodes: Словарь узлов
-        warnings: Список для добавления предупреждений (не используется, ошибка = исключение)
+        nodes: Nodes dictionary
+        warnings: List to add warnings to (not used, error = exception)
         
     Raises:
-        ValidationError: если цепочка after не имеет якоря
+        ValidationError: if after chain has no anchor
     """
-    # Находим узлы, которые можно распланировать (имеют start, finish или достижимы через after)
+    # Find nodes that can be scheduled (have start, finish, or reachable via after)
     schedulable: Set[str] = set()
     
-    # Первый проход: отмечаем узлы с явным start или finish
+    # First pass: mark nodes with explicit start or finish
     for node_id, node in nodes.items():
         if not isinstance(node, dict):
             continue
         if node.get('start') or node.get('finish'):
             schedulable.add(node_id)
     
-    # Второй проход: распространяем планируемость по цепочкам after
+    # Second pass: propagate schedulability via after chains
     changed = True
     while changed:
         changed = False
@@ -688,12 +688,12 @@ def _check_after_chains_have_anchor(nodes: Dict[str, Any], warnings: List[str]) 
             
             after = node.get('after', [])
             if after and isinstance(after, list):
-                # Если все зависимости планируемы, узел тоже планируем
+                # If all dependencies are schedulable, node is schedulable too
                 if all(dep in schedulable for dep in after if dep in nodes):
                     schedulable.add(node_id)
                     changed = True
     
-    # Третий проход: проверяем узлы с after, которые не стали планируемыми
+    # Third pass: check nodes with after that didn't become schedulable
     for node_id, node in nodes.items():
         if not isinstance(node, dict):
             continue
@@ -701,101 +701,101 @@ def _check_after_chains_have_anchor(nodes: Dict[str, Any], warnings: List[str]) 
         after = node.get('after', [])
         if after and isinstance(after, list) and after:
             if node_id not in schedulable:
-                # Находим непланируемые зависимости
+                # Find unschedulable dependencies
                 unschedulable_deps = [dep for dep in after if dep not in schedulable and dep in nodes]
                 if unschedulable_deps:
                     raise ValidationError(
-                        "Цепочка after не имеет якоря (start/finish) — невозможно распланировать",
+                        "after chain has no anchor (start/finish) — cannot be scheduled",
                         path=f"nodes.{node_id}.after",
                         value=after,
-                        expected=f"хотя бы одна зависимость должна быть планируемой. Непланируемые: {', '.join(unschedulable_deps)}"
+                        expected=f"at least one dependency must be schedulable. Unschedulable: {', '.join(unschedulable_deps)}"
                     )
 
 
 # ============================================================================
-# Валидация views
+# Views Validation
 # ============================================================================
 
 def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[str], List[str]]:
     """
-    Валидирует файл представлений относительно файла плана.
+    Validates views file against plan file.
     
-    Проверяет:
-    - Обязательные поля (version, project)
-    - Соответствие project и meta.id плана
-    - Ссылки на узлы в представлениях
+    Checks:
+    - Required fields (version, project)
+    - Match between project and plan's meta.id
+    - Node references in views
     
     Returns:
-        Кортеж (warnings, infos)
+        Tuple (warnings, infos)
     
     Raises:
-        ValidationError: при обнаружении критической ошибки
+        ValidationError: when critical error is found
     """
     warnings: List[str] = []
     infos: List[str] = []
     
-    # --- Проверка version ---
+    # --- Check version ---
     if 'version' not in views:
         raise ValidationError(
-            "Отсутствует обязательное поле 'version'",
+            "Missing required field 'version'",
             path="version",
-            expected="целое число (например, 1)"
+            expected="integer (e.g., 1)"
         )
     
     version = views.get('version')
     if not isinstance(version, int):
         raise ValidationError(
-            "Поле 'version' должно быть целым числом",
+            "Field 'version' must be an integer",
             path="version",
             value=version,
             expected="int"
         )
     
-    # --- Проверка project ---
+    # --- Check project ---
     if 'project' not in views:
         raise ValidationError(
-            "Отсутствует обязательное поле 'project'",
+            "Missing required field 'project'",
             path="project",
-            expected="строка, совпадающая с meta.id плана"
+            expected="string matching plan's meta.id"
         )
     
     project = views.get('project')
     if not isinstance(project, str):
         raise ValidationError(
-            "Поле 'project' должно быть строкой",
+            "Field 'project' must be a string",
             path="project",
             value=project,
             expected="string"
         )
     
-    # --- Проверка соответствия project и meta.id ---
+    # --- Check project matches meta.id ---
     meta = plan.get('meta', {})
     plan_id = meta.get('id') if isinstance(meta, dict) else None
     
-    # meta.id обязателен при использовании views
+    # meta.id is required when using views
     if not plan_id:
         raise ValidationError(
-            "Поле 'meta.id' обязательно в плане при использовании файла представлений",
+            "Field 'meta.id' is required in plan when using views file",
             path="meta.id",
-            expected="непустая строка (идентификатор проекта)"
+            expected="non-empty string (project identifier)"
         )
     
     if project != plan_id:
         raise ValidationError(
-            "Поле 'project' не совпадает с meta.id плана",
+            "Field 'project' does not match plan's meta.id",
             path="project",
             value=project,
-            expected=f"'{plan_id}' (значение meta.id из плана)"
+            expected=f"'{plan_id}' (value of meta.id from plan)"
         )
     
-    # --- Проверка ссылок на узлы в gantt_views ---
+    # --- Check node references in gantt_views ---
     node_ids: Set[str] = set(plan.get('nodes', {}).keys())
     
     gantt_views = views.get('gantt_views')
     if gantt_views is not None:
         if not isinstance(gantt_views, dict):
             raise ValidationError(
-                "Поле 'gantt_views' должно быть объектом",
+                "Field 'gantt_views' must be an object",
                 path="gantt_views",
                 value=type(gantt_views).__name__,
                 expected="object (dict)"
@@ -806,19 +806,19 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[st
             
             if not isinstance(view, dict):
                 raise ValidationError(
-                    "Представление должно быть объектом",
+                    "View must be an object",
                     path=view_path,
                     value=type(view).__name__,
                     expected="object (dict)"
                 )
             
-            # Проверка excludes: core vs non-core
+            # Check excludes: core vs non-core
             excludes = view.get('excludes')
             if excludes is not None:
                 if isinstance(excludes, list):
                     for item in excludes:
                         if isinstance(item, str):
-                            # Проверяем, является ли это core exclude
+                            # Check if this is a core exclude
                             is_core = (
                                 item == "weekends" or
                                 re.match(r'^\d{4}-\d{2}-\d{2}$', item)
@@ -827,29 +827,29 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[st
                             if is_core:
                                 if re.match(r'^\d{4}-\d{2}-\d{2}$', item):
                                     infos.append(
-                                        f"Информация: {view_path}.excludes содержит дату '{item}' "
-                                        f"(core exclude, влияет на расчёт дат)."
+                                        f"Info: {view_path}.excludes contains date '{item}' "
+                                        f"(core exclude, affects date calculation)."
                                     )
                             else:
                                 warnings.append(
-                                    f"Предупреждение: {view_path}.excludes содержит non-core значение '{item}'. "
-                                    f"Non-core excludes не стандартизованы и будут игнорироваться переносимыми инструментами."
+                                    f"Warning: {view_path}.excludes contains non-core value '{item}'. "
+                                    f"Non-core excludes are not standardized and will be ignored by portable tools."
                                 )
             
             lanes = view.get('lanes')
             if lanes is None:
                 raise ValidationError(
-                    "Отсутствует обязательное поле 'lanes'",
+                    "Missing required field 'lanes'",
                     path=f"{view_path}.lanes",
-                    expected="непустой объект с дорожками"
+                    expected="non-empty object with lanes"
                 )
             
             if not isinstance(lanes, dict) or not lanes:
                 raise ValidationError(
-                    "Поле 'lanes' должно быть непустым объектом",
+                    "Field 'lanes' must be a non-empty object",
                     path=f"{view_path}.lanes",
                     value=lanes,
-                    expected="непустой object (dict)"
+                    expected="non-empty object (dict)"
                 )
             
             for lane_id, lane in lanes.items():
@@ -857,7 +857,7 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[st
                 
                 if not isinstance(lane, dict):
                     raise ValidationError(
-                        "Дорожка должна быть объектом",
+                        "Lane must be an object",
                         path=lane_path,
                         value=type(lane).__name__,
                         expected="object (dict)"
@@ -866,14 +866,14 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[st
                 lane_nodes = lane.get('nodes')
                 if lane_nodes is None:
                     raise ValidationError(
-                        "Отсутствует обязательное поле 'nodes'",
+                        "Missing required field 'nodes'",
                         path=f"{lane_path}.nodes",
-                        expected="список node_id"
+                        expected="list of node_ids"
                     )
                 
                 if not isinstance(lane_nodes, list):
                     raise ValidationError(
-                        "Поле 'nodes' должно быть списком",
+                        "Field 'nodes' must be a list",
                         path=f"{lane_path}.nodes",
                         value=type(lane_nodes).__name__,
                         expected="list of strings"
@@ -882,7 +882,7 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[st
                 for i, ref_node_id in enumerate(lane_nodes):
                     if not isinstance(ref_node_id, str):
                         raise ValidationError(
-                            "Элемент списка 'nodes' должен быть строкой",
+                            "Element of 'nodes' list must be a string",
                             path=f"{lane_path}.nodes[{i}]",
                             value=ref_node_id,
                             expected="string (node_id)"
@@ -890,10 +890,10 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[st
                     
                     if ref_node_id not in node_ids:
                         raise ValidationError(
-                            "Ссылка на несуществующий узел в плане",
+                            "Reference to non-existent node in plan",
                             path=f"{lane_path}.nodes[{i}]",
                             value=ref_node_id,
-                            expected="существующий node_id из плана",
+                            expected="existing node_id from plan",
                             available=list(node_ids)
                         )
     
@@ -901,27 +901,27 @@ def validate_views(views: Dict[str, Any], plan: Dict[str, Any]) -> Tuple[List[st
 
 
 # ============================================================================
-# Валидация через JSON Schema
+# JSON Schema Validation
 # ============================================================================
 
 def validate_with_schema(data: Dict[str, Any], schema: Dict[str, Any], 
                          file_type: str) -> List[str]:
     """
-    Валидирует данные через JSON Schema.
+    Validates data using JSON Schema.
     
     Requires: jsonschema library (pip install jsonschema)
     
     Returns:
-        Список предупреждений
+        List of warnings
     
     Raises:
-        ValidationError: при несоответствии схеме
+        ValidationError: when schema validation fails
     """
     try:
         import jsonschema
     except ImportError:
         raise ValidationError(
-            "Для валидации через JSON Schema требуется библиотека jsonschema",
+            "JSON Schema validation requires jsonschema library",
             expected="pip install jsonschema"
         )
     
@@ -929,51 +929,50 @@ def validate_with_schema(data: Dict[str, Any], schema: Dict[str, Any],
         jsonschema.validate(instance=data, schema=schema)
         return []
     except jsonschema.ValidationError as e:
-        path = '.'.join(str(p) for p in e.absolute_path) if e.absolute_path else '(корень)'
+        path = '.'.join(str(p) for p in e.absolute_path) if e.absolute_path else '(root)'
         raise ValidationError(
-            f"Несоответствие JSON Schema: {e.message}",
+            f"JSON Schema validation failed: {e.message}",
             path=path,
             value=e.instance if not isinstance(e.instance, dict) else type(e.instance).__name__,
-            expected=str(e.schema.get('type', e.schema.get('description', 'см. схему')))
+            expected=str(e.schema.get('type', e.schema.get('description', 'see schema')))
         )
 
 
 # ============================================================================
-# CLI интерфейс
+# CLI Interface
 # ============================================================================
 
 def get_script_dir() -> Path:
-    """Возвращает директорию, в которой находится скрипт."""
+    """Returns directory where script is located."""
     return Path(__file__).parent.resolve()
 
 
 def get_schemas_dir() -> Path:
-    """Возвращает путь к директории schemas/ относительно скрипта."""
+    """Returns path to schemas/ directory relative to script."""
     return get_script_dir().parent / 'schemas'
 
 
 def main():
-    """Главная функция CLI."""
+    """Main CLI function."""
     parser = argparse.ArgumentParser(
-        description='Валидатор файлов плана и представлений opskarta',
+        description='Validator for opskarta plan and views files',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Примеры использования:
-  python validate.py plan.yaml                    # Валидация плана
-  python validate.py plan.yaml views.yaml         # Валидация плана и views
-  python validate.py --schema plan.yaml           # Валидация через JSON Schema
+Usage examples:
+  python validate.py plan.yaml                    # Validate plan
+  python validate.py plan.yaml views.yaml         # Validate plan and views
+  python validate.py --schema plan.yaml           # Validate using JSON Schema
 
-Уровни валидации:
-  По умолчанию выполняется семантическая валидация (ссылочная целостность,
-  бизнес-правила). С флагом --schema дополнительно проверяется соответствие
-  JSON Schema.
+Validation levels:
+  By default, semantic validation is performed (referential integrity,
+  business rules). With --schema flag, JSON Schema compliance is also checked.
         """
     )
     
     parser.add_argument(
         'plan_file',
         type=Path,
-        help='Путь к файлу плана (*.plan.yaml)'
+        help='Path to plan file (*.plan.yaml)'
     )
     
     parser.add_argument(
@@ -981,27 +980,27 @@ def main():
         type=Path,
         nargs='?',
         default=None,
-        help='Путь к файлу представлений (*.views.yaml), опционально'
+        help='Path to views file (*.views.yaml), optional'
     )
     
     parser.add_argument(
         '--schema',
         action='store_true',
-        help='Дополнительно валидировать через JSON Schema'
+        help='Additionally validate using JSON Schema'
     )
     
     parser.add_argument(
         '--plan-schema',
         type=Path,
         default=None,
-        help='Путь к JSON Schema для плана (по умолчанию: schemas/plan.schema.json)'
+        help='Path to JSON Schema for plan (default: schemas/plan.schema.json)'
     )
     
     parser.add_argument(
         '--views-schema',
         type=Path,
         default=None,
-        help='Путь к JSON Schema для views (по умолчанию: schemas/views.schema.json)'
+        help='Path to JSON Schema for views (default: schemas/views.schema.json)'
     )
     
     args = parser.parse_args()
@@ -1010,70 +1009,70 @@ def main():
     all_infos: List[str] = []
     
     try:
-        # --- Загрузка и валидация плана ---
-        print(f"Валидация плана: {args.plan_file}")
+        # --- Load and validate plan ---
+        print(f"Validating plan: {args.plan_file}")
         plan = load_yaml(args.plan_file)
         
-        # Валидация через JSON Schema (если запрошено)
+        # JSON Schema validation (if requested)
         if args.schema:
             schemas_dir = get_schemas_dir()
             plan_schema_path = args.plan_schema or (schemas_dir / 'plan.schema.json')
             
-            print(f"  Проверка JSON Schema: {plan_schema_path}")
+            print(f"  Checking JSON Schema: {plan_schema_path}")
             plan_schema = load_json_schema(plan_schema_path)
             schema_warnings = validate_with_schema(plan, plan_schema, 'plan')
             all_warnings.extend(schema_warnings)
         
-        # Семантическая валидация
-        print("  Семантическая валидация...")
+        # Semantic validation
+        print("  Semantic validation...")
         plan_warnings, plan_infos = validate_plan(plan)
         all_warnings.extend(plan_warnings)
         all_infos.extend(plan_infos)
         
-        print(f"  ✓ План валиден")
+        print(f"  ✓ Plan is valid")
         
-        # --- Загрузка и валидация views (если указан) ---
+        # --- Load and validate views (if specified) ---
         if args.views_file:
-            print(f"\nВалидация представлений: {args.views_file}")
+            print(f"\nValidating views: {args.views_file}")
             views = load_yaml(args.views_file)
             
-            # Валидация через JSON Schema (если запрошено)
+            # JSON Schema validation (if requested)
             if args.schema:
                 views_schema_path = args.views_schema or (schemas_dir / 'views.schema.json')
                 
-                print(f"  Проверка JSON Schema: {views_schema_path}")
+                print(f"  Checking JSON Schema: {views_schema_path}")
                 views_schema = load_json_schema(views_schema_path)
                 schema_warnings = validate_with_schema(views, views_schema, 'views')
                 all_warnings.extend(schema_warnings)
             
-            # Семантическая валидация
-            print("  Семантическая валидация...")
+            # Semantic validation
+            print("  Semantic validation...")
             views_warnings, views_infos = validate_views(views, plan)
             all_warnings.extend(views_warnings)
             all_infos.extend(views_infos)
             
-            print(f"  ✓ Представления валидны")
+            print(f"  ✓ Views are valid")
         
-        # --- Вывод предупреждений ---
+        # --- Output warnings ---
         if all_warnings:
-            print("\nПредупреждения:")
+            print("\nWarnings:")
             for warning in all_warnings:
                 print(f"  ⚠ {warning}")
         
-        # --- Вывод информационных сообщений ---
+        # --- Output info messages ---
         if all_infos:
-            print("\nИнформация:")
+            print("\nInfo:")
             for info in all_infos:
                 print(f"  ℹ {info}")
         
-        print("\n✓ Валидация завершена успешно")
+        print("\n✓ Validation completed successfully")
         sys.exit(0)
         
     except ValidationError as e:
         print(f"\n{e}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:
-        print("\nПрервано пользователем", file=sys.stderr)
+        print("\nInterrupted by user", file=sys.stderr)
         sys.exit(130)
 
 

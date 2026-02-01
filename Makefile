@@ -8,9 +8,14 @@ SHELL := /bin/bash
 SPEC_DIR := specs/v1
 TOOLS_DIR := $(SPEC_DIR)/tools
 TESTS_DIR := $(SPEC_DIR)/tests
-EXAMPLES_DIR := $(SPEC_DIR)/examples
+EXAMPLES_DIR_EN := $(SPEC_DIR)/en/examples
+EXAMPLES_DIR_RU := $(SPEC_DIR)/ru/examples
+EXAMPLES_DIR := $(EXAMPLES_DIR_EN)
 SCHEMAS_DIR := $(SPEC_DIR)/schemas
 VENV_DIR := venv
+
+# Default language
+LANG := en
 
 # Python - prefer venv if it exists
 VENV_PYTHON := $(VENV_DIR)/bin/python
@@ -88,18 +93,41 @@ deps-all: deps-dev ## Install all dependencies (alias for deps-dev)
 build: build-spec ## Build all artifacts
 
 .PHONY: build-spec
-build-spec: ## Build SPEC.md from spec/ sources
-	@echo "$(GREEN)Building SPEC.md...$(NC)"
-	$(PYTHON) $(TOOLS_DIR)/build_spec.py
+build-spec: spec-en ## Build SPEC.md from spec/ sources (default: English)
+
+.PHONY: spec-en
+spec-en: ## Build English SPEC.md
+	@echo "$(GREEN)Building English SPEC.md...$(NC)"
+	$(PYTHON) $(TOOLS_DIR)/build_spec.py --lang en
 	@echo "$(GREEN)Done!$(NC)"
 
+.PHONY: spec-ru
+spec-ru: ## Build Russian SPEC.md
+	@echo "$(GREEN)Building Russian SPEC.md...$(NC)"
+	$(PYTHON) $(TOOLS_DIR)/build_spec.py --lang ru
+	@echo "$(GREEN)Done!$(NC)"
+
+.PHONY: spec-all
+spec-all: spec-en spec-ru ## Build both English and Russian SPEC.md
+
 .PHONY: check-spec
-check-spec: ## Check if SPEC.md is up-to-date
-	@echo "$(YELLOW)Checking SPEC.md...$(NC)"
-	$(PYTHON) $(TOOLS_DIR)/build_spec.py --check
+check-spec: check-spec-en ## Check if SPEC.md is up-to-date (default: English)
+
+.PHONY: check-spec-en
+check-spec-en: ## Check if English SPEC.md is up-to-date
+	@echo "$(YELLOW)Checking English SPEC.md...$(NC)"
+	$(PYTHON) $(TOOLS_DIR)/build_spec.py --lang en --check
+
+.PHONY: check-spec-ru
+check-spec-ru: ## Check if Russian SPEC.md is up-to-date
+	@echo "$(YELLOW)Checking Russian SPEC.md...$(NC)"
+	$(PYTHON) $(TOOLS_DIR)/build_spec.py --lang ru --check
+
+.PHONY: check-spec-all
+check-spec-all: check-spec-en check-spec-ru ## Check both language SPEC.md files
 
 .PHONY: build-spec-min
-build-spec-min: ## Build minified SPEC.min.md using codex
+build-spec-min: ## Build minified SPEC.min.md using codex (English)
 	@echo "$(GREEN)Building SPEC.min.md...$(NC)"
 	codex --ask-for-approval never \
 		-c hide_agent_reasoning=true \
@@ -107,7 +135,7 @@ build-spec-min: ## Build minified SPEC.min.md using codex
 		-c model_reasoning_summary='"none"' \
 		-c model_verbosity='"low"' \
 		exec --sandbox read-only --color never \
-		-o $(SPEC_DIR)/SPEC.min.md \
+		-o $(SPEC_DIR)/en/SPEC.min.md \
 		- < $(TOOLS_DIR)/prompts/spec_minify.prompt.txt
 	@echo "$(GREEN)Done!$(NC)"
 
@@ -119,9 +147,12 @@ build-spec-min: ## Build minified SPEC.min.md using codex
 validate: validate-examples ## Validate all YAML files
 
 .PHONY: validate-examples
-validate-examples: ## Validate example files
-	@echo "$(GREEN)Validating examples...$(NC)"
-	@for dir in $(EXAMPLES_DIR)/*/; do \
+validate-examples: validate-examples-en ## Validate example files (default: English)
+
+.PHONY: validate-examples-en
+validate-examples-en: ## Validate English example files
+	@echo "$(GREEN)Validating English examples...$(NC)"
+	@for dir in $(EXAMPLES_DIR_EN)/*/; do \
 		plan=$$(ls "$$dir"*.plan.yaml 2>/dev/null | head -1); \
 		views=$$(ls "$$dir"*.views.yaml 2>/dev/null | head -1); \
 		if [ -n "$$plan" ]; then \
@@ -133,7 +164,27 @@ validate-examples: ## Validate example files
 			fi; \
 		fi; \
 	done
-	@echo "$(GREEN)All examples valid!$(NC)"
+	@echo "$(GREEN)All English examples valid!$(NC)"
+
+.PHONY: validate-examples-ru
+validate-examples-ru: ## Validate Russian example files
+	@echo "$(GREEN)Validating Russian examples...$(NC)"
+	@for dir in $(EXAMPLES_DIR_RU)/*/; do \
+		plan=$$(ls "$$dir"*.plan.yaml 2>/dev/null | head -1); \
+		views=$$(ls "$$dir"*.views.yaml 2>/dev/null | head -1); \
+		if [ -n "$$plan" ]; then \
+			echo "  Validating: $$plan"; \
+			if [ -n "$$views" ]; then \
+				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" "$$views" || exit 1; \
+			else \
+				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" || exit 1; \
+			fi; \
+		fi; \
+	done
+	@echo "$(GREEN)All Russian examples valid!$(NC)"
+
+.PHONY: validate-examples-all
+validate-examples-all: validate-examples-en validate-examples-ru ## Validate all language examples
 
 .PHONY: validate-schema
 validate-schema: ## Validate JSON schemas are valid JSON
@@ -145,19 +196,19 @@ validate-schema: ## Validate JSON schemas are valid JSON
 	@echo "$(GREEN)All schemas valid JSON!$(NC)"
 
 .PHONY: validate-hello
-validate-hello: ## Validate hello example (quick check)
+validate-hello: ## Validate hello example (quick check, English)
 	@echo "$(GREEN)Validating hello example...$(NC)"
 	$(PYTHON) $(TOOLS_DIR)/validate.py \
-		$(EXAMPLES_DIR)/hello/hello.plan.yaml \
-		$(EXAMPLES_DIR)/hello/hello.views.yaml
+		$(EXAMPLES_DIR_EN)/hello/hello.plan.yaml \
+		$(EXAMPLES_DIR_EN)/hello/hello.views.yaml
 	@echo "$(GREEN)Valid!$(NC)"
 
-.PHONY: validate-program
-validate-program: ## Validate program example
-	@echo "$(GREEN)Validating program example...$(NC)"
+.PHONY: validate-advanced
+validate-advanced: ## Validate advanced example (English)
+	@echo "$(GREEN)Validating advanced example...$(NC)"
 	$(PYTHON) $(TOOLS_DIR)/validate.py \
-		$(EXAMPLES_DIR)/program/program.plan.yaml \
-		$(EXAMPLES_DIR)/program/program.views.yaml
+		$(EXAMPLES_DIR_EN)/advanced/program.plan.yaml \
+		$(EXAMPLES_DIR_EN)/advanced/program.views.yaml
 	@echo "$(GREEN)Valid!$(NC)"
 
 # ============================================================================
@@ -165,19 +216,19 @@ validate-program: ## Validate program example
 # ============================================================================
 
 .PHONY: render-hello
-render-hello: ## Render hello example Gantt diagram
+render-hello: ## Render hello example Gantt diagram (English)
 	@echo "$(GREEN)Rendering hello example...$(NC)"
 	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.plan2gantt \
-		--plan examples/hello/hello.plan.yaml \
-		--views examples/hello/hello.views.yaml \
+		--plan en/examples/hello/hello.plan.yaml \
+		--views en/examples/hello/hello.views.yaml \
 		--view overview
 
-.PHONY: render-program
-render-program: ## Render program example (list views)
-	@echo "$(GREEN)Rendering program example views...$(NC)"
+.PHONY: render-advanced
+render-advanced: ## Render advanced example (list views, English)
+	@echo "$(GREEN)Rendering advanced example views...$(NC)"
 	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.plan2gantt \
-		--plan examples/program/program.plan.yaml \
-		--views examples/program/program.views.yaml \
+		--plan en/examples/advanced/program.plan.yaml \
+		--views en/examples/advanced/program.views.yaml \
 		--list-views
 
 # ============================================================================
@@ -232,11 +283,11 @@ format: ## Format Python code (requires ruff)
 # ============================================================================
 
 .PHONY: ci
-ci: deps check-spec validate test ## Run all CI checks
+ci: deps check-spec-all validate-examples-all test ## Run all CI checks
 	@echo "$(GREEN)All CI checks passed!$(NC)"
 
 .PHONY: check
-check: validate-schema validate build-spec ## Quick check (schemas, examples, spec)
+check: validate-schema validate-examples-en spec-en ## Quick check (schemas, examples, spec)
 	@echo "$(GREEN)All checks passed!$(NC)"
 
 # ============================================================================
