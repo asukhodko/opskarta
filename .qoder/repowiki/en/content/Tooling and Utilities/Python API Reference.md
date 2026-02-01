@@ -8,9 +8,9 @@
 - [__init__.py](file://specs/v1/tools/render/__init__.py)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json)
+- [SPEC.md](file://specs/v1/SPEC.md)
 - [60-validation.md](file://specs/v1/spec/60-validation.md)
 - [50-scheduling.md](file://specs/v1/spec/50-scheduling.md)
-- [SPEC.md](file://specs/v1/SPEC.md)
 - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml)
 - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml)
 </cite>
@@ -19,7 +19,10 @@
 **Changes Made**
 - Updated rendering API documentation to reflect migration from `render_mermaid_gantt()` to `plan2gantt()` module
 - Added comprehensive documentation for new `render_gantt_mermaid()` function with enhanced functionality
-- Documented new calendar system with weekend exclusion support and automatic date calculation
+- Documented new `render_dag_mermaid()` function for Mermaid DAG flowchart generation
+- Documented new `Reporter` class with enhanced error reporting capabilities
+- Documented new `ValidationFailed` exception for improved error handling
+- Enhanced calendar system documentation with weekend exclusion support and automatic date calculation
 - Added documentation for status-based color coding and milestone support
 - Updated API signatures and function parameters to reflect new implementation
 - Enhanced error handling documentation with new `ValidationFailed` exception
@@ -40,6 +43,7 @@
 This document provides a comprehensive Python API reference for Opskarta's programmatic interfaces. It focuses on:
 - Validation API: validate_plan() and related helpers, including ValidationError exception handling and validation result semantics.
 - Rendering API: compute_schedule() and ScheduledNode data structure, plus the new plan2gantt module with enhanced functionality including automatic date calculation, weekend exclusion support, and status-based color coding.
+- DAG rendering API: render_dag_mermaid() for generating Mermaid flowcharts from plan files.
 - Data structures, function signatures, parameters, return values, and usage patterns.
 - Error handling, propagation, and integration guidance for embedding Opskarta in larger applications.
 - Performance characteristics, memory usage, and threading safety considerations.
@@ -90,13 +94,17 @@ RInit --> PD
 
 ## Core Components
 - Validation API
-  - validate_plan(plan: Dict[str, Any]) -> List[str]: Validates plan semantics and returns warnings.
-  - ValidationError: Exception class with path, value, expected, and available fields.
+  - validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]: Validates plan semantics and returns warnings and informational messages.
+  - ValidationError: Exception class with message, path, value, expected, and available fields.
   - Related helpers: load_yaml(), load_json_schema(), validate_with_schema().
 - Rendering API
   - compute_schedule(nodes: Dict[str, Dict[str, Any]], exclude_weekends: bool) -> Dict[str, ScheduledNode]
   - ScheduledNode: dataclass with start, finish, duration_days
   - render_gantt_mermaid(plan: Dict[str, Any], view: Dict[str, Any], view_id: str, rep: Reporter) -> str
+  - render_dag_mermaid(plan: Dict[str, Any], direction: str = "LR", wrap_col: Optional[int] = None, only_tracks: Optional[Set[str]] = None) -> str
+- Error Reporting
+  - Reporter: Class with error(), warn(), info(), and raise_if_errors() methods for structured error reporting.
+  - ValidationFailed: Exception class for validation failures in rendering operations.
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L262-L558)
@@ -104,24 +112,29 @@ RInit --> PD
 - [validate.py](file://specs/v1/tools/validate.py#L136-L192)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L847-L950)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L601-L606)
+- [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L53-L78)
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L374-L579)
 
 ## Architecture Overview
-The validation and rendering APIs operate on parsed dictionaries derived from YAML/JSON files. Validation ensures structural correctness and semantic integrity, while rendering computes schedules and produces Mermaid Gantt output with enhanced calendar support and status-based theming.
+The validation and rendering APIs operate on parsed dictionaries derived from YAML/JSON files. Validation ensures structural correctness and semantic integrity, while rendering computes schedules and produces Mermaid Gantt and DAG output with enhanced calendar support and status-based theming.
 
 ```mermaid
 sequenceDiagram
 participant App as "Application"
 participant Val as "validate.py"
-participant Ren as "plan2gantt.py"
+participant RenGantt as "plan2gantt.py"
+participant RenDag as "plan2dag.py"
 App->>Val : load_yaml(plan_path)
 Val-->>App : Dict[str, Any] plan
 App->>Val : validate_plan(plan)
 Val-->>App : List[str] warnings
-App->>Ren : load_yaml(views_path)
-Ren-->>App : Dict[str, Any] views
-App->>Ren : render_gantt_mermaid(plan, view, view_id, rep)
-Ren->>Ren : compute_node_schedule(nodes, cal, rep, cache, visiting)
-Ren-->>App : str mermaid_gantt
+App->>RenGantt : load_yaml(views_path)
+RenGantt-->>App : Dict[str, Any] views
+App->>RenGantt : render_gantt_mermaid(plan, view, view_id, rep)
+RenGantt->>RenGantt : compute_node_schedule(nodes, cal, rep, cache, visiting)
+RenGantt-->>App : str mermaid_gantt
+App->>RenDag : render_dag_mermaid(plan, direction, wrap_col, only_tracks)
+RenDag-->>App : str mermaid_dag
 ```
 
 **Diagram sources**
@@ -129,17 +142,18 @@ Ren-->>App : str mermaid_gantt
 - [validate.py](file://specs/v1/tools/validate.py#L262-L558)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L957-L1025)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L847-L950)
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L584-L621)
 
 ## Detailed Component Analysis
 
 ### Validation API
 
-#### validate_plan(plan: Dict[str, Any]) -> List[str]
+#### validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]
 - Purpose: Performs semantic validation of the plan dictionary.
 - Parameters:
   - plan: Root dictionary parsed from plan.yaml.
 - Returns:
-  - List[str]: Non-fatal warnings collected during validation.
+  - Tuple[List[str], List[str]]: Non-fatal warnings and informational messages collected during validation.
 - Exceptions:
   - Raises ValidationError on critical errors (e.g., missing fields, invalid types, cycles).
 - Behavior highlights:
@@ -242,7 +256,7 @@ CalcFromFinish --> NormalizeStart
 DetermineStart --> |No| CheckAfter{"Has after dependencies?"}
 CheckAfter --> |Yes| ResolveDeps["Resolve dependencies and take latest finish<br/>+ next workday if not milestone"]
 ResolveDeps --> NormalizeStart
-CheckAfter --> |No| CheckParent{"Has parent?"}
+DetermineStart --> |No| CheckParent{"Has parent?"}
 CheckParent --> |Yes| ParentStart["Use parent start"]
 CheckParent --> |No| MarkUnscheduled["Return NodeSchedule(None, finish, None)"]
 NormalizeStart --> ComputeFinish["Compute finish (start +/- duration-1)"]
@@ -330,6 +344,67 @@ Ren-->>App : str Mermaid Gantt
 **Section sources**
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L847-L950)
 
+#### render_dag_mermaid(plan: Dict[str, Any], direction: str = "LR", wrap_col: Optional[int] = None, only_tracks: Optional[Set[str]] = None) -> str
+- Purpose: Generates a Mermaid DAG (flowchart) from a plan with parent-child relationships and dependencies.
+- Parameters:
+  - plan: Parsed plan dictionary.
+  - direction: Graph direction ("LR", "TB", "BT", "RL").
+  - wrap_col: Column width for text wrapping in node labels.
+  - only_tracks: Set of node IDs to limit the diagram to specific tracks.
+- Behavior:
+  - Validates plan structure and builds children map from parent relationships.
+  - Generates hierarchical flowchart with subgraphs for parent-child relationships.
+  - Adds dependency arrows for "after" relationships.
+  - Applies status-based coloring to nodes.
+  - Supports filtering by specific tracks.
+- Returns:
+  - String containing complete Mermaid DAG specification.
+
+```mermaid
+flowchart TD
+Start(["render_dag_mermaid(plan, direction, wrap_col, only_tracks)"]) --> Validate["validate_plan()"]
+Validate --> BuildChildren["build_children_map()"]
+BuildChildren --> FindRoots["find_roots()"]
+FindRoots --> BuildStatusColors["build_status_classes()"]
+BuildStatusColors --> FilterVisible["filter visible nodes"]
+FilterVisible --> EmitRoots["emit root nodes"]
+EmitRoots --> EmitChildren["emit child nodes and subgraphs"]
+EmitChildren --> AddParentArrows["add parent arrows (dashed)"]
+AddParentArrows --> AddAfterArrows["add after arrows (solid)"]
+AddAfterArrows --> End(["Return Mermaid DAG"])
+```
+
+**Diagram sources**
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L374-L579)
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L266-L283)
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L288-L306)
+
+**Section sources**
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L374-L579)
+
+### Error Reporting System
+
+#### Reporter Class
+- Purpose: Centralized error reporting system for rendering operations.
+- Methods:
+  - error(msg: str) -> None: Logs error and increments error counter.
+  - warn(msg: str) -> None: Logs warning and increments warning counter.
+  - info(msg: str) -> None: Logs informational message and increments info counter.
+  - raise_if_errors() -> None: Raises ValidationFailed if any errors were logged.
+- Usage:
+  - Passed to all validation and rendering functions for consistent error reporting.
+
+#### ValidationFailed Exception
+- Purpose: Exception raised when validation fails in rendering operations.
+- Behavior:
+  - Raised when reporter detects errors during validation.
+  - Contains human-readable error messages with context.
+  - Used to signal failure to calling applications.
+
+**Section sources**
+- [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L53-L78)
+- [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L75-L78)
+
 ### Data Structures and Schemas
 
 #### Plan Schema (plan.schema.json)
@@ -380,6 +455,9 @@ Validate --> JSONSchema["jsonschema (optional)"]
 Render["plan2gantt.py"] --> PyYAML
 Render --> DataClasses["dataclasses"]
 Render --> DateTime["datetime/date"]
+RenderDag["plan2dag.py"] --> PyYAML
+RenderDag --> DateTime
+RenderDag --> DataClasses
 ```
 
 **Diagram sources**
@@ -387,12 +465,14 @@ Render --> DateTime["datetime/date"]
 - [validate.py](file://specs/v1/tools/validate.py#L920-L926)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L39-L41)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L36-L38)
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L17-L21)
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L144-L150)
 - [validate.py](file://specs/v1/tools/validate.py#L920-L926)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L39-L41)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L36-L38)
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L17-L21)
 
 ## Performance Considerations
 - Validation:
@@ -420,12 +500,17 @@ Common issues and resolutions:
 - Status-based theming problems:
   - Check that status colors are valid hex codes (#RRGGBB).
   - Ensure status references in nodes match defined statuses.
+- DAG rendering issues:
+  - Verify plan structure has valid parent-child relationships.
+  - Check that requested tracks exist in the plan.
+  - Ensure only_tracks parameter contains valid node IDs.
 
 Integration tips:
 - Wrap API calls in try/except blocks to catch exceptions and present actionable messages.
 - Use Reporter object to capture detailed warnings and errors.
 - Validate with both semantic and schema levels for robustness.
 - Leverage the new calendar system for accurate workday calculations.
+- Use render_dag_mermaid() for hierarchical visualization alongside render_gantt_mermaid().
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L36-L68)
@@ -436,14 +521,16 @@ Integration tips:
 Opskarta's Python APIs provide a clean separation between validation and rendering with enhanced capabilities:
 - validate_plan() ensures structural and semantic integrity with precise error reporting.
 - render_gantt_mermaid() enables sophisticated Gantt generation with calendar-aware scheduling, weekend exclusion support, and status-based theming.
+- render_dag_mermaid() provides hierarchical visualization of parent-child relationships and dependencies.
 - The new plan2gantt module offers improved functionality over previous render_mermaid_gantt implementation with better error handling and extensibility.
+- The Reporter class and ValidationFailed exception provide structured error reporting for robust application integration.
 Adopting these APIs in larger applications enables robust CI checks, automated report generation, and flexible integration with various project management workflows.
 
 ## Appendices
 
 ### API Index
 - Validation
-  - validate_plan(plan: Dict[str, Any]) -> List[str]
+  - validate_plan(plan: Dict[str, Any]) -> Tuple[List[str], List[str]]
   - ValidationError(message: str, path: Optional[str], value: Any, expected: Optional[str], available: Optional[List[str]])
   - load_yaml(file_path: Path) -> Dict[str, Any]
   - load_json_schema(schema_path: Path) -> Dict[str, Any]
@@ -452,6 +539,10 @@ Adopting these APIs in larger applications enables robust CI checks, automated r
   - compute_node_schedule(node_id: str, plan: Dict[str, Any], cal: Calendar, rep: Reporter, cache: Dict[str, NodeSchedule], visiting: Set[str]) -> NodeSchedule
   - NodeSchedule(start: Optional[date], finish: Optional[date], duration_days: Optional[int])
   - render_gantt_mermaid(plan: Dict[str, Any], view: Dict[str, Any], view_id: str, rep: Reporter) -> str
+  - render_dag_mermaid(plan: Dict[str, Any], direction: str = "LR", wrap_col: Optional[int] = None, only_tracks: Optional[Set[str]] = None) -> str
+- Error Reporting
+  - Reporter(error: int = 0, warnings: int = 0, infos: int = 0)
+  - ValidationFailed
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L262-L558)
@@ -460,6 +551,8 @@ Adopting these APIs in larger applications enables robust CI checks, automated r
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L608-L791)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L601-L606)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L847-L950)
+- [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L53-L78)
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L374-L579)
 
 ### Example Workflows
 - Validate a plan and views:
@@ -472,9 +565,14 @@ Adopting these APIs in larger applications enables robust CI checks, automated r
   - Call render_gantt_mermaid(plan=plan, view=view, view_id=view_id, rep=Reporter()).
   - Access calendar configuration, weekend exclusions, and status-based theming.
   - Save or stream the resulting string.
+- Generate a Mermaid DAG:
+  - Load plan YAML into dict.
+  - Call render_dag_mermaid(plan, direction="LR", wrap_col=20, only_tracks=None).
+  - Process returned Mermaid DAG string for display or export.
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L136-L192)
 - [validate.py](file://specs/v1/tools/validate.py#L719-L900)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L957-L1025)
 - [plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py#L847-L950)
+- [plan2dag.py](file://specs/v1/tools/render/plan2dag.py#L584-L621)

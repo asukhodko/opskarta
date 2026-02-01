@@ -29,6 +29,7 @@
 - Enhanced weekend exclusion handling with comprehensive calendar support
 - Improved error reporting and validation with dedicated Reporter class
 - Expanded CLI functionality with markdown wrapping and output options
+- Modular architecture with specialized Gantt and DAG renderers
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -43,9 +44,11 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document describes the modernized rendering engine that generates Mermaid Gantt diagrams and DAG flowcharts from opskarta plan and view definitions. The new implementation replaces the legacy `mermaid_gantt.py` with enhanced `plan2gantt.py` and `plan2dag.py` modules, providing improved scheduling computation algorithms, comprehensive weekend exclusion logic, business day arithmetic, and better user experience through lazy imports and structured architecture.
+This document describes the modernized rendering engine that generates Mermaid Gantt diagrams and DAG flowcharts from opskarta plan and view definitions. The new implementation represents a complete replacement of the legacy monolithic renderer with a dual-rendering system featuring specialized modules for different visualization types.
 
-The rendering engine now supports dual visualization modes: Gantt charts for timeline visualization and DAG flowcharts for dependency analysis. It maintains backward compatibility while introducing advanced features like parent-child inheritance, enhanced status theming, and comprehensive error reporting.
+The new rendering engine consists of two modular components: `plan2gantt.py` for Gantt chart generation and `plan2dag.py` for DAG flowchart creation. Both modules provide enhanced scheduling computation algorithms, comprehensive weekend exclusion logic, business day arithmetic, and improved user experience through lazy imports and structured architecture.
+
+The engine maintains backward compatibility while introducing advanced features like parent-child inheritance, enhanced status theming, comprehensive error reporting, and flexible CLI tooling. The modular design enables independent optimization and future enhancements while providing a clean API for programmatic integration.
 
 **Updated** Complete replacement of legacy monolithic renderer with modular architecture featuring separate Gantt and DAG renderers, enhanced validation, and improved user experience.
 
@@ -104,6 +107,7 @@ The new rendering engine consists of two specialized modules with distinct respo
 - **Status theming** with color coding and emoji support
 - **Mermaid output generation** with theme variables and lane organization
 - **Enhanced validation** with dedicated Reporter class for structured error handling
+- **Comprehensive CLI support** with markdown wrapping and output options
 
 ### plan2dag.py - DAG Flowchart Renderer  
 - **Hierarchical visualization** of parent-child relationships and dependencies
@@ -112,6 +116,7 @@ The new rendering engine consists of two specialized modules with distinct respo
 - **Owner display** with backward compatibility support
 - **Track filtering** for focused visualization of specific project tracks
 - **Extended validation** with duplicate key detection and cycle prevention
+- **Flexible CLI options** for direction control and multiple track support
 
 ### Shared Infrastructure
 - **Strict YAML loading** with duplicate key detection for both modules

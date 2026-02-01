@@ -3,90 +3,136 @@
 <cite>
 **Referenced Files in This Document**
 - [README.md](file://specs/v1/README.md)
-- [SPEC.md](file://specs/v1/SPEC.md)
-- [00-introduction.md](file://specs/v1/spec/00-introduction.md)
-- [10-plan-file.md](file://specs/v1/spec/10-plan-file.md)
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md)
-- [30-views-file.md](file://specs/v1/spec/30-views-file.md)
-- [40-statuses.md](file://specs/v1/spec/40-statuses.md)
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md)
-- [55-yaml-notes.md](file://specs/v1/spec/55-yaml-notes.md)
-- [60-validation.md](file://specs/v1/spec/60-validation.md)
-- [90-extensibility.md](file://specs/v1/spec/90-extensibility.md)
-- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md)
+- [SPEC.md](file://specs/v1/en/SPEC.md)
+- [SPEC.md](file://specs/v1/ru/SPEC.md)
+- [00-introduction.md](file://specs/v1/en/spec/00-introduction.md)
+- [10-plan-file.md](file://specs/v1/en/spec/10-plan-file.md)
+- [20-nodes.md](file://specs/v1/en/spec/20-nodes.md)
+- [30-views-file.md](file://specs/v1/en/spec/30-views-file.md)
+- [40-statuses.md](file://specs/v1/en/spec/40-statuses.md)
+- [50-scheduling.md](file://specs/v1/en/spec/50-scheduling.md)
+- [55-yaml-notes.md](file://specs/v1/en/spec/55-yaml-notes.md)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md)
+- [90-extensibility.md](file://specs/v1/en/spec/90-extensibility.md)
+- [95-renderer-mermaid.md](file://specs/v1/en/spec/95-renderer-mermaid.md)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json)
-- [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml)
-- [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml)
-- [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml)
-- [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml)
+- [hello.plan.yaml](file://specs/v1/en/examples/hello/hello.plan.yaml)
+- [hello.views.yaml](file://specs/v1/en/examples/hello/hello.views.yaml)
+- [program.plan.yaml](file://specs/v1/en/examples/advanced/program.plan.yaml)
+- [program.views.yaml](file://specs/v1/en/examples/advanced/program.views.yaml)
+- [project.plan.yaml](file://specs/v1/en/examples/minimal/project.plan.yaml)
 - [validate.py](file://specs/v1/tools/validate.py)
+- [build_spec.py](file://specs/v1/tools/build_spec.py)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Fixed critical syntax errors in Mermaid Gantt examples throughout the specification documents
-- Ensured all Mermaid code examples are syntactically correct and copy-paste ready
-- Updated renderer documentation with properly formatted Mermaid syntax examples
-- Maintained comprehensive coverage of operational map concepts and technical specifications
+- Updated to reflect the new bilingual (English and Russian) specification system
+- Added documentation for the new directory structure under specs/v1/en/ and specs/v1/ru/
+- Updated all file references to point to the appropriate language directories
+- Enhanced the specification structure to support both English and Russian documentation
+- Added build tooling documentation for bilingual specification generation
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+2. [Bilingual Specification System](#bilingual-specification-system)
+3. [Project Structure](#project-structure)
+4. [Core Components](#core-components)
+5. [Architecture Overview](#architecture-overview)
+6. [Detailed Component Analysis](#detailed-component-analysis)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
+11. [Appendices](#appendices)
 
 ## Introduction
-This document is the comprehensive specification reference for Opskarta v1 operational maps. It defines how to model work as hierarchical plans and present them via multiple views. It covers:
+This document is the comprehensive specification reference for Opskarta v1 operational maps. The specification is now available in two languages: English (primary) and Russian (translation). It defines how to model work as hierarchical plans and present them via multiple views. It covers:
 - Operational map concepts: plans vs. views, node kinds, hierarchy, statuses, scheduling, and validation
 - File formats: plan.yaml and views.yaml, their structures, required fields, and optional extensions
 - JSON Schemas for machine-readable validation
 - Extensibility and custom fields
-- Examples from hello and advanced samples
+- Examples from hello and advanced samples in both languages
 - Troubleshooting and best practices
 
 **Section sources**
-- [README.md](file://specs/v1/README.md#L1-L27)
-- [SPEC.md](file://specs/v1/SPEC.md#L15-L24)
+- [README.md](file://specs/v1/README.md#L1-L55)
+- [SPEC.md](file://specs/v1/en/SPEC.md#L17-L25)
+
+## Bilingual Specification System
+
+Opskarta v1 now provides a complete bilingual specification system with English as the primary (canonical) specification and Russian as the translation. Both versions are maintained independently and synchronized through automated build processes.
+
+### Language Structure
+- **English (Primary)**: specs/v1/en/ - Canonical specification, full English documentation
+- **Russian (Translation)**: specs/v1/ru/ - Translated specification, Russian documentation
+
+### Directory Organization
+```
+specs/v1/
+├── en/                     # English (primary)
+│   ├── SPEC.md             # Full specification (auto-generated)
+│   ├── SPEC.min.md         # Compact version
+│   ├── README.md           # English overview
+│   ├── spec/               # Source sections (English)
+│   └── examples/           # Example files (English)
+├── ru/                     # Russian (translation)
+│   ├── SPEC.md             # Full specification (auto-generated)
+│   ├── SPEC.min.md         # Compact version
+│   ├── README.md           # Russian overview
+│   ├── spec/               # Source sections (Russian)
+│   └── examples/           # Example files (Russian)
+├── schemas/                # JSON Schemas (shared)
+├── tests/                  # Test suite (shared)
+└── tools/                  # Build and validation tools
+```
+
+### Build Process
+The specification is built from modular sections using the `build_spec.py` tool:
+- English: `python tools/build_spec.py --lang en`
+- Russian: `python tools/build_spec.py --lang ru`
+- Validation: `python tools/build_spec.py --lang en --check`
+
+**Section sources**
+- [README.md](file://specs/v1/README.md#L5-L31)
+- [build_spec.py](file://specs/v1/tools/build_spec.py#L1-L301)
 
 ## Project Structure
-The specification is organized as:
-- Specification chapters under specs/v1/spec
-- JSON Schemas under specs/v1/schemas
-- Example files under specs/v1/examples
-- Validation tool under specs/v1/tools
+The specification is organized with language-specific directories while maintaining shared resources:
 
 ```mermaid
 graph TB
-subgraph "Spec"
-A["spec/00-introduction.md"]
-B["spec/10-plan-file.md"]
-C["spec/20-nodes.md"]
-D["spec/30-views-file.md"]
-E["spec/40-statuses.md"]
-F["spec/50-scheduling.md"]
-G["spec/60-validation.md"]
-H["spec/90-extensibility.md"]
-I["spec/95-renderer-mermaid.md"]
+subgraph "English (Primary)"
+A["en/SPEC.md"]
+B["en/spec/10-plan-file.md"]
+C["en/spec/20-nodes.md"]
+D["en/spec/30-views-file.md"]
+E["en/spec/40-statuses.md"]
+F["en/spec/50-scheduling.md"]
+G["en/spec/60-validation.md"]
+H["en/spec/90-extensibility.md"]
+I["en/spec/95-renderer-mermaid.md"]
 end
-subgraph "Schemas"
+subgraph "Russian (Translation)"
+R["ru/SPEC.md"]
+S["ru/spec/10-plan-file.md"]
+T["ru/spec/20-nodes.md"]
+U["ru/spec/30-views-file.md"]
+V["ru/spec/40-statuses.md"]
+W["ru/spec/50-scheduling.md"]
+X["ru/spec/60-validation.md"]
+Y["ru/spec/90-extensibility.md"]
+Z["ru/spec/95-renderer-mermaid.md"]
+end
+subgraph "Shared Resources"
 S1["schemas/plan.schema.json"]
 S2["schemas/views.schema.json"]
-end
-subgraph "Examples"
-X1["examples/hello/*.plan.yaml, *.views.yaml"]
-X2["examples/advanced/*.plan.yaml, *.views.yaml"]
-X3["examples/minimal/project.plan.yaml"]
-end
-subgraph "Tools"
+E1["examples/hello/*.plan.yaml, *.views.yaml"]
+E2["examples/advanced/*.plan.yaml, *.views.yaml"]
+E3["examples/minimal/project.plan.yaml"]
 T1["tools/validate.py"]
+B1["tools/build_spec.py"]
 end
 A --> B
 B --> C
@@ -96,35 +142,31 @@ D --> F
 G --> S1
 G --> S2
 G --> T1
-X1 --> B
-X1 --> D
-X2 --> B
-X2 --> D
-X3 --> B
+E1 --> B
+E1 --> D
+E2 --> B
+E2 --> D
+E3 --> B
+R --> S
+S --> T
+S --> V
+S --> W
+U --> W
+X --> S1
+X --> S2
+X --> T1
 ```
 
 **Diagram sources**
-- [00-introduction.md](file://specs/v1/spec/00-introduction.md#L1-L10)
-- [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L1-L30)
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L1-L37)
-- [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
-- [40-statuses.md](file://specs/v1/spec/40-statuses.md#L1-L23)
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L140)
-- [90-extensibility.md](file://specs/v1/spec/90-extensibility.md#L1-L26)
-- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L1-L301)
-- [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
-- [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
-- [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
-- [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L326)
-- [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
-- [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml#L1-L6)
-- [validate.py](file://specs/v1/tools/validate.py#L1-L752)
+- [README.md](file://specs/v1/README.md#L14-L31)
+- [SPEC.md](file://specs/v1/en/SPEC.md#L1-L16)
+- [SPEC.md](file://specs/v1/ru/SPEC.md#L1-L16)
+- [build_spec.py](file://specs/v1/tools/build_spec.py#L80-L98)
 
 **Section sources**
-- [README.md](file://specs/v1/README.md#L1-L27)
-- [SPEC.md](file://specs/v1/SPEC.md#L4-L25)
+- [README.md](file://specs/v1/README.md#L1-L55)
+- [SPEC.md](file://specs/v1/en/SPEC.md#L1-L16)
+- [SPEC.md](file://specs/v1/ru/SPEC.md#L1-L16)
 
 ## Core Components
 - Plan file (*.plan.yaml): Defines the operational map's version, metadata, statuses dictionary, and nodes collection.
@@ -135,18 +177,19 @@ X3 --> B
 - Validation: Multi-level checks (syntax, schema, semantics) with precise error reporting.
 
 **Section sources**
-- [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L1-L30)
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L1-L37)
-- [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
-- [40-statuses.md](file://specs/v1/spec/40-statuses.md#L1-L23)
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L5-L140)
+- [10-plan-file.md](file://specs/v1/en/spec/10-plan-file.md#L1-L30)
+- [20-nodes.md](file://specs/v1/en/spec/20-nodes.md#L1-L37)
+- [30-views-file.md](file://specs/v1/en/spec/30-views-file.md#L1-L34)
+- [40-statuses.md](file://specs/v1/en/spec/40-statuses.md#L1-L23)
+- [50-scheduling.md](file://specs/v1/en/spec/50-scheduling.md#L1-L80)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md#L5-L140)
 
 ## Architecture Overview
-The operational map architecture separates concerns:
+The operational map architecture separates concerns with bilingual support:
 - Plans capture the canonical work model (hierarchy, statuses, schedule).
 - Views describe presentation and navigation (Gantt lanes, filters, exclusions).
 - Validation ensures correctness across formats and links.
+- Both English and Russian specifications are generated from shared source files.
 
 ```mermaid
 graph TB
@@ -155,6 +198,11 @@ V["Views (*.views.yaml)"]
 S1["JSON Schema: plan.schema.json"]
 S2["JSON Schema: views.schema.json"]
 VAL["Validator (validate.py)"]
+BUILD["Builder (build_spec.py)"]
+EN["English SPEC.md"]
+RU["Russian SPEC.md"]
+BUILD --> EN
+BUILD --> RU
 VAL --> P
 VAL --> V
 VAL --> S1
@@ -165,10 +213,9 @@ V --> |"lanes[].nodes"| P
 
 **Diagram sources**
 - [validate.py](file://specs/v1/tools/validate.py#L634-L752)
+- [build_spec.py](file://specs/v1/tools/build_spec.py#L228-L296)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
-- [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L1-L30)
-- [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
 
 ## Detailed Component Analysis
 
@@ -203,11 +250,9 @@ NonCore --> Renderers["Renderer profiles"]
 NonCore --> SpecificDates["Specific dates in excludes"]
 ```
 
-**Diagram sources**
-- [SPEC.md](file://specs/v1/SPEC.md#L27-L52)
-
 **Section sources**
-- [SPEC.md](file://specs/v1/SPEC.md#L27-L52)
+- [SPEC.md](file://specs/v1/en/SPEC.md#L27-L52)
+- [SPEC.md](file://specs/v1/ru/SPEC.md#L27-L52)
 
 ### Plan File (*.plan.yaml)
 - Root fields:
@@ -236,16 +281,10 @@ CheckFormats --> CheckMilestones["Validate 'milestone' boolean values"]
 CheckMilestones --> End(["Plan valid"])
 ```
 
-**Diagram sources**
-- [validate.py](file://specs/v1/tools/validate.py#L135-L329)
-- [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L3-L10)
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L5-L31)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L7-L81)
-
 **Section sources**
-- [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L1-L30)
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L1-L37)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L5-L81)
+- [10-plan-file.md](file://specs/v1/en/spec/10-plan-file.md#L3-L10)
+- [20-nodes.md](file://specs/v1/en/spec/20-nodes.md#L5-L31)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md#L7-L81)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
 
 ### Views File (*.views.yaml)
@@ -277,14 +316,9 @@ Validator-->>Views : OK or error with path/value/expected
 Validator-->>Plan : OK or error with path/value/expected
 ```
 
-**Diagram sources**
-- [validate.py](file://specs/v1/tools/validate.py#L431-L579)
-- [30-views-file.md](file://specs/v1/spec/30-views-file.md#L5-L17)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L82-L115)
-
 **Section sources**
-- [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L82-L115)
+- [30-views-file.md](file://specs/v1/en/spec/30-views-file.md#L5-L17)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md#L82-L115)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
 
 ### Node Types and Hierarchy
@@ -316,13 +350,9 @@ class Plan {
 Plan --> Node : "contains"
 ```
 
-**Diagram sources**
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L11-L31)
-- [10-plan-file.md](file://specs/v1/spec/10-plan-file.md#L5-L10)
-
 **Section sources**
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L9-L31)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L13-L75)
+- [20-nodes.md](file://specs/v1/en/spec/20-nodes.md#L11-L31)
+- [10-plan-file.md](file://specs/v1/en/spec/10-plan-file.md#L5-L10)
 
 ### Node Identification Guidelines
 
@@ -355,8 +385,8 @@ nodes:
 ```
 
 **Section sources**
-- [SPEC.md](file://specs/v1/SPEC.md#L91-L121)
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L5-L35)
+- [SPEC.md](file://specs/v1/en/SPEC.md#L91-L121)
+- [20-nodes.md](file://specs/v1/en/spec/20-nodes.md#L5-L35)
 
 ### Milestone Handling
 
@@ -372,8 +402,8 @@ Milestones are event points on the timeline, not tasks with duration. They're us
 - Milestones can have dependencies (after) and statuses (status)
 
 **Section sources**
-- [SPEC.md](file://specs/v1/SPEC.md#L151-L182)
-- [20-nodes.md](file://specs/v1/spec/20-nodes.md#L65-L96)
+- [SPEC.md](file://specs/v1/en/SPEC.md#L151-L182)
+- [20-nodes.md](file://specs/v1/en/spec/20-nodes.md#L65-L96)
 
 ### Status Management
 
@@ -395,9 +425,9 @@ Statuses are now defined as structured objects with label and color fields:
 - color format must be valid hex color
 
 **Section sources**
-- [SPEC.md](file://specs/v1/SPEC.md#L266-L358)
-- [40-statuses.md](file://specs/v1/spec/40-statuses.md#L1-L93)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L57-L75)
+- [SPEC.md](file://specs/v1/en/SPEC.md#L266-L358)
+- [40-statuses.md](file://specs/v1/en/spec/40-statuses.md#L1-L93)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md#L57-L75)
 
 ### Scheduling Algorithms and Behavior
 - start: fixed start date (YYYY-MM-DD)
@@ -420,13 +450,9 @@ G --> H["Render on timeline"]
 F --> H
 ```
 
-**Diagram sources**
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L75-L80)
-- [validate.py](file://specs/v1/tools/validate.py#L312-L323)
-
 **Section sources**
-- [50-scheduling.md](file://specs/v1/spec/50-scheduling.md#L1-L80)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L77-L81)
+- [50-scheduling.md](file://specs/v1/en/spec/50-scheduling.md#L75-L80)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md#L77-L81)
 
 ### Validation Rules and Levels
 - Syntax: YAML/JSON parsing
@@ -463,13 +489,9 @@ L3 --> Severity["Severity Classification"]
 Severity --> Out["Success or detailed error"]
 ```
 
-**Diagram sources**
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L116-L140)
-- [validate.py](file://specs/v1/tools/validate.py#L586-L618)
-
 **Section sources**
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L140)
-- [validate.py](file://specs/v1/tools/validate.py#L30-L63)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md#L116-L140)
+- [validate.py](file://specs/v1/tools/validate.py#L586-L618)
 
 ### Extensibility and Custom Fields
 - Any node may include additional fields
@@ -477,8 +499,8 @@ Severity --> Out["Success or detailed error"]
 - Recommended grouping under x: namespace for custom attributes
 
 **Section sources**
-- [90-extensibility.md](file://specs/v1/spec/90-extensibility.md#L1-L26)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L296-L326)
+- [90-extensibility.md](file://specs/v1/en/spec/90-extensibility.md#L1-L26)
+- [program.plan.yaml](file://specs/v1/en/examples/advanced/program.plan.yaml#L296-L326)
 
 ### JSON Schema Definitions
 - plan.schema.json validates plan structure and types
@@ -493,10 +515,10 @@ Severity --> Out["Success or detailed error"]
 - Advanced example shows multi-track programs, dependencies, milestones, and custom fields
 
 **Section sources**
-- [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
-- [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L326)
-- [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
+- [hello.plan.yaml](file://specs/v1/en/examples/hello/hello.plan.yaml#L1-L44)
+- [hello.views.yaml](file://specs/v1/en/examples/hello/hello.views.yaml#L1-L13)
+- [program.plan.yaml](file://specs/v1/en/examples/advanced/program.plan.yaml#L1-L326)
+- [program.views.yaml](file://specs/v1/en/examples/advanced/program.views.yaml#L1-L93)
 
 ### Mermaid Gantt Renderer Profile
 
@@ -562,12 +584,13 @@ Release v1.0 :milestone, release, 2024-03-15, 1d
 | `tick_interval` | `tickInterval` | Axis tick interval (optional) |
 
 **Section sources**
-- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L1-L301)
+- [95-renderer-mermaid.md](file://specs/v1/en/spec/95-renderer-mermaid.md#L1-L301)
 
 ## Dependency Analysis
 - Views depend on Plan via project/meta.id
 - Views depend on Plan nodes via lanes[].nodes
 - Validators depend on Schemas and on Plan/Views content
+- Build tools depend on language-specific spec/ directories
 
 ```mermaid
 graph LR
@@ -577,22 +600,22 @@ Validator["validate.py"] --> Plan
 Validator --> Views
 Validator --> PlanSchema["plan.schema.json"]
 Validator --> ViewsSchema["views.schema.json"]
+Builder["build_spec.py"] --> EN["en/SPEC.md"]
+Builder --> RU["ru/SPEC.md"]
 ```
-
-**Diagram sources**
-- [validate.py](file://specs/v1/tools/validate.py#L431-L579)
-- [30-views-file.md](file://specs/v1/spec/30-views-file.md#L7-L9)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L89-L115)
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L431-L579)
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L89-L115)
+- [30-views-file.md](file://specs/v1/en/spec/30-views-file.md#L7-L9)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md#L89-L115)
+- [build_spec.py](file://specs/v1/tools/build_spec.py#L228-L296)
 
 ## Performance Considerations
 - Prefer explicit scheduling (start + duration) for predictable timelines
 - Limit deep hierarchies and long after chains to reduce cycle detection overhead
 - Use lanes to partition large plans for efficient rendering
 - Keep statuses compact and reuse recommended keys for interoperability
+- Both English and Russian specifications are generated from shared source files for consistency
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -609,15 +632,19 @@ Common issues and resolutions:
   - color must be valid hex format
 - Error messages
   - The validator reports path, value, expected, and available options
+- Bilingual specification issues
+  - Use `python tools/build_spec.py --lang en --check` to verify English SPEC.md
+  - Use `python tools/build_spec.py --lang ru --check` to verify Russian SPEC.md
 
 **Section sources**
-- [60-validation.md](file://specs/v1/spec/60-validation.md#L124-L140)
+- [60-validation.md](file://specs/v1/en/spec/60-validation.md#L124-L140)
 - [validate.py](file://specs/v1/tools/validate.py#L30-L63)
 - [validate.py](file://specs/v1/tools/validate.py#L153-L329)
 - [validate.py](file://specs/v1/tools/validate.py#L448-L579)
+- [build_spec.py](file://specs/v1/tools/build_spec.py#L270-L296)
 
 ## Conclusion
-Opskarta v1 provides a minimal yet extensible format for operational maps. Plans define the work model; views define presentations. Robust validation and JSON Schemas ensure correctness. Extensibility preserves compatibility while enabling domain-specific enhancements.
+Opskarta v1 provides a minimal yet extensible format for operational maps with complete bilingual support. Plans define the work model; views define presentations. Robust validation and JSON Schemas ensure correctness. Extensibility preserves compatibility while enabling domain-specific enhancements. Both English and Russian specifications are maintained through automated build processes for consistency and accessibility.
 
 ## Appendices
 
@@ -625,7 +652,7 @@ Opskarta v1 provides a minimal yet extensible format for operational maps. Plans
 - A minimal plan with a single root node and no scheduling
 
 **Section sources**
-- [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml#L1-L6)
+- [project.plan.yaml](file://specs/v1/en/examples/minimal/project.plan.yaml#L1-L6)
 
 ### Appendix B: JSON Schema Validation Quick Reference
 - plan.schema.json: validates plan structure and node fields
@@ -637,11 +664,22 @@ Opskarta v1 provides a minimal yet extensible format for operational maps. Plans
 
 ### Appendix C: Tooling
 - validate.py: CLI for validating plans and views, with optional JSON Schema mode
+- build_spec.py: Automated specification builder for both English and Russian versions
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L1-L752)
+- [build_spec.py](file://specs/v1/tools/build_spec.py#L1-L301)
 
-### Appendix D: Mermaid Syntax Verification
+### Appendix D: Bilingual Specification Generation
+The specification is automatically generated from modular sections:
+- English: `python tools/build_spec.py --lang en`
+- Russian: `python tools/build_spec.py --lang ru`
+- Validation: `python tools/build_spec.py --lang en --check`
+
+**Section sources**
+- [build_spec.py](file://specs/v1/tools/build_spec.py#L228-L296)
+
+### Appendix E: Mermaid Syntax Verification
 All Mermaid Gantt examples in this specification have been verified for syntax correctness and are ready for copy-paste usage. The examples demonstrate proper Mermaid syntax including:
 - Correct directive formatting (gantt, title, dateFormat, excludes)
 - Proper section declarations
@@ -650,7 +688,7 @@ All Mermaid Gantt examples in this specification have been verified for syntax c
 - Proper milestone syntax
 
 **Section sources**
-- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L142-L151)
-- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L157-L166)
-- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L183-L192)
-- [95-renderer-mermaid.md](file://specs/v1/spec/95-renderer-mermaid.md#L217-L224)
+- [95-renderer-mermaid.md](file://specs/v1/en/spec/95-renderer-mermaid.md#L142-L151)
+- [95-renderer-mermaid.md](file://specs/v1/en/spec/95-renderer-mermaid.md#L157-L166)
+- [95-renderer-mermaid.md](file://specs/v1/en/spec/95-renderer-mermaid.md#L183-L192)
+- [95-renderer-mermaid.md](file://specs/v1/en/spec/95-renderer-mermaid.md#L217-L224)

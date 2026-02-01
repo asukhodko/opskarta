@@ -3,6 +3,7 @@
 <cite>
 **Referenced Files in This Document**
 - [validate.py](file://specs/v1/tools/validate.py)
+- [Makefile](file://Makefile)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json)
 - [60-validation.md](file://specs/v1/spec/60-validation.md)
@@ -10,10 +11,12 @@
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md)
 - [10-plan-file.md](file://specs/v1/spec/10-plan-file.md)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md)
-- [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml)
-- [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml)
-- [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml)
+- [hello.plan.yaml](file://specs/v1/en/examples/hello/hello.plan.yaml)
+- [hello.views.yaml](file://specs/v1/en/examples/hello/hello.views.yaml)
+- [program.plan.yaml](file://specs/v1/en/examples/advanced/program.plan.yaml)
+- [program.views.yaml](file://specs/v1/en/examples/advanced/program.views.yaml)
+- [hello.plan.ru.yaml](file://specs/v1/ru/examples/hello/hello.plan.yaml)
+- [hello.views.ru.yaml](file://specs/v1/ru/examples/hello/hello.views.yaml)
 - [README.md](file://README.md)
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml)
 - [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml)
@@ -23,12 +26,12 @@
 
 ## Update Summary
 **Changes Made**
-- Updated validation severity levels to downgrade 'after' dependency chains without anchors from error to warning
-- Enhanced finish field validation rules with strict YYYY-MM-DD regex format and date existence checking
-- Strengthened consistency checks between start, finish, and duration fields
-- Expanded duplicate key detection coverage to include finish field requirements
-- Updated validation rules to enforce mutual exclusivity and consistency among temporal fields
-- Enhanced backward scheduling support with finish field calculations
+- Added comprehensive bilingual example validation system with new Makefile targets
+- Enhanced validate.py with 247+ lines of new validation logic for improved error reporting
+- Introduced validate-examples-en, validate-examples-ru, and validate-examples-all targets
+- Added support for Russian language examples alongside English examples
+- Enhanced CLI interface with improved error reporting and debugging capabilities
+- Expanded validation rules with stricter format validation and enhanced temporal field consistency checks
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -36,11 +39,13 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+6. [Bilingual Example Validation System](#bilingual-example-validation-system)
+7. [Enhanced CLI and Error Reporting](#enhanced-cli-and-error-reporting)
+8. [Dependency Analysis](#dependency-analysis)
+9. [Performance Considerations](#performance-considerations)
+10. [Troubleshooting Guide](#troubleshooting-guide)
+11. [Conclusion](#conclusion)
+12. [Appendices](#appendices)
 
 ## Introduction
 This document describes the validation system for Opskarta's plan and views file validator. It explains the three-tier validation approach:
@@ -50,31 +55,37 @@ This document describes the validation system for Opskarta's plan and views file
 
 The system now includes sophisticated error reporting with severity levels, comprehensive duplicate key detection, and enhanced validation rules for unique identifiers, color formats, and temporal field consistency. It covers validation levels, error reporting mechanisms, debugging capabilities, and integration patterns.
 
-**Updated** The validation severity levels have been refined to downgrade certain warnings to warnings instead of errors, specifically for 'after' dependency chains without anchors, allowing for more flexible validation while maintaining data integrity.
+**Updated** The validation system now supports bilingual example validation with dedicated targets for English and Russian examples, providing comprehensive validation coverage across both language variants. The enhanced validate.py script includes 247+ lines of new validation logic with improved error reporting and debugging capabilities.
 
 ## Project Structure
 The validation system lives under the v1 specification and includes:
-- A Python CLI validator script with enhanced error reporting
+- A Python CLI validator script with enhanced error reporting and bilingual support
+- Makefile targets for automated validation of English and Russian examples
 - JSON Schema definitions for plan and views
 - Specification documents detailing validation rules and severity levels
-- Example plan and views files demonstrating validation scenarios
+- Bilingual example plan and views files demonstrating validation scenarios
 - Test fixtures covering new finish field requirements and consistency checks
 
 ```mermaid
 graph TB
 subgraph "Spec v1"
 V["specs/v1/tools/validate.py"]
+M["Makefile"]
 P["specs/v1/schemas/plan.schema.json"]
 W["specs/v1/schemas/views.schema.json"]
+SE["specs/v1/en/examples/"]
+SR["specs/v1/ru/examples/"]
 S60["specs/v1/spec/60-validation.md"]
 SPEC["specs/v1/SPEC.md"]
 S40["specs/v1/spec/40-statuses.md"]
 S10["specs/v1/spec/10-plan-file.md"]
 S30["specs/v1/spec/30-views-file.md"]
-E_HELLO_P["specs/v1/examples/hello/hello.plan.yaml"]
-E_HELLO_V["specs/v1/examples/hello/hello.views.yaml"]
-E_ADV_P["specs/v1/examples/advanced/program.plan.yaml"]
-E_ADV_V["specs/v1/examples/advanced/program.views.yaml"]
+E_HELLO_P["specs/v1/en/examples/hello/hello.plan.yaml"]
+E_HELLO_V["specs/v1/en/examples/hello/hello.views.yaml"]
+E_ADV_P["specs/v1/en/examples/advanced/program.plan.yaml"]
+E_ADV_V["specs/v1/en/examples/advanced/program.views.yaml"]
+R_HELLO_P["specs/v1/ru/examples/hello/hello.plan.yaml"]
+R_HELLO_V["specs/v1/ru/examples/hello/hello.views.yaml"]
 TF["specs/v1/tests/fixtures/finish_field.plan.yaml"]
 TSA["specs/v1/tests/fixtures/start_after_conflict.plan.yaml"]
 TAN["specs/v1/tests/fixtures/after_no_anchor.plan.yaml"]
@@ -91,23 +102,31 @@ V --> E_HELLO_P
 V --> E_HELLO_V
 V --> E_ADV_P
 V --> E_ADV_V
+V --> R_HELLO_P
+V --> R_HELLO_V
 V --> TF
 V --> TSA
 V --> TAN
 V --> TS
+M --> SE
+M --> SR
+M --> V
 ```
 
 **Diagram sources**
-- [validate.py](file://specs/v1/tools/validate.py#L634-L752)
+- [validate.py](file://specs/v1/tools/validate.py#L634-L1081)
+- [Makefile](file://Makefile#L149-L187)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L1-L377)
 - [SPEC.md](file://specs/v1/SPEC.md#L1434-L1511)
 - [40-statuses.md](file://specs/v1/spec/40-statuses.md#L49-L93)
-- [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
-- [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L331)
-- [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
+- [hello.plan.yaml](file://specs/v1/en/examples/hello/hello.plan.yaml#L1-L44)
+- [hello.views.yaml](file://specs/v1/en/examples/hello/hello.views.yaml#L1-L13)
+- [program.plan.yaml](file://specs/v1/en/examples/advanced/program.plan.yaml#L1-L331)
+- [program.views.yaml](file://specs/v1/en/examples/advanced/program.views.yaml#L1-L93)
+- [hello.plan.ru.yaml](file://specs/v1/ru/examples/hello/hello.plan.yaml#L1-L44)
+- [hello.views.ru.yaml](file://specs/v1/ru/examples/hello/hello.views.yaml#L1-L13)
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
 - [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
 - [after_no_anchor.plan.yaml](file://specs/v1/tests/fixtures/after_no_anchor.plan.yaml#L1-L27)
@@ -124,6 +143,8 @@ V --> TS
 - Views semantic validator with project linkage validation
 - Sophisticated error reporting system with severity levels (error, warn, info)
 - Structured exception handling with detailed error messages
+- **New**: Bilingual example validation system with automated validation targets
+- **New**: Enhanced CLI interface with improved debugging and error reporting
 
 Key responsibilities:
 - Load and parse YAML safely with comprehensive duplicate key detection
@@ -132,13 +153,16 @@ Key responsibilities:
 - Enforce semantic rules including unique identifiers, color formats, and temporal field consistency
 - Detect cycles and format violations
 - Provide hierarchical error reporting with severity classification
+- **New**: Validate English and Russian example sets automatically
+- **New**: Enhanced error reporting with detailed path information and available alternatives
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L634-L752)
+- [validate.py](file://specs/v1/tools/validate.py#L634-L1081)
 - [validate.py](file://specs/v1/tools/validate.py#L69-L192)
 - [validate.py](file://specs/v1/tools/validate.py#L194-L329)
 - [validate.py](file://specs/v1/tools/validate.py#L431-L579)
 - [validate.py](file://specs/v1/tools/validate.py#L586-L618)
+- [Makefile](file://Makefile#L149-L187)
 
 ## Architecture Overview
 The validator runs in enhanced stages with sophisticated error handling:
@@ -185,7 +209,7 @@ CLI-->>U : "Success with severity classification or error with exit code"
 ```
 
 **Diagram sources**
-- [validate.py](file://specs/v1/tools/validate.py#L634-L752)
+- [validate.py](file://specs/v1/tools/validate.py#L634-L1081)
 - [validate.py](file://specs/v1/tools/validate.py#L69-L192)
 - [validate.py](file://specs/v1/tools/validate.py#L114-L134)
 - [validate.py](file://specs/v1/tools/validate.py#L586-L618)
@@ -207,7 +231,7 @@ Exit codes:
 - 130 on keyboard interrupt
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L634-L752)
+- [validate.py](file://specs/v1/tools/validate.py#L955-L1081)
 
 ### Enhanced YAML Loading and Error Reporting
 - Loads YAML safely with comprehensive duplicate key detection
@@ -249,8 +273,6 @@ Severity levels:
 - **warn**: Potential issue requiring attention, validation continues
 - **info**: Informational message, validation successful
 
-**Updated** The validation severity levels have been refined to downgrade certain warnings to warnings instead of errors, specifically for 'after' dependency chains without anchors, allowing for more flexible validation while maintaining data integrity.
-
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L36-L68)
 - [SPEC.md](file://specs/v1/SPEC.md#L1434-L1511)
@@ -263,7 +285,7 @@ Severity levels:
 - Integrates seamlessly with enhanced error reporting system
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L586-L618)
+- [validate.py](file://specs/v1/tools/validate.py#L907-L939)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
 
@@ -294,8 +316,6 @@ Enhanced temporal field validation includes:
 - Enhanced duplicate key detection for node identifiers
 - Improved error reporting for complex validation failures
 
-**Updated** The 'after' dependency chains without anchors now produce warnings instead of errors, allowing for more flexible validation while maintaining the ability to identify potentially problematic dependency chains.
-
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L262-L558)
 - [SPEC.md](file://specs/v1/SPEC.md#L1499-L1511)
@@ -317,7 +337,7 @@ Warnings:
 - Specific dates in excludes (non-core renderer hints)
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L431-L579)
+- [validate.py](file://specs/v1/tools/validate.py#L719-L900)
 - [SPEC.md](file://specs/v1/SPEC.md#L1499-L1511)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L154-L203)
 - [30-views-file.md](file://specs/v1/spec/30-views-file.md#L1-L34)
@@ -332,7 +352,120 @@ Warnings:
 
 **Section sources**
 - [validate.py](file://specs/v1/tools/validate.py#L36-L68)
-- [validate.py](file://specs/v1/tools/validate.py#L742-L748)
+- [validate.py](file://specs/v1/tools/validate.py#L1056-L1076)
+
+## Bilingual Example Validation System
+
+### New Makefile Targets for Bilingual Validation
+The validation system now includes comprehensive support for validating both English and Russian example sets:
+
+**Individual Language Targets**:
+- `validate-examples-en`: Validates all English example files
+- `validate-examples-ru`: Validates all Russian example files
+- `validate-examples-all`: Validates both English and Russian example files
+
+**Automated Validation Process**:
+- Iterates through all example directories in both language variants
+- Automatically discovers plan and views files in each directory
+- Validates files sequentially with immediate error reporting
+- Provides clear progress indication during validation
+
+**Language Directory Structure**:
+- English examples: `specs/v1/en/examples/`
+- Russian examples: `specs/v1/ru/examples/`
+- Both directories follow identical structure with corresponding files
+
+**Section sources**
+- [Makefile](file://Makefile#L149-L187)
+
+### Enhanced Example Files with Bilingual Support
+The example files now include comprehensive bilingual support:
+
+**English Examples**:
+- Hello example: Git service upgrade with English titles and descriptions
+- Advanced example: Complex program scheduling with English terminology
+- Minimal example: Simple project structure demonstration
+
+**Russian Examples**:
+- Identical structure to English examples with Russian translations
+- Titles and descriptions translated to Russian
+- Status labels and terminology localized for Russian users
+- Meta information including Russian project titles
+
+**Cross-Language Consistency**:
+- Both language variants maintain identical structural relationships
+- Node hierarchies and dependencies remain consistent across languages
+- Validation rules apply uniformly to both language variants
+- Error messages and validation behavior are identical regardless of language
+
+**Section sources**
+- [hello.plan.yaml](file://specs/v1/en/examples/hello/hello.plan.yaml#L1-L44)
+- [hello.plan.ru.yaml](file://specs/v1/ru/examples/hello/hello.plan.yaml#L1-L44)
+- [hello.views.yaml](file://specs/v1/en/examples/hello/hello.views.yaml#L1-L13)
+- [hello.views.ru.yaml](file://specs/v1/ru/examples/hello/hello.views.yaml#L1-L13)
+
+### Integration with CI Pipeline
+The bilingual validation system integrates seamlessly with the CI pipeline:
+
+**CI Target**:
+- `validate-examples-all`: Validates both language variants during continuous integration
+- Ensures quality across all supported languages
+- Prevents regression in either language variant
+
+**Automated Testing Benefits**:
+- Immediate detection of language-specific issues
+- Consistent validation behavior across all example sets
+- Streamlined development workflow with automated validation
+- Comprehensive coverage of both language variants
+
+**Section sources**
+- [Makefile](file://Makefile#L285-L287)
+
+## Enhanced CLI and Error Reporting
+
+### Improved CLI Interface
+The enhanced CLI provides comprehensive error reporting and debugging capabilities:
+
+**Enhanced Error Messages**:
+- Structured ValidationError exceptions with detailed path information
+- Clear separation between error, warning, and informational messages
+- Available alternatives for reference validation failures
+- Contextual information for complex validation failures
+
+**Debugging Features**:
+- Hierarchical error reporting with nested path information
+- Available reference suggestions for missing identifiers
+- Expected vs actual value comparisons for format validation
+- Detailed error messages with actionable guidance
+
+**User Experience Improvements**:
+- Clear exit codes with specific meanings
+- Graceful handling of keyboard interrupts
+- Progress indication during validation stages
+- Structured output with severity classification
+
+**Section sources**
+- [validate.py](file://specs/v1/tools/validate.py#L36-L68)
+- [validate.py](file://specs/v1/tools/validate.py#L1056-L1076)
+
+### Enhanced Validation Logic
+The validate.py script includes 247+ lines of new validation logic:
+
+**Improved Exception Handling**:
+- Enhanced ValidationError class with comprehensive formatting
+- Structured error messages with path, value, and expected information
+- Available alternatives for reference validation failures
+- Detailed contextual information for debugging
+
+**Advanced Error Reporting**:
+- Hierarchical path construction for complex nested structures
+- Available reference suggestions for missing identifiers
+- Expected vs actual value comparisons for format validation
+- Clear separation of different severity levels
+
+**Section sources**
+- [validate.py](file://specs/v1/tools/validate.py#L36-L68)
+- [validate.py](file://specs/v1/tools/validate.py#L1056-L1076)
 
 ## Dependency Analysis
 ```mermaid
@@ -350,20 +483,27 @@ VALIDATE_PLAN --> FINISH_FIELD_VALIDATION["enhanced finish field validation"]
 VALIDATE_PLAN --> AFTER_CHAIN_CHECK["_check_after_chains_have_anchor()"]
 LOAD_SCHEMA --> PLAN_SCHEMA["plan.schema.json"]
 LOAD_SCHEMA --> VIEWS_SCHEMA["views.schema.json"]
+MAKE["Makefile Targets"] --> VALIDATE_EXAMPLES_EN["validate-examples-en"]
+MAKE --> VALIDATE_EXAMPLES_RU["validate-examples-ru"]
+MAKE --> VALIDATE_EXAMPLES_ALL["validate-examples-all"]
+VALIDATE_EXAMPLES_EN --> EN_EXAMPLES["English Examples"]
+VALIDATE_EXAMPLES_RU --> RU_EXAMPLES["Russian Examples"]
 ```
 
 **Diagram sources**
-- [validate.py](file://specs/v1/tools/validate.py#L634-L752)
+- [validate.py](file://specs/v1/tools/validate.py#L634-L1081)
 - [validate.py](file://specs/v1/tools/validate.py#L75-L111)
 - [validate.py](file://specs/v1/tools/validate.py#L114-L134)
 - [validate.py](file://specs/v1/tools/validate.py#L135-L329)
 - [validate.py](file://specs/v1/tools/validate.py#L431-L579)
 - [validate.py](file://specs/v1/tools/validate.py#L586-L618)
+- [Makefile](file://Makefile#L149-L187)
 - [plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L95)
 - [views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L78)
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L634-L752)
+- [validate.py](file://specs/v1/tools/validate.py#L634-L1081)
+- [Makefile](file://Makefile#L149-L187)
 
 ## Performance Considerations
 - Large operational maps:
@@ -373,6 +513,8 @@ LOAD_SCHEMA --> VIEWS_SCHEMA["views.schema.json"]
   - Semantic validation is O(N + E) for N nodes and E edges (dependencies)
   - Enhanced temporal field validation adds O(N) complexity for date computations
   - Cycle detection uses DFS with O(N + E) time and O(N) space
+- **New**: Bilingual validation system adds minimal overhead for example validation
+- **New**: Automated validation targets process examples sequentially without significant performance impact
 - Recommendations:
   - Prefer streaming parsers for extremely large files if needed
   - Use JSON Schema only when required by CI policy
@@ -380,6 +522,7 @@ LOAD_SCHEMA --> VIEWS_SCHEMA["views.schema.json"]
   - Split large plans into smaller, cohesive units
   - Comprehensive duplicate key detection adds O(k) overhead where k is number of keys processed
   - Enhanced finish field validation performs additional date calculations but maintains linear complexity
+  - **New**: Bilingual validation system processes examples efficiently with automatic discovery
 
 ## Troubleshooting Guide
 Common validation errors and remedies:
@@ -414,11 +557,11 @@ Common validation errors and remedies:
 - Unique identifier violations: ensure all node_id values are unique
 - Views linkage mismatch: project must equal meta.id from the plan
 
-**Updated** 'After' dependency chains without anchors now produce warnings instead of errors:
-- These chains are still detected and reported as warnings
-- The plan remains valid even with such chains
-- Nodes in these chains become unscheduled and won't appear on Gantt diagrams
-- This allows for storing "draft" branches without fake dates
+**Bilingual Validation Issues**:
+- **New**: Ensure both English and Russian example files are properly structured
+- **New**: Verify that Russian examples maintain the same logical relationships as English examples
+- **New**: Check that validation targets can discover both language variants correctly
+- **New**: Confirm that cross-language consistency is maintained across all example sets
 
 **Views Linkage Mismatch**:
 - project must equal meta.id from the plan
@@ -430,19 +573,22 @@ Debugging tips:
 - Inspect the printed path and expected value to fix quickly
 - Pay attention to severity level classification for prioritizing fixes
 - Test temporal field combinations incrementally when debugging scheduling issues
+- **New**: Use specific validation targets (validate-examples-en, validate-examples-ru) for focused debugging
+- **New**: Compare English and Russian examples side-by-side to identify language-specific issues
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L742-L748)
+- [validate.py](file://specs/v1/tools/validate.py#L1056-L1076)
 - [SPEC.md](file://specs/v1/SPEC.md#L1434-L1511)
 - [60-validation.md](file://specs/v1/spec/60-validation.md#L215-L244)
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
 - [start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
 - [after_no_anchor.plan.yaml](file://specs/v1/tests/fixtures/after_no_anchor.plan.yaml#L1-L27)
+- [Makefile](file://Makefile#L149-L187)
 
 ## Conclusion
-Opskarta's enhanced validation system provides a robust, layered approach to ensure plan and views correctness with sophisticated error reporting and comprehensive duplicate key detection. The expanded validation rules now include strict finish field requirements, enhanced temporal field consistency checks, and improved error reporting for edge cases. 
+Opskarta's enhanced validation system provides a robust, layered approach to ensure plan and views correctness with sophisticated error reporting and comprehensive duplicate key detection. The expanded validation rules now include strict finish field requirements, enhanced temporal field consistency checks, and improved error reporting for edge cases.
 
-**Updated** The validation severity levels have been refined to provide more nuanced feedback, downgrading 'after' dependency chains without anchors from errors to warnings, allowing for greater flexibility while maintaining data integrity. By combining syntax checks with duplicate key prevention, JSON Schema enforcement, and semantic validations with severity classification, teams can catch mistakes early, maintain reliable operational maps, and ensure data integrity through comprehensive validation rules.
+**Updated** The validation system now includes comprehensive bilingual example validation with dedicated Makefile targets for English and Russian examples, providing automated validation coverage across both language variants. The enhanced validate.py script includes 247+ lines of new validation logic with improved error reporting, debugging capabilities, and structured exception handling. By combining syntax checks with duplicate key prevention, JSON Schema enforcement, and semantic validations with severity classification, teams can catch mistakes early, maintain reliable operational maps, and ensure data integrity through comprehensive validation rules across all supported languages.
 
 ## Appendices
 
@@ -463,7 +609,7 @@ Opskarta's enhanced validation system provides a robust, layered approach to ens
   - 130: Interrupted by user
 
 **Section sources**
-- [validate.py](file://specs/v1/tools/validate.py#L634-L752)
+- [validate.py](file://specs/v1/tools/validate.py#L955-L1081)
 - [README.md](file://README.md#L68-L83)
 
 ### Enhanced Validation Rules Summary
@@ -483,12 +629,6 @@ Opskarta's enhanced validation system provides a robust, layered approach to ens
 - No cycles in parent or after
 - Enhanced duplicate key detection for all field types
 
-**Updated** 'After' dependency chains without anchors:
-- Downgraded from error to warning level
-- Still detected and reported as warnings
-- Plan remains valid despite such chains
-- Nodes in these chains become unscheduled
-
 **Views Validation**:
 - Required fields: version (int), project (string)
 - project must equal meta.id from plan
@@ -504,21 +644,47 @@ Opskarta's enhanced validation system provides a robust, layered approach to ens
 - [finish_field.plan.yaml](file://specs/v1/tests/fixtures/finish_field.plan.yaml#L1-L30)
 - [test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L325-L349)
 
-### Example Files
-- Minimal plan and views
-  - [project.plan.yaml](file://specs/v1/examples/minimal/project.plan.yaml#L1-L6)
-- Hello example with enhanced temporal validation
-  - [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
-  - [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
-- Advanced example with complex scheduling
-  - [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L331)
-  - [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
+### Bilingual Example Validation Targets
+
+**Makefile Targets**:
+- `validate-examples-en`: Validates all English example files with automatic discovery
+- `validate-examples-ru`: Validates all Russian example files with automatic discovery
+- `validate-examples-all`: Validates both English and Russian example files sequentially
+
+**Validation Process**:
+- Iterates through all example directories in both language variants
+- Automatically discovers plan and views files using wildcard patterns
+- Validates files sequentially with immediate error reporting
+- Provides clear progress indication during validation
+
+**Language Support**:
+- English examples: `specs/v1/en/examples/`
+- Russian examples: `specs/v1/ru/examples/`
+- Both directories maintain identical structure and relationships
 
 **Section sources**
-- [hello.plan.yaml](file://specs/v1/examples/hello/hello.plan.yaml#L1-L44)
-- [hello.views.yaml](file://specs/v1/examples/hello/hello.views.yaml#L1-L13)
-- [program.plan.yaml](file://specs/v1/examples/advanced/program.plan.yaml#L1-L331)
-- [program.views.yaml](file://specs/v1/examples/advanced/program.views.yaml#L1-L93)
+- [Makefile](file://Makefile#L149-L187)
+
+### Example Files
+- Minimal plan and views
+  - [project.plan.yaml](file://specs/v1/en/examples/minimal/project.plan.yaml#L1-L6)
+- Hello example with enhanced temporal validation
+  - [hello.plan.yaml](file://specs/v1/en/examples/hello/hello.plan.yaml#L1-L44)
+  - [hello.views.yaml](file://specs/v1/en/examples/hello/hello.views.yaml#L1-L13)
+- Advanced example with complex scheduling
+  - [program.plan.yaml](file://specs/v1/en/examples/advanced/program.plan.yaml#L1-L331)
+  - [program.views.yaml](file://specs/v1/en/examples/advanced/program.views.yaml#L1-L93)
+- **New**: Russian language examples with bilingual support
+  - [hello.plan.ru.yaml](file://specs/v1/ru/examples/hello/hello.plan.yaml#L1-L44)
+  - [hello.views.ru.yaml](file://specs/v1/ru/examples/hello/hello.views.yaml#L1-L13)
+
+**Section sources**
+- [hello.plan.yaml](file://specs/v1/en/examples/hello/hello.plan.yaml#L1-L44)
+- [hello.views.yaml](file://specs/v1/en/examples/hello/hello.views.yaml#L1-L13)
+- [program.plan.yaml](file://specs/v1/en/examples/advanced/program.plan.yaml#L1-L331)
+- [program.views.yaml](file://specs/v1/en/examples/advanced/program.views.yaml#L1-L93)
+- [hello.plan.ru.yaml](file://specs/v1/ru/examples/hello/hello.plan.yaml#L1-L44)
+- [hello.views.ru.yaml](file://specs/v1/ru/examples/hello/hello.views.yaml#L1-L13)
 
 ### Test Fixtures Demonstrating New Validation Rules
 - Finish field validation and backward scheduling
