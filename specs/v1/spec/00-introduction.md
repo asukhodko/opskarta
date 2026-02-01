@@ -20,9 +20,9 @@
 ### Core-компоненты
 
 - Структура файлов `*.plan.yaml` и `*.views.yaml`
-- Поля узлов: `title`, `kind`, `status`, `parent`, `after`, `start`, `duration`, `milestone`
+- Поля узлов: `title`, `kind`, `status`, `parent`, `after`, `start`, `finish`, `duration`, `milestone`
 - Вычисление дат: `finish`, `start from after`
-- Исключения календаря: `"weekends"` в `excludes`
+- Исключения календаря: `"weekends"` и даты `YYYY-MM-DD` в `excludes`
 - Значение по умолчанию: `duration = 1d` для планируемых узлов
 - Правила валидации и ссылочной целостности
 
@@ -31,5 +31,5 @@
 - Расширения через `x:` namespace (например, `x.scheduling.anchor_to_parent_start`)
 - Renderer profiles (Mermaid Gantt, другие)
 - Поля представлений для конкретных рендереров (`date_format`, `axis_format`, `tick_interval`)
-- Конкретные даты в `excludes` (передаются рендереру, но не влияют на core-алгоритм)
+- Прочие значения в `excludes` (не `"weekends"` и не даты `YYYY-MM-DD`)
 - Цвета статусов по умолчанию

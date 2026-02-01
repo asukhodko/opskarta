@@ -2,7 +2,7 @@
 
 Формат opskarta использует YAML (рекомендуется) или JSON для сериализации. В этом разделе описаны рекомендации по корректному кодированию данных в YAML.
 
-## Даты (поле `start`)
+## Даты (поля `start`, `finish`, `excludes`)
 
 YAML-парсеры (особенно YAML 1.1, включая PyYAML по умолчанию) могут автоматически преобразовывать строки, похожие на даты, в специальные типы данных (date/datetime). Это может привести к неожиданному поведению.
 
@@ -150,6 +150,8 @@ nodes:
 | Поле | Канонический тип | Допустимый YAML-вход | Нормализация |
 |------|------------------|----------------------|--------------|
 | `start` | строка `YYYY-MM-DD` | строка или YAML-дата | `date(2024, 3, 15)` → `"2024-03-15"` |
+| `finish` | строка `YYYY-MM-DD` | строка или YAML-дата | `date(2024, 3, 15)` → `"2024-03-15"` |
+| `excludes[]` | строка | строка или YAML-дата | `date(2024, 3, 8)` → `"2024-03-08"` |
 | `duration` | строка `Nd` или `Nw` | строка | — |
 | `node_id` (ключи в `nodes`) | строка | строка | — |
 
@@ -159,12 +161,20 @@ nodes:
    - Если YAML-парсер вернул объект типа `date` или `datetime`, инструмент ДОЛЖЕН преобразовать его в строку формата `YYYY-MM-DD`.
    - Пример: Python `datetime.date(2024, 3, 15)` → строка `"2024-03-15"`.
 
-2. **Идентификаторы узлов (`node_id`):**
+2. **Поле `finish`:**
+   - Аналогично `start`: если YAML-парсер вернул объект типа `date` или `datetime`, инструмент ДОЛЖЕН преобразовать его в строку формата `YYYY-MM-DD`.
+
+3. **Элементы `excludes[]`:**
+   - Каждый элемент массива `excludes` в представлении (`gantt_views`) может быть YAML-датой.
+   - Инструмент ДОЛЖЕН нормализовать такие элементы к строке `YYYY-MM-DD`.
+   - Пример: `excludes: [weekends, 2024-03-08]` — если `2024-03-08` распарсилось как `date`, нормализовать в строку `"2024-03-08"`.
+
+4. **Идентификаторы узлов (`node_id`):**
    - Ключи в словаре `nodes` ДОЛЖНЫ быть строками.
    - Если YAML-парсер вернул нестроковый ключ (например, число), инструмент МОЖЕТ преобразовать его в строку или отвергнуть с ошибкой.
    - Рекомендация: отвергать нестроковые ключи для явности.
 
-3. **Общий принцип:**
+5. **Общий принцип:**
    - Инструменты НЕ ДОЛЖНЫ падать на корректных YAML-файлах только из-за особенностей YAML-типизации.
    - Инструменты ДОЛЖНЫ приводить значения к каноническим типам перед дальнейшей обработкой.
 
@@ -173,13 +183,34 @@ nodes:
 ```python
 from datetime import date, datetime
 
-def normalize_start(value):
-    """Нормализует значение start к строке YYYY-MM-DD."""
+def normalize_date_field(value):
+    """Нормализует значение даты (start, finish) к строке YYYY-MM-DD."""
     if isinstance(value, datetime):
         return value.date().isoformat()
     if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, str):
         return value.strip()
-    raise ValueError(f"Invalid start type: {type(value)}")
+    raise ValueError(f"Invalid date type: {type(value)}")
+
+
+def normalize_start(value):
+    """Нормализует значение start к строке YYYY-MM-DD."""
+    return normalize_date_field(value)
+
+
+def normalize_finish(value):
+    """Нормализует значение finish к строке YYYY-MM-DD."""
+    return normalize_date_field(value)
+
+
+def normalize_excludes(excludes_list):
+    """Нормализует список excludes, преобразуя YAML-даты в строки."""
+    result = []
+    for item in excludes_list:
+        if isinstance(item, (date, datetime)):
+            result.append(item.isoformat() if isinstance(item, date) else item.date().isoformat())
+        else:
+            result.append(str(item))
+    return result
 ```

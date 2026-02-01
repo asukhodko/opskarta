@@ -82,6 +82,60 @@ python -m tools.render.mermaid_gantt \
     --view overview
 ```
 
+## Development Setup
+
+Проект использует Python 3.12+ и виртуальное окружение (venv).
+
+### Требования
+
+- Python 3.12+
+- make (для автоматизации)
+- WSL (рекомендуется для Windows) или Linux/macOS
+
+### Установка
+
+```bash
+# Создание виртуального окружения и установка зависимостей
+make venv
+make deps
+
+# Активация venv (обязательно для работы с инструментами)
+source venv/bin/activate
+
+# Или одной командой для быстрого старта
+make quickstart
+```
+
+### Основные команды
+
+```bash
+# Сборка SPEC.md из исходников
+make build-spec
+
+# Проверка актуальности SPEC.md
+make check-spec
+
+# Валидация всех примеров
+make validate-examples
+
+# Запуск тестов
+make test
+
+# Все проверки CI
+make ci
+
+# Справка по всем командам
+make help
+```
+
+### Важно для Windows
+
+Виртуальное окружение создаётся с Unix-структурой (`venv/bin/`). Для работы:
+
+- **Рекомендуется**: использовать WSL (Windows Subsystem for Linux)
+- Все команды `make` и `python` выполнять внутри WSL
+- Перед работой всегда активировать venv: `source venv/bin/activate`
+
 ## Documentation
 
 - [Философия и метод](docs/method.md) — зачем нужна opskarta и как её использовать
