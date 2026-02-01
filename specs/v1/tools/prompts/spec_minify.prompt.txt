@@ -1,0 +1,79 @@
+Ты — детерминированный “компрессор спецификаций”. Твоя задача: сжать полную спецификацию opskarta v1 до компактной версии для вставки в LLM-промпты, без потери семантики.
+
+ВХОД:
+- Прочитай файл полной спецификации: specs/v1/SPEC.md.
+- Полная спека — единственный источник истины. НЕЛЬЗЯ использовать внешние знания, догадки или веб-поиск.
+
+ВЫХОД (ОБЯЗАТЕЛЬНО):
+- Выведи в stdout ТОЛЬКО текст сжатой спецификации.
+- Никаких пояснений, комментариев, вступлений, “я сделал…”, списков проверок, мета-текста.
+- НЕ используй тройные бэктики (```), чтобы не раздувать токены при копипасте.
+- Язык: русский, но нормативные маркеры MUST/SHOULD/MAY сохраняй как в оригинале (если они есть).
+- Формат: строго по шаблону ниже (с теми же заголовками/нумерацией). Порядок секций НЕ менять.
+
+ОГРАНИЧЕНИЯ/ЦЕЛЬ СЖАТИЯ:
+- Удали примеры/таблицы/повторы/длинные объяснения. Оставь определения, инварианты, формулы, регулярки, приоритеты, правила валидации, “углы”.
+- Если сомневаешься, что кусок можно выкинуть — НЕ выкидывай.
+- Ничего не “улучшай” и не “переформулируй смысл”. Сжимай текст, но не меняй правила.
+- Если в исходной спеки есть противоречие/неоднозначность и ты не можешь гарантировать идентичную интерпретацию: выведи строку
+  ERROR: ambiguous source spec at <section/topic>
+  и НИЧЕГО больше.
+
+ОБЯЗАТЕЛЬНЫЙ ОХВАТ (должно присутствовать в сжатом тексте):
+A) Core vs non-core: что MUST implement и что MAY.
+B) Структуры файлов: plan (*.plan.yaml) и views (*.views.yaml), их корневые поля.
+C) Узлы: node_id требования; обязательный title; поля kind/status/parent/after/start/finish/duration/milestone/issue/notes.
+D) Milestone правила (включая start из after без +1 дня; duration=1d если не задана у scheduled).
+E) Statuses: когда обязательны; ссылочная целостность; label/color и regex для color.
+F) Планирование per-view: calendar(view), workday, core-excludes ("weekends", YYYY-MM-DD), non-core excludes = ignore+WARN.
+G) duration формат и семантика (Nd workdays; Nw=5*N workdays; regex ^[1-9][0-9]*[dw]$); default duration=1d для scheduled.
+H) finish inclusive; формулы finish_from_start, start_from_finish; duration_from_dates.
+I) after: start из after (обычный узел = next_workday(max_finish); milestone = max_finish); приоритет start над after; WARN при start < finish(deps).
+J) Нормализация start на исключённый день (кроме milestone) + WARN; finish на исключённый день = WARN, без нормализации (кроме milestone).
+K) Unscheduled: определение + core правило “не показывать на Gantt”.
+L) ВАЖНО anti-ambiguity:
+   - Если заданы finish+duration и start отсутствует, start вычисляется ОТ finish (start_from_finish) даже если есть after; after в этом случае не сдвигает даты, а только логика/возможный WARN.
+   - finish без start и без duration не задаёт позицию на шкале (узел может остаться unscheduled).
+M) Правило: при расчёте view зависимости after MUST учитывать ВСЕ узлы плана, даже если не показаны в данном view.
+N) Миграция end(exclusive) → finish(inclusive): finish = prev_workday(end_exclusive, calendar(view)).
+O) YAML/JSON: YAML 1.1 авто-типизация дат; нормализация start/finish/excludes к "YYYY-MM-DD"; keys nodes строковые; duration строка.
+P) Валидация: error/warn/info; список типовых ошибок/предупреждений; связь views.project==plan.meta.id; lanes nodes должны существовать.
+Q) Расширяемость: unknown fields ignore + preserve parse→emit; namespace x: рекомендован; где расширять.
+R) Renderer profile Mermaid Gantt (non-core): precompute core schedule, явные даты; передавать только core excludes; w→d; lanes→section; parent плоско; milestone mapping; status mapping; default colors; x.scheduling.anchor_to_parent_start семантика; view поля date_format/axis_format/tick_interval (non-core).
+
+ШАБЛОН ВЫВОДА (заполни содержимым, но не меняй структуру/нумерацию):
+
+opskarta v1 (draft) — ultra-compact spec (LLM-paste), core-complete + anti-ambiguity
+
+0) Общие
+- ...
+
+1) *.plan.yaml (plan)
+- ...
+
+2) nodes.* (узлы)
+- ...
+
+3) statuses
+- ...
+
+4) *.views.yaml (views)
+- ...
+
+5) Планирование (core) — per-view
+- ...
+
+6) Миграция из end(exclusive)
+- ...
+
+7) YAML/JSON типы и нормализация (core)
+- ...
+
+8) Валидация (core) + severity
+- ...
+
+9) Расширяемость (core-совместимость)
+- ...
+
+10) Renderer profile: Mermaid Gantt (non-core, reference)
+- ...

@@ -98,6 +98,19 @@ check-spec: ## Check if SPEC.md is up-to-date
 	@echo "$(YELLOW)Checking SPEC.md...$(NC)"
 	$(PYTHON) $(TOOLS_DIR)/build_spec.py --check
 
+.PHONY: build-spec-min
+build-spec-min: ## Build minified SPEC.min.md using codex
+	@echo "$(GREEN)Building SPEC.min.md...$(NC)"
+	codex --ask-for-approval never \
+		-c hide_agent_reasoning=true \
+		-c model_reasoning_effort='"low"' \
+		-c model_reasoning_summary='"none"' \
+		-c model_verbosity='"low"' \
+		exec --sandbox read-only --color never \
+		-o $(SPEC_DIR)/SPEC.min.md \
+		- < $(TOOLS_DIR)/prompts/spec_minify.prompt.txt
+	@echo "$(GREEN)Done!$(NC)"
+
 # ============================================================================
 # Validation
 # ============================================================================
@@ -154,7 +167,7 @@ validate-program: ## Validate program example
 .PHONY: render-hello
 render-hello: ## Render hello example Gantt diagram
 	@echo "$(GREEN)Rendering hello example...$(NC)"
-	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.mermaid_gantt \
+	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.plan2gantt \
 		--plan examples/hello/hello.plan.yaml \
 		--views examples/hello/hello.views.yaml \
 		--view overview
@@ -162,7 +175,7 @@ render-hello: ## Render hello example Gantt diagram
 .PHONY: render-program
 render-program: ## Render program example (list views)
 	@echo "$(GREEN)Rendering program example views...$(NC)"
-	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.mermaid_gantt \
+	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.plan2gantt \
 		--plan examples/program/program.plan.yaml \
 		--views examples/program/program.views.yaml \
 		--list-views

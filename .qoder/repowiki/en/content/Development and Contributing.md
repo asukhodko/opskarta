@@ -17,7 +17,8 @@
 - [specs/v1/tools/requirements.txt](file://specs/v1/tools/requirements.txt)
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py)
 - [specs/v1/tools/validate.py](file://specs/v1/tools/validate.py)
-- [specs/v1/tools/render/mermaid_gantt.py](file://specs/v1/tools/render/mermaid_gantt.py)
+- [specs/v1/tools/render/plan2gantt.py](file://specs/v1/tools/render/plan2gantt.py)
+- [specs/v1/tools/render/plan2dag.py](file://specs/v1/tools/render/plan2dag.py)
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json)
 - [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json)
 - [specs/v1/spec/00-introduction.md](file://specs/v1/spec/00-introduction.md)
@@ -194,7 +195,7 @@ specs --> v1_spec_parts
 - **Tools**: Reference implementations for validating files, building the specification, and rendering Mermaid Gantt charts.
 - **Examples**: Minimal, hello, and advanced example sets demonstrating plan and view usage.
 - **Schemas**: JSON Schema definitions for machine-readable validation.
-- **Tests**: Comprehensive test suite with 304 lines of scheduling tests and fixture-based scenarios covering various scheduling edge cases.
+- **Tests**: Comprehensive test suite with 403 lines of scheduling tests and fixture-based scenarios covering various scheduling edge cases.
 
 Key responsibilities:
 - Maintain the specification as the single source of truth.
@@ -208,7 +209,7 @@ Key responsibilities:
 - [specs/v1/examples/README.md](file://specs/v1/examples/README.md#L1-L34)
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
 - [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
-- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
+- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L403)
 
 ## Architecture Overview
 The development architecture centers on the specification and reference tools with integrated testing infrastructure and comprehensive Makefile automation:
@@ -219,11 +220,11 @@ user["Developer / Contributor"]
 makefile["Makefile<br/>257 lines of automation"]
 venv["Virtual Environment<br/>venv/"]
 cli["CLI Tools<br/>validate.py, build_spec.py"]
-renderer["Renderer<br/>render.mermaid_gantt"]
+renderer["Renderer<br/>plan2gantt, plan2dag"]
 spec["SPEC.md<br/>and spec/*.md"]
 schemas["JSON Schemas<br/>plan.schema.json, views.schema.json"]
 examples["Examples<br/>minimal/, hello/, advanced/"]
-tests["Test Suite<br/>test_scheduling.py<br/>304 lines of tests"]
+tests["Test Suite<br/>test_scheduling.py<br/>403 lines of tests"]
 fixtures["Test Fixtures<br/>5 scenario files"]
 coverage["Coverage Reporting<br/>pytest-cov"]
 docker["Docker Integration<br/>Containerized testing"]
@@ -254,7 +255,7 @@ spec --> schemas
 - [specs/v1/schemas/plan.schema.json](file://specs/v1/schemas/plan.schema.json#L1-L86)
 - [specs/v1/schemas/views.schema.json](file://specs/v1/schemas/views.schema.json#L1-L26)
 - [specs/v1/examples/README.md](file://specs/v1/examples/README.md#L1-L34)
-- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
+- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L403)
 
 ## Detailed Component Analysis
 
@@ -315,21 +316,23 @@ WriteFile --> BS_End
 **Section sources**
 - [specs/v1/tools/build_spec.py](file://specs/v1/tools/build_spec.py#L1-L240)
 
-### Renderer (Mermaid Gantt)
+### Renderer (Mermaid Gantt and DAG)
 Responsibilities:
 - Render Gantt diagrams from plan and views.
+- Render DAG flowcharts from plan files.
 - Compute dates from dependencies and durations.
 - Support calendar exclusions and status-based coloring.
 
 Usage highlights:
 - Accepts plan and views files, a target view, and optional output file.
 - Lists available views when requested.
+- Supports both Gantt and DAG rendering formats.
 
 **Section sources**
 - [specs/v1/tools/README.md](file://specs/v1/tools/README.md#L69-L92)
 
 ### Test Infrastructure (test_scheduling.py)
-**Updated** Comprehensive test suite covering scheduling functionality with 304 lines of tests:
+**Updated** Comprehensive test suite covering scheduling functionality with 403 lines of tests:
 
 Responsibilities:
 - **Duration parsing tests**: Validate day and week duration formats ("5d", "1w" = 5 workdays).
@@ -347,7 +350,7 @@ Test categories:
 
 ```mermaid
 flowchart TD
-TestSuite["Test Suite<br/>test_scheduling.py<br/>304 lines"]
+TestSuite["Test Suite<br/>test_scheduling.py<br/>403 lines"]
 Duration["Duration Tests<br/>parse_duration()"]
 Dates["Date Tests<br/>finish_date()"]
 Schedule["Schedule Tests<br/>compute_schedule()"]
@@ -363,10 +366,10 @@ TestSuite --> Coverage
 ```
 
 **Diagram sources**
-- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L33-L305)
+- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L33-L403)
 
 **Section sources**
-- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
+- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L403)
 
 ### Test Fixtures
 **Updated** Five comprehensive fixture files covering different scheduling scenarios:
@@ -407,7 +410,7 @@ tools["Reference Tools"]
 schemas["JSON Schemas"]
 spec_src["spec/*.md"]
 fixtures["Test Fixtures"]
-test_suite["Test Suite<br/>304 lines"]
+test_suite["Test Suite<br/>403 lines"]
 venv["Virtual Environment"]
 py --> venv
 py --> tools
@@ -540,7 +543,7 @@ Common issues and resolutions:
 - **Edge case handling**: Comprehensive validation of boundary conditions.
 
 **Section sources**
-- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L305)
+- [specs/v1/tests/test_scheduling.py](file://specs/v1/tests/test_scheduling.py#L1-L403)
 - [specs/v1/tests/fixtures/extensions.plan.yaml](file://specs/v1/tests/fixtures/extensions.plan.yaml#L1-L22)
 - [specs/v1/tests/fixtures/parent_inheritance.plan.yaml](file://specs/v1/tests/fixtures/parent_inheritance.plan.yaml#L1-L29)
 - [specs/v1/tests/fixtures/start_after_conflict.plan.yaml](file://specs/v1/tests/fixtures/start_after_conflict.plan.yaml#L1-L20)
@@ -751,6 +754,6 @@ make build-spec
 - [Makefile](file://Makefile#L233-L240)
 
 ## Conclusion
-Opskarta's development model emphasizes a clear specification, minimal reference tools, practical examples, and comprehensive testing infrastructure. The addition of the 304-line test suite with fixture-based scenarios ensures robust quality assurance and regression prevention. The comprehensive 257-line Makefile infrastructure provides complete build automation, validation systems, pytest integration, and CI/CD pipeline support, making development workflows efficient and reproducible across different environments.
+Opskarta's development model emphasizes a clear specification, minimal reference tools, practical examples, and comprehensive testing infrastructure. The addition of the 403-line test suite with fixture-based scenarios ensures robust quality assurance and regression prevention. The comprehensive 257-line Makefile infrastructure provides complete build automation, validation systems, pytest integration, and CI/CD pipeline support, making development workflows efficient and reproducible across different environments.
 
 **Updated** The development setup now requires Python 3.12+, includes comprehensive virtual environment management, and provides streamlined quickstart procedures. Contributors should focus on small, well-scoped changes, maintain backward compatibility, ensure spec and tooling integrity, and leverage the comprehensive testing framework and Makefile automation. By following the contribution workflow, testing practices, extension guidelines, and CI/CD integration, you can confidently add features and improve the ecosystem while preserving interoperability and maintaining high code quality standards. The Makefile infrastructure ensures consistent development experiences whether working locally or in CI/CD pipelines, with Docker support for reproducible containerized environments.
