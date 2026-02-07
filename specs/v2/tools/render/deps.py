@@ -26,15 +26,16 @@ Example output:
 from typing import Optional
 
 from specs.v2.tools.models import MergedPlan, View
-from specs.v2.tools.render.tree import apply_view_filter
+from specs.v2.tools.render.common import (
+    apply_view_filter,
+    escape_mermaid_string,
+    sanitize_mermaid_text,
+)
 
 
 def _escape_mermaid_label(text: str) -> str:
     """
-    Escape special characters in Mermaid labels.
-    
-    Mermaid uses double quotes for labels, so we need to escape
-    any double quotes in the text.
+    Escape and sanitize text for Mermaid labels.
     
     Args:
         text: The label text to escape
@@ -42,9 +43,8 @@ def _escape_mermaid_label(text: str) -> str:
     Returns:
         Escaped label text safe for Mermaid
     """
-    # Escape double quotes by replacing with single quotes
-    # Also escape backslashes
-    return text.replace("\\", "\\\\").replace('"', "'")
+    # First sanitize (remove colons etc), then escape special chars
+    return escape_mermaid_string(sanitize_mermaid_text(text))
 
 
 def _sanitize_node_id(node_id: str) -> str:

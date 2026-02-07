@@ -22,6 +22,8 @@ from specs.v2.tools.models import MergedPlan, View, ViewFilter
 from specs.v2.tools.render.common import (
     apply_view_filter,
     get_descendants,
+    escape_mermaid_string,
+    sanitize_mermaid_text,
 )
 
 
@@ -44,7 +46,7 @@ def _get_descendants(plan: MergedPlan, parent_id: str) -> set[str]:
 
 def _escape_mermaid_title(title: str) -> str:
     """
-    Escape special characters in title for Mermaid syntax.
+    Escape and sanitize title for Mermaid syntax.
     
     Args:
         title: Original title string
@@ -52,11 +54,8 @@ def _escape_mermaid_title(title: str) -> str:
     Returns:
         Escaped title safe for Mermaid
     """
-    # Replace characters that could break Mermaid syntax
-    result = title.replace(":", " -")
-    result = result.replace(";", ",")
-    result = result.replace("#", "")
-    return result
+    # First sanitize (remove colons etc), then escape special chars
+    return escape_mermaid_string(sanitize_mermaid_text(title))
 
 
 def _sanitize_task_id(node_id: str) -> str:

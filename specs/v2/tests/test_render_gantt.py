@@ -38,16 +38,12 @@ class TestEscapeMermaidTitle(unittest.TestCase):
         self.assertEqual(_escape_mermaid_title("Simple Task"), "Simple Task")
 
     def test_colon_replaced(self):
-        """Colon is replaced with dash."""
-        self.assertEqual(_escape_mermaid_title("Phase 1: Analysis"), "Phase 1 - Analysis")
+        """Colon is replaced with space."""
+        self.assertEqual(_escape_mermaid_title("Phase 1: Analysis"), "Phase 1 Analysis")
 
-    def test_semicolon_replaced(self):
-        """Semicolon is replaced with comma."""
-        self.assertEqual(_escape_mermaid_title("Task; subtask"), "Task, subtask")
-
-    def test_hash_removed(self):
-        """Hash is removed."""
-        self.assertEqual(_escape_mermaid_title("Issue #123"), "Issue 123")
+    def test_hash_escaped(self):
+        """Hash is escaped using entity codes."""
+        self.assertEqual(_escape_mermaid_title("Issue #123"), "Issue #35;123")
 
 
 class TestSanitizeTaskId(unittest.TestCase):

@@ -5,6 +5,8 @@ This module provides shared functionality used by all renderers:
 - apply_view_filter: Filter nodes based on ViewFilter criteria
 - sort_nodes: Sort nodes by a specified field
 - get_descendants: Get all descendants of a node
+- escape_mermaid_string: Escape text for Mermaid labels
+- sanitize_mermaid_text: Clean text for Mermaid titles/labels
 
 Requirements covered:
 - 4.7: View filtering with where clause (kind, status, has_schedule, parent)
@@ -15,6 +17,42 @@ Requirements covered:
 from typing import Optional
 
 from specs.v2.tools.models import MergedPlan, ViewFilter
+
+
+def escape_mermaid_string(text: str) -> str:
+    """
+    Escape text for Mermaid flowchart/gantt labels inside ["..."].
+    
+    Mermaid flowchart does NOT reliably support backslash-escaped quotes
+    across renderers. Use Mermaid entity codes instead:
+      - #  -> #35;  (so it doesn't start an entity by accident)
+      - "  -> #quot;
+    
+    Args:
+        text: Original text to escape
+        
+    Returns:
+        Escaped text safe for Mermaid labels
+    """
+    return text.replace("#", "#35;").replace('"', "#quot;")
+
+
+def sanitize_mermaid_text(text: str) -> str:
+    """
+    Clean text for Mermaid titles and labels.
+    
+    Removes or replaces characters that can cause issues in Mermaid:
+      - : (colons) - can break Mermaid syntax
+      - ： (full-width colons) - same issue
+    
+    Args:
+        text: Original text to sanitize
+        
+    Returns:
+        Sanitized text safe for Mermaid
+    """
+    cleaned = text.replace(":", " ").replace("：", " ")
+    return " ".join(cleaned.split())
 
 
 def get_descendants(plan: MergedPlan, parent_id: str) -> set[str]:

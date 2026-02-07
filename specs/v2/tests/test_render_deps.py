@@ -35,14 +35,14 @@ class TestEscapeMermaidLabel(unittest.TestCase):
         self.assertEqual(result, "Task 1")
 
     def test_double_quotes_escaped(self):
-        """Double quotes are replaced with single quotes."""
+        """Double quotes are escaped using entity codes."""
         result = _escape_mermaid_label('Task "Important"')
-        self.assertEqual(result, "Task 'Important'")
+        self.assertEqual(result, "Task #quot;Important#quot;")
 
-    def test_backslash_escaped(self):
-        """Backslashes are escaped."""
-        result = _escape_mermaid_label("Path\\to\\file")
-        self.assertEqual(result, "Path\\\\to\\\\file")
+    def test_hash_escaped(self):
+        """Hash is escaped using entity codes."""
+        result = _escape_mermaid_label("Issue #123")
+        self.assertEqual(result, "Issue #35;123")
 
     def test_unicode_preserved(self):
         """Unicode characters are preserved."""
@@ -223,7 +223,7 @@ class TestRenderDepsLabelEscaping(unittest.TestCase):
     """Tests for label escaping in render_deps."""
 
     def test_quotes_in_title(self):
-        """Titles with quotes are escaped."""
+        """Titles with quotes are escaped using entity codes."""
         plan = MergedPlan(
             nodes={
                 "task1": Node(title='Task "Important"'),
@@ -232,8 +232,8 @@ class TestRenderDepsLabelEscaping(unittest.TestCase):
         
         result = render_deps(plan)
         
-        # Double quotes should be replaced with single quotes
-        self.assertIn("task1[\"Task 'Important'\"]", result)
+        # Double quotes should be escaped using entity codes
+        self.assertIn('task1["Task #quot;Important#quot;"]', result)
 
     def test_unicode_in_title(self):
         """Unicode titles are preserved."""

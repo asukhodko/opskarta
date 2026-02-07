@@ -490,3 +490,97 @@ class TestFilterAndSortIntegration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEscapeMermaidString(unittest.TestCase):
+    """Tests for escape_mermaid_string function."""
+
+    def test_escape_hash(self):
+        """Hash is escaped to entity code."""
+        from specs.v2.tools.render.common import escape_mermaid_string
+        
+        result = escape_mermaid_string("Task #1")
+        self.assertEqual(result, "Task #35;1")
+
+    def test_escape_double_quote(self):
+        """Double quote is escaped to entity code."""
+        from specs.v2.tools.render.common import escape_mermaid_string
+        
+        result = escape_mermaid_string('Say "Hello"')
+        self.assertEqual(result, "Say #quot;Hello#quot;")
+
+    def test_escape_both(self):
+        """Both hash and quote are escaped."""
+        from specs.v2.tools.render.common import escape_mermaid_string
+        
+        result = escape_mermaid_string('Task #1: "Important"')
+        self.assertEqual(result, "Task #35;1: #quot;Important#quot;")
+
+    def test_escape_order_matters(self):
+        """Hash is escaped before quote (order matters for entity codes)."""
+        from specs.v2.tools.render.common import escape_mermaid_string
+        
+        # If we escaped " first to #quot;, then # would turn it into #35;quot;
+        # So we must escape # first
+        result = escape_mermaid_string('#"')
+        self.assertEqual(result, "#35;#quot;")
+
+    def test_no_special_chars(self):
+        """Text without special chars is unchanged."""
+        from specs.v2.tools.render.common import escape_mermaid_string
+        
+        result = escape_mermaid_string("Simple task title")
+        self.assertEqual(result, "Simple task title")
+
+    def test_empty_string(self):
+        """Empty string returns empty string."""
+        from specs.v2.tools.render.common import escape_mermaid_string
+        
+        result = escape_mermaid_string("")
+        self.assertEqual(result, "")
+
+
+class TestSanitizeMermaidText(unittest.TestCase):
+    """Tests for sanitize_mermaid_text function."""
+
+    def test_remove_colon(self):
+        """Colon is replaced with space."""
+        from specs.v2.tools.render.common import sanitize_mermaid_text
+        
+        result = sanitize_mermaid_text("Phase 1: Setup")
+        self.assertEqual(result, "Phase 1 Setup")
+
+    def test_remove_fullwidth_colon(self):
+        """Full-width colon is replaced with space."""
+        from specs.v2.tools.render.common import sanitize_mermaid_text
+        
+        result = sanitize_mermaid_text("Phase 1： Setup")
+        self.assertEqual(result, "Phase 1 Setup")
+
+    def test_multiple_colons(self):
+        """Multiple colons are all replaced."""
+        from specs.v2.tools.render.common import sanitize_mermaid_text
+        
+        result = sanitize_mermaid_text("A: B: C")
+        self.assertEqual(result, "A B C")
+
+    def test_collapse_whitespace(self):
+        """Multiple spaces are collapsed to single space."""
+        from specs.v2.tools.render.common import sanitize_mermaid_text
+        
+        result = sanitize_mermaid_text("Task   with   spaces")
+        self.assertEqual(result, "Task with spaces")
+
+    def test_no_special_chars(self):
+        """Text without special chars is unchanged."""
+        from specs.v2.tools.render.common import sanitize_mermaid_text
+        
+        result = sanitize_mermaid_text("Simple task")
+        self.assertEqual(result, "Simple task")
+
+    def test_empty_string(self):
+        """Empty string returns empty string."""
+        from specs.v2.tools.render.common import sanitize_mermaid_text
+        
+        result = sanitize_mermaid_text("")
+        self.assertEqual(result, "")
