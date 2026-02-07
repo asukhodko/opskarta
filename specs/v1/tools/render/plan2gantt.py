@@ -799,6 +799,17 @@ def wrap_mermaid_markdown(src: str) -> str:
     return "```mermaid\n" + src.rstrip() + "\n```\n"
 
 
+def sanitize_mermaid_text(text: str) -> str:
+    """
+    Mermaid Gantt использует ':' как разделитель (Task name :meta,...).
+    Чтобы названия задач/секций не ломали парсер — вырезаем двоеточия.
+    """
+    # На всякий: ASCII ':' и fullwidth '：'
+    cleaned = text.replace(":", " ").replace("：", " ")
+    # Уберём лишние пробелы, чтобы "foo:bar" не превращался в "foobar"
+    return " ".join(cleaned.split())
+
+
 def get_status_color(plan: Dict[str, Any], status_key: str) -> Optional[str]:
     statuses = plan.get("statuses") or {}
     st = statuses.get(status_key) or {}
@@ -810,7 +821,7 @@ def get_status_color(plan: Dict[str, Any], status_key: str) -> Optional[str]:
         "in_progress": "#0ea5e9",
         "done": "#22c55e",
         "blocked": "#fecaca",
-        "planned": "#86efac",
+        "planned": "#aad2e6",
     }
     return defaults.get(status_key)
 
@@ -875,7 +886,8 @@ def render_gantt_mermaid(plan: Dict[str, Any], view: Dict[str, Any], view_id: st
     if not (isinstance(title, str) and title.strip()):
         title = "opskarta gantt"
 
-    lines.append(f"    title {title.strip()}")
+    title = sanitize_mermaid_text(title.strip())
+    lines.append(f"    title {title}")
 
     date_format = view.get("date_format") or "YYYY-MM-DD"
     if not isinstance(date_format, str):
@@ -904,7 +916,7 @@ def render_gantt_mermaid(plan: Dict[str, Any], view: Dict[str, Any], view_id: st
     lines.append("")
 
     for lane_id, lane in lanes.items():
-        lane_title = lane.get("title", lane_id)
+        lane_title = sanitize_mermaid_text(str(lane.get("title", lane_id)))
         lines.append(f"    section {lane_title}")
         for node_id in lane.get("nodes", []):
             node = nodes_map.get(node_id)
@@ -931,6 +943,8 @@ def render_gantt_mermaid(plan: Dict[str, Any], view: Dict[str, Any], view_id: st
             }.get(status)
             if emoji:
                 title_str = f"{emoji} {title_str}"
+
+            title_str = sanitize_mermaid_text(title_str)
 
             tags: List[str] = []
             if bool(node.get("milestone")):

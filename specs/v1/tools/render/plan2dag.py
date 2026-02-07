@@ -79,6 +79,18 @@ def _parse_duration(value: Any, path: str) -> None:
         raise ValueError(f"{path}: invalid duration format {value!r}, expected ^[1-9][0-9]*[dw]$")
 
 
+def escape_mermaid_string(text: str) -> str:
+    """
+    Escape text for Mermaid flowchart labels inside ["..."].
+
+    Mermaid flowchart does NOT reliably support backslash-escaped quotes (\")
+    across renderers. Use Mermaid entity codes instead:
+      - "  -> #quot;
+      - #  -> #35;  (so it doesn't start an entity by accident)
+    """
+    return text.replace("#", "#35;").replace('"', "#quot;")
+
+
 # ---------- Plan validation ----------
 
 def validate_plan(plan: Dict[str, Any]) -> List[str]:
@@ -291,7 +303,7 @@ def build_status_classes(plan: Dict[str, Any]) -> Dict[str, str]:
         "in_progress": "#0ea5e9",
         "done": "#22c55e",
         "blocked": "#fecaca",
-        "planned": "#86efac",
+        "planned": "#aad2e6",
     }
     statuses = plan.get("statuses") or {}
     result: Dict[str, str] = {}
@@ -326,6 +338,15 @@ def wrap_text(text: str, width: int) -> str:
     return "<br/>".join(lines)
 
 
+def sanitize_mermaid_text(text: str) -> str:
+    """
+    На всякий случай чистим двоеточия из человеко-читаемых заголовков/лейблов.
+    (Иногда Mermaid flowchart тоже капризничает в subgraph titles.)
+    """
+    cleaned = text.replace(":", " ").replace("：", " ")
+    return " ".join(cleaned.split())
+
+
 # ---------- Node label ----------
 
 STATUS_EMOJI_PREFIX = {
@@ -345,7 +366,7 @@ def get_owner(node: Dict[str, Any]) -> Optional[str]:
 
 
 def make_node_label(node: Dict[str, Any], node_id: str, wrap_col: Optional[int] = None) -> str:
-    title = str(node.get("title", node_id))
+    title = sanitize_mermaid_text(str(node.get("title", node_id)))
     issue = str(node.get("issue", node_id))
     status = (node.get("status") or "").strip()
     emoji = STATUS_EMOJI_PREFIX.get(status)
@@ -365,7 +386,7 @@ def make_node_label(node: Dict[str, Any], node_id: str, wrap_col: Optional[int] 
         parts.append(owner_text)
 
     label = "<br/>".join(parts)
-    label = label.replace('"', '\\"')
+    label = escape_mermaid_string(label)
     return label
 
 
@@ -460,7 +481,7 @@ def render_dag_mermaid(
             has_children = bool(grand_children)
             if has_children:
                 sg_id = f"sg_{cid}"
-                sg_title = str(node.get("title", cid)).replace('"', '\\"')
+                sg_title = escape_mermaid_string(sanitize_mermaid_text(str(node.get("title", cid))))
                 lines.append(f"{indent}subgraph {sg_id}[\"{sg_title}\"]")
                 label = make_node_label(node, cid, wrap_col)
                 status = node.get("status")
@@ -494,7 +515,7 @@ def render_dag_mermaid(
                 emit_children(track_id, "  ")
                 lines.append("")
             else:
-                track_title = str(track_node.get("title", track_id)).replace('"', '\\"')
+                track_title = escape_mermaid_string(sanitize_mermaid_text(str(track_node.get("title", track_id))))
                 lines.append(f"  subgraph {track_id}[\"{track_title}\"]")
                 emit_children(track_id, "    ")
                 lines.append("  end")
