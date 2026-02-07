@@ -1,0 +1,80 @@
+# Schedule file — calendars and dates
+# This file contains calendar planning as a separate layer.
+# Only nodes listed in schedule.nodes participate in schedule calculation.
+
+version: 2
+
+schedule:
+  # ============================================================
+  # Calendars
+  # ============================================================
+  calendars:
+    work:
+      excludes:
+        - weekends
+        - "2024-07-04"   # Independence Day
+        - "2024-11-28"   # Thanksgiving
+        - "2024-12-25"   # Christmas
+    
+    urgent:
+      excludes:
+        - "2024-07-04"
+        - "2024-11-28"
+        - "2024-12-25"
+
+  default_calendar: work
+
+  # ============================================================
+  # Node Schedule
+  # ============================================================
+  nodes:
+    # --- Backend ---
+    api-auth:
+      start: "2024-03-01"
+      duration: "5d"
+    
+    api-tasks:
+      duration: "5d"
+    
+    api-projects:
+      duration: "5d"
+    
+    db-schema:
+      start: "2024-03-01"
+      duration: "3d"
+    
+    db-migrations:
+      duration: "2d"
+    
+    db-indexes:
+      duration: "5d"
+
+    # --- Frontend ---
+    ui-design-system:
+      duration: "3d"
+    
+    ui-forms:
+      duration: "3d"
+    
+    ui-tables:
+      duration: "2d"
+    
+    page-dashboard:
+      duration: "5d"
+    
+    page-tasks:
+      duration: "4d"
+    
+    page-settings:
+      duration: "3d"
+
+    # --- Testing ---
+    e2e-tests:
+      duration: "3d"
+    
+    performance-tests:
+      duration: "2d"
+      calendar: urgent
+
+    # --- Milestone ---
+    release-v1: {}

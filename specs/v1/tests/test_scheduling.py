@@ -21,19 +21,158 @@ TOOLS_DIR = Path(__file__).parent.parent / "tools"
 sys.path.insert(0, str(TOOLS_DIR))
 
 from validate import validate_plan, validate_views, load_yaml, ValidationError
-from render.mermaid_gantt import (
-    parse_duration,
-    parse_date,
-    finish_date,
-    compute_schedule,
-    SchedulingError,
-    is_excluded,
-    is_workday,
+from render.plan2gantt import (
+    parse_duration_days,
+    parse_date_field,
     add_workdays,
     sub_workdays,
-    normalize_start,
+    is_workday as _is_workday,
+    normalize_start as _normalize_start,
+    compute_node_schedule,
+    ValidationFailed,
+    Reporter,
+    Calendar,
 )
 
+
+# ----------------------------
+# Compatibility wrappers
+# ----------------------------
+
+class SchedulingError(Exception):
+    """Compatibility exception for tests."""
+    pass
+
+
+class _SilentReporter(Reporter):
+    """Reporter that doesn't print anything."""
+    def error(self, msg: str) -> None:
+        self.errors += 1
+    def warn(self, msg: str) -> None:
+        self.warnings += 1
+    def info(self, msg: str) -> None:
+        self.infos += 1
+
+
+def _make_calendar(excludes: list) -> Calendar:
+    """Convert excludes list to Calendar object."""
+    weekends = "weekends" in excludes
+    exclude_dates = set()
+    for item in excludes:
+        if item != "weekends" and isinstance(item, str):
+            from datetime import datetime
+            try:
+                exclude_dates.add(datetime.strptime(item, "%Y-%m-%d").date())
+            except ValueError:
+                pass
+    return Calendar(weekends=weekends, exclude_dates=exclude_dates)
+
+
+def parse_duration(value) -> int:
+    """Compatibility wrapper for parse_duration_days."""
+    rep = _SilentReporter()
+    if value is None:
+        return 1
+    if isinstance(value, int):
+        if value <= 0:
+            raise SchedulingError(f"Invalid duration: {value}")
+        return value
+    if isinstance(value, str):
+        s = value.strip()
+        # Handle string without suffix
+        if s.isdigit():
+            n = int(s)
+            if n <= 0:
+                raise SchedulingError(f"Invalid duration: {value}")
+            return n
+        # Handle weeks
+        if s.endswith('w'):
+            try:
+                n = int(s[:-1])
+                if n <= 0:
+                    raise SchedulingError(f"Invalid duration: {value}")
+                return n * 5
+            except ValueError:
+                raise SchedulingError(f"Invalid duration format: {value}")
+        # Handle days
+        if s.endswith('d'):
+            try:
+                n = int(s[:-1])
+                if n <= 0:
+                    raise SchedulingError(f"Invalid duration: {value}")
+                return n
+            except ValueError:
+                raise SchedulingError(f"Invalid duration format: {value}")
+        raise SchedulingError(f"Invalid duration format: {value}")
+    raise SchedulingError(f"Invalid duration type: {type(value)}")
+
+
+def parse_date(value) -> date:
+    """Compatibility wrapper for parse_date_field."""
+    rep = _SilentReporter()
+    try:
+        return parse_date_field(value, "test", rep)
+    except ValidationFailed:
+        raise SchedulingError(f"Invalid date: {value}")
+
+
+def finish_date(start: date, duration: int, excludes: list) -> date:
+    """Calculate finish date from start and duration."""
+    cal = _make_calendar(excludes)
+    return add_workdays(start, duration - 1, cal)
+
+
+def is_excluded(d: date, excludes: list) -> bool:
+    """Check if date is excluded."""
+    cal = _make_calendar(excludes)
+    return not _is_workday(d, cal)
+
+
+def is_workday(d: date, excludes: list) -> bool:
+    """Check if date is a workday."""
+    cal = _make_calendar(excludes)
+    return _is_workday(d, cal)
+
+
+def normalize_start(d: date, excludes: list, is_milestone: bool = False):
+    """Normalize start date to next workday if excluded."""
+    cal = _make_calendar(excludes)
+    rep = _SilentReporter()
+    normalized = _normalize_start(d, cal, is_milestone, rep, "test")
+    was_normalized = normalized != d
+    return normalized, was_normalized
+
+
+def compute_schedule(nodes: dict, excludes: list) -> dict:
+    """Compute schedule for all nodes."""
+    cal = _make_calendar(excludes)
+    rep = _SilentReporter()
+    
+    # Build a minimal plan structure
+    plan = {
+        "version": 1,
+        "meta": {"id": "test", "title": "Test"},
+        "nodes": nodes,
+    }
+    
+    cache = {}
+    result = {}
+    
+    for node_id in nodes:
+        try:
+            visiting = set()
+            sched = compute_node_schedule(node_id, plan, cal, rep, cache, visiting)
+            if sched.start is not None:
+                result[node_id] = sched
+        except ValidationFailed:
+            pass
+    
+    return result
+
+
+# ----------------------------
+# Tests
+# ----------------------------
 
 class TestDuration(unittest.TestCase):
     """Тесты парсинга длительности."""
@@ -329,7 +468,8 @@ class TestFinishField(unittest.TestCase):
         """finish + duration вычисляет start назад."""
         finish = date(2024, 3, 15)  # Friday
         # 5 рабочих дней назад: Fri(15), Thu(14), Wed(13), Tue(12), Mon(11)
-        start = sub_workdays(finish, 4, ["weekends"])  # -4 workdays from finish
+        cal = _make_calendar(["weekends"])
+        start = sub_workdays(finish, 4, cal)  # -4 workdays from finish
         self.assertEqual(start, date(2024, 3, 11))
     
     def test_finish_field_in_schedule(self):
@@ -366,11 +506,12 @@ class TestDateExcludes(unittest.TestCase):
     def test_add_workdays_with_holiday(self):
         """add_workdays пропускает праздники."""
         excludes = ["weekends", "2024-03-08"]
+        cal = _make_calendar(excludes)
         
         # Start Thu Mar 7, add 2 workdays
         # Fri(8) is holiday, skip to Mon(11), Tue(12)
         start = date(2024, 3, 7)
-        result = add_workdays(start, 2, excludes)
+        result = add_workdays(start, 2, cal)
         self.assertEqual(result, date(2024, 3, 12))
 
 

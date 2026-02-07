@@ -1,0 +1,92 @@
+# Файл расписания — календари и даты
+# Этот файл содержит календарное планирование как отдельный слой.
+# Только узлы, указанные в schedule.nodes, участвуют в расчёте расписания.
+
+version: 2
+
+schedule:
+  # ============================================================
+  # Календари
+  # ============================================================
+  calendars:
+    # Основной рабочий календарь
+    work:
+      excludes:
+        - weekends
+        - "2024-03-08"   # Международный женский день
+        - "2024-05-01"   # Праздник весны и труда
+        - "2024-05-09"   # День Победы
+    
+    # Календарь для срочных задач (включая выходные)
+    urgent:
+      excludes:
+        - "2024-03-08"
+        - "2024-05-01"
+        - "2024-05-09"
+
+  # Календарь по умолчанию для всех узлов
+  default_calendar: work
+
+  # ============================================================
+  # Расписание узлов
+  # ============================================================
+  # ВАЖНО: Только узлы, перечисленные здесь, имеют календарные даты.
+  # Зависимости (after) берутся из nodes, не из schedule.
+  nodes:
+    # --- Бэкенд ---
+    api-auth:
+      start: "2024-03-01"
+      duration: "5d"
+    
+    api-tasks:
+      # start вычисляется из after: [api-auth] в nodes.plan.yaml
+      duration: "5d"
+    
+    api-projects:
+      # start вычисляется из after: [api-auth] в nodes.plan.yaml
+      duration: "5d"
+    
+    db-schema:
+      start: "2024-03-01"
+      duration: "3d"
+    
+    db-migrations:
+      # start вычисляется из after: [db-schema]
+      duration: "2d"
+    
+    db-indexes:
+      # start вычисляется из after: [db-migrations]
+      duration: "5d"
+
+    # --- Фронтенд ---
+    ui-design-system:
+      # start вычисляется из after: [api] в nodes.plan.yaml
+      duration: "3d"
+    
+    ui-forms:
+      duration: "3d"
+    
+    ui-tables:
+      duration: "2d"
+    
+    page-dashboard:
+      duration: "5d"
+    
+    page-tasks:
+      duration: "4d"
+    
+    page-settings:
+      duration: "3d"
+
+    # --- Тестирование ---
+    e2e-tests:
+      duration: "3d"
+    
+    performance-tests:
+      duration: "2d"
+      calendar: urgent  # срочная задача — работаем и в выходные
+
+    # --- Веха ---
+    # release-v1 — веха, start вычисляется из after: [testing]
+    # Для вех duration не указывается
+    release-v1: {}

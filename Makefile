@@ -1,320 +1,169 @@
 # opskarta Makefile
-# Tooling for building, validating, and testing opskarta v1 specification
+# Build, validate, and test opskarta specifications
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-# Directories
-SPEC_DIR := specs/v1
-TOOLS_DIR := $(SPEC_DIR)/tools
-TESTS_DIR := $(SPEC_DIR)/tests
-EXAMPLES_DIR_EN := $(SPEC_DIR)/en/examples
-EXAMPLES_DIR_RU := $(SPEC_DIR)/ru/examples
-EXAMPLES_DIR := $(EXAMPLES_DIR_EN)
-SCHEMAS_DIR := $(SPEC_DIR)/schemas
+# ============================================================================
+# Configuration
+# ============================================================================
+
 VENV_DIR := venv
-
-# Default language
-LANG := en
-
-# Python - prefer venv if it exists
 VENV_PYTHON := $(VENV_DIR)/bin/python
-VENV_PIP := $(VENV_DIR)/bin/pip
 
 ifeq ($(wildcard $(VENV_PYTHON)),)
-  # No venv, try system Python
   PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null)
-  PIP := $(PYTHON) -m pip
 else
-  # Use venv Python
   PYTHON := $(VENV_PYTHON)
-  PIP := $(VENV_PIP)
 endif
 
-# Colors for output
-GREEN := \033[0;32m
-YELLOW := \033[0;33m
-RED := \033[0;31m
-NC := \033[0m
+# Colors
+G := \033[0;32m
+Y := \033[0;33m
+N := \033[0m
+
+# ============================================================================
+# Help
+# ============================================================================
 
 .PHONY: help
-help: ## Show this help message
-	@echo "opskarta v1 - Development Tools"
+help: ## Show this help
+	@echo "opskarta - Development Tools"
 	@echo ""
-	@echo "Usage: make [target]"
+	@echo "Quick start:  make quickstart"
+	@echo "Run CI:       make ci        (v1 only)"
+	@echo "              make ci-v2     (v2 only)"
+	@echo "              make ci-all    (both)"
 	@echo ""
-	@echo "Targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(G)%-18s$(N) %s\n", $$1, $$2}'
 
 # ============================================================================
-# Virtual Environment
+# Setup
 # ============================================================================
 
-.PHONY: venv
+.PHONY: venv deps deps-dev quickstart
+
 venv: $(VENV_DIR)/bin/activate ## Create virtual environment
 
 $(VENV_DIR)/bin/activate:
-	@echo "$(GREEN)Creating virtual environment...$(NC)"
+	@echo "$(G)Creating venv...$(N)"
 	python3 -m venv $(VENV_DIR)
-	$(VENV_PIP) install --upgrade pip
-	@echo "$(GREEN)Virtual environment created!$(NC)"
-	@echo "$(YELLOW)Run 'source $(VENV_DIR)/bin/activate' to activate$(NC)"
+	$(VENV_DIR)/bin/pip install --upgrade pip -q
+	@echo "$(Y)Run: source $(VENV_DIR)/bin/activate$(N)"
 
-.PHONY: venv-clean
-venv-clean: ## Remove virtual environment
-	@echo "$(YELLOW)Removing virtual environment...$(NC)"
-	rm -rf $(VENV_DIR)
-	@echo "$(GREEN)Done!$(NC)"
+deps: venv ## Install dependencies
+	@$(VENV_DIR)/bin/pip install pyyaml jsonschema -q
+	@echo "$(G)Dependencies installed$(N)"
 
-# ============================================================================
-# Dependencies
-# ============================================================================
+deps-dev: deps ## Install dev dependencies
+	@$(VENV_DIR)/bin/pip install pytest pytest-cov ruff -q
+	@echo "$(G)Dev dependencies installed$(N)"
 
-.PHONY: deps
-deps: venv ## Install Python dependencies
-	@echo "$(GREEN)Installing dependencies...$(NC)"
-	$(PIP) install pyyaml jsonschema
-	@echo "$(GREEN)Dependencies installed!$(NC)"
-
-.PHONY: deps-dev
-deps-dev: deps ## Install development dependencies (testing, linting)
-	@echo "$(GREEN)Installing dev dependencies...$(NC)"
-	$(PIP) install pytest pytest-cov ruff
-	@echo "$(GREEN)Dev dependencies installed!$(NC)"
-
-.PHONY: deps-all
-deps-all: deps-dev ## Install all dependencies (alias for deps-dev)
+quickstart: deps ## Quick start: setup and validate
+	@$(PYTHON) specs/v1/tools/validate.py \
+		specs/v1/en/examples/hello/hello.plan.yaml \
+		specs/v1/en/examples/hello/hello.views.yaml
+	@echo "$(G)Ready! Try: make test$(N)"
 
 # ============================================================================
-# Build
+# v1 Specification
 # ============================================================================
 
-.PHONY: build
-build: build-spec ## Build all artifacts
+.PHONY: spec-v1 check-spec-v1 validate-v1 test-v1 ci-v1
 
-.PHONY: build-spec
-build-spec: spec-en ## Build SPEC.md from spec/ sources (default: English)
+spec-v1: ## Build v1 SPEC.md (en + ru)
+	@$(PYTHON) specs/v1/tools/build_spec.py --lang en
+	@$(PYTHON) specs/v1/tools/build_spec.py --lang ru
+	@echo "$(G)v1 SPEC.md built$(N)"
 
-.PHONY: spec-en
-spec-en: ## Build English SPEC.md
-	@echo "$(GREEN)Building English SPEC.md...$(NC)"
-	$(PYTHON) $(TOOLS_DIR)/build_spec.py --lang en
-	@echo "$(GREEN)Done!$(NC)"
+check-spec-v1: ## Check v1 SPEC.md is up-to-date
+	@$(PYTHON) specs/v1/tools/build_spec.py --lang en --check
+	@$(PYTHON) specs/v1/tools/build_spec.py --lang ru --check
 
-.PHONY: spec-ru
-spec-ru: ## Build Russian SPEC.md
-	@echo "$(GREEN)Building Russian SPEC.md...$(NC)"
-	$(PYTHON) $(TOOLS_DIR)/build_spec.py --lang ru
-	@echo "$(GREEN)Done!$(NC)"
-
-.PHONY: spec-all
-spec-all: spec-en spec-ru ## Build both English and Russian SPEC.md
-
-.PHONY: check-spec
-check-spec: check-spec-en ## Check if SPEC.md is up-to-date (default: English)
-
-.PHONY: check-spec-en
-check-spec-en: ## Check if English SPEC.md is up-to-date
-	@echo "$(YELLOW)Checking English SPEC.md...$(NC)"
-	$(PYTHON) $(TOOLS_DIR)/build_spec.py --lang en --check
-
-.PHONY: check-spec-ru
-check-spec-ru: ## Check if Russian SPEC.md is up-to-date
-	@echo "$(YELLOW)Checking Russian SPEC.md...$(NC)"
-	$(PYTHON) $(TOOLS_DIR)/build_spec.py --lang ru --check
-
-.PHONY: check-spec-all
-check-spec-all: check-spec-en check-spec-ru ## Check both language SPEC.md files
-
-.PHONY: build-spec-min
-build-spec-min: ## Build minified SPEC.min.md using codex (English)
-	@echo "$(GREEN)Building SPEC.min.md...$(NC)"
-	codex --ask-for-approval never \
-		-c hide_agent_reasoning=true \
-		-c model_reasoning_effort='"low"' \
-		-c model_reasoning_summary='"none"' \
-		-c model_verbosity='"low"' \
-		exec --sandbox read-only --color never \
-		-o $(SPEC_DIR)/en/SPEC.min.md \
-		- < $(TOOLS_DIR)/prompts/spec_minify.prompt.txt
-	@echo "$(GREEN)Done!$(NC)"
-
-# ============================================================================
-# Validation
-# ============================================================================
-
-.PHONY: validate
-validate: validate-examples ## Validate all YAML files
-
-.PHONY: validate-examples
-validate-examples: validate-examples-en ## Validate example files (default: English)
-
-.PHONY: validate-examples-en
-validate-examples-en: ## Validate English example files
-	@echo "$(GREEN)Validating English examples...$(NC)"
-	@for dir in $(EXAMPLES_DIR_EN)/*/; do \
-		plan=$$(ls "$$dir"*.plan.yaml 2>/dev/null | head -1); \
-		views=$$(ls "$$dir"*.views.yaml 2>/dev/null | head -1); \
-		if [ -n "$$plan" ]; then \
-			echo "  Validating: $$plan"; \
-			if [ -n "$$views" ]; then \
-				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" "$$views" || exit 1; \
-			else \
-				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" || exit 1; \
-			fi; \
-		fi; \
-	done
-	@echo "$(GREEN)All English examples valid!$(NC)"
-
-.PHONY: validate-examples-ru
-validate-examples-ru: ## Validate Russian example files
-	@echo "$(GREEN)Validating Russian examples...$(NC)"
-	@for dir in $(EXAMPLES_DIR_RU)/*/; do \
-		plan=$$(ls "$$dir"*.plan.yaml 2>/dev/null | head -1); \
-		views=$$(ls "$$dir"*.views.yaml 2>/dev/null | head -1); \
-		if [ -n "$$plan" ]; then \
-			echo "  Validating: $$plan"; \
-			if [ -n "$$views" ]; then \
-				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" "$$views" || exit 1; \
-			else \
-				$(PYTHON) $(TOOLS_DIR)/validate.py "$$plan" || exit 1; \
-			fi; \
-		fi; \
-	done
-	@echo "$(GREEN)All Russian examples valid!$(NC)"
-
-.PHONY: validate-examples-all
-validate-examples-all: validate-examples-en validate-examples-ru ## Validate all language examples
-
-.PHONY: validate-schema
-validate-schema: ## Validate JSON schemas are valid JSON
-	@echo "$(GREEN)Validating JSON schemas...$(NC)"
-	@for schema in $(SCHEMAS_DIR)/*.schema.json; do \
-		echo "  Checking: $$schema"; \
+validate-v1: ## Validate v1 examples and schemas
+	@echo "$(G)Validating v1...$(N)"
+	@for schema in specs/v1/schemas/*.schema.json; do \
 		$(PYTHON) -c "import json; json.load(open('$$schema'))" || exit 1; \
 	done
-	@echo "$(GREEN)All schemas valid JSON!$(NC)"
+	@for dir in specs/v1/en/examples/*/; do \
+		plan=$$(ls "$$dir"*.plan.yaml 2>/dev/null | head -1); \
+		views=$$(ls "$$dir"*.views.yaml 2>/dev/null | head -1); \
+		[ -n "$$plan" ] && $(PYTHON) specs/v1/tools/validate.py "$$plan" $$views || exit 1; \
+	done
+	@for dir in specs/v1/ru/examples/*/; do \
+		plan=$$(ls "$$dir"*.plan.yaml 2>/dev/null | head -1); \
+		views=$$(ls "$$dir"*.views.yaml 2>/dev/null | head -1); \
+		[ -n "$$plan" ] && $(PYTHON) specs/v1/tools/validate.py "$$plan" $$views || exit 1; \
+	done
+	@echo "$(G)v1 valid$(N)"
 
-.PHONY: validate-hello
-validate-hello: ## Validate hello example (quick check, English)
-	@echo "$(GREEN)Validating hello example...$(NC)"
-	$(PYTHON) $(TOOLS_DIR)/validate.py \
-		$(EXAMPLES_DIR_EN)/hello/hello.plan.yaml \
-		$(EXAMPLES_DIR_EN)/hello/hello.views.yaml
-	@echo "$(GREEN)Valid!$(NC)"
+test-v1: ## Run v1 tests
+	@$(PYTHON) -m pytest specs/v1/tests/ -v --tb=short
 
-.PHONY: validate-advanced
-validate-advanced: ## Validate advanced example (English)
-	@echo "$(GREEN)Validating advanced example...$(NC)"
-	$(PYTHON) $(TOOLS_DIR)/validate.py \
-		$(EXAMPLES_DIR_EN)/advanced/program.plan.yaml \
-		$(EXAMPLES_DIR_EN)/advanced/program.views.yaml
-	@echo "$(GREEN)Valid!$(NC)"
+ci-v1: deps check-spec-v1 validate-v1 test-v1 ## Run v1 CI checks
+	@echo "$(G)v1 CI passed$(N)"
 
-# ============================================================================
-# Rendering
-# ============================================================================
-
-.PHONY: render-hello
-render-hello: ## Render hello example Gantt diagram (English)
-	@echo "$(GREEN)Rendering hello example...$(NC)"
-	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.plan2gantt \
-		--plan en/examples/hello/hello.plan.yaml \
-		--views en/examples/hello/hello.views.yaml \
-		--view overview
-
-.PHONY: render-advanced
-render-advanced: ## Render advanced example (list views, English)
-	@echo "$(GREEN)Rendering advanced example views...$(NC)"
-	cd $(SPEC_DIR) && $(CURDIR)/$(PYTHON) -m tools.render.plan2gantt \
-		--plan en/examples/advanced/program.plan.yaml \
-		--views en/examples/advanced/program.views.yaml \
-		--list-views
+# Aliases for backward compatibility
+.PHONY: spec-en spec-ru test ci
+spec-en: ; @$(PYTHON) specs/v1/tools/build_spec.py --lang en
+spec-ru: ; @$(PYTHON) specs/v1/tools/build_spec.py --lang ru
+test: test-v1
+ci: ci-v1
 
 # ============================================================================
-# Testing
+# v2 Specification
 # ============================================================================
 
-.PHONY: test
-test: ## Run all tests
-	@echo "$(GREEN)Running tests...$(NC)"
-	@if $(PYTHON) -c "import pytest" 2>/dev/null; then \
-		$(PYTHON) -m pytest $(TESTS_DIR) -v --tb=short; \
-	else \
-		echo "$(YELLOW)pytest not installed, running basic tests...$(NC)"; \
-		$(PYTHON) $(TESTS_DIR)/test_scheduling.py; \
-	fi
-	@echo "$(GREEN)Tests complete!$(NC)"
+.PHONY: spec-v2 check-spec-v2 validate-v2 test-v2 ci-v2
 
-.PHONY: test-unit
-test-unit: ## Run unit tests only
-	@echo "$(GREEN)Running unit tests...$(NC)"
-	$(PYTHON) $(TESTS_DIR)/test_scheduling.py
+spec-v2: ## Build v2 SPEC.md (en + ru)
+	@$(PYTHON) specs/v2/tools/build_spec.py --lang en
+	@$(PYTHON) specs/v2/tools/build_spec.py --lang ru
+	@echo "$(G)v2 SPEC.md built$(N)"
 
-.PHONY: test-coverage
-test-coverage: deps-dev ## Run tests with coverage report
-	@echo "$(GREEN)Running tests with coverage...$(NC)"
-	$(PYTHON) -m pytest $(TESTS_DIR) -v --cov=$(TOOLS_DIR) --cov-report=term-missing
+check-spec-v2: ## Check v2 SPEC.md is up-to-date
+	@$(PYTHON) specs/v2/tools/build_spec.py --lang en --check
+	@$(PYTHON) specs/v2/tools/build_spec.py --lang ru --check
 
-# ============================================================================
-# Linting and Formatting
-# ============================================================================
+validate-v2: ## Validate v2 examples and schemas
+	@echo "$(G)Validating v2...$(N)"
+	@for schema in specs/v2/schemas/*.schema.json; do \
+		$(PYTHON) -c "import json; json.load(open('$$schema'))" || exit 1; \
+	done
+	@cd specs/v2 && for dir in en/examples/*/; do \
+		$(CURDIR)/$(PYTHON) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
+	done
+	@cd specs/v2 && for dir in ru/examples/*/; do \
+		$(CURDIR)/$(PYTHON) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
+	done
+	@echo "$(G)v2 valid$(N)"
 
-.PHONY: lint
-lint: ## Lint Python code (requires ruff)
-	@echo "$(GREEN)Linting Python code...$(NC)"
-	@if $(PYTHON) -c "import ruff" 2>/dev/null; then \
-		$(PYTHON) -m ruff check $(TOOLS_DIR); \
-	else \
-		echo "$(YELLOW)ruff not installed, run 'make deps-dev' first$(NC)"; \
-	fi
+test-v2: ## Run v2 tests
+	@PYTHONPATH=$(CURDIR) $(PYTHON) -m pytest specs/v2/tests/ -v --tb=short
 
-.PHONY: format
-format: ## Format Python code (requires ruff)
-	@echo "$(GREEN)Formatting Python code...$(NC)"
-	@if $(PYTHON) -c "import ruff" 2>/dev/null; then \
-		$(PYTHON) -m ruff format $(TOOLS_DIR); \
-	else \
-		echo "$(YELLOW)ruff not installed, run 'make deps-dev' first$(NC)"; \
-	fi
+ci-v2: check-spec-v2 validate-v2 test-v2 ## Run v2 CI checks
+	@echo "$(G)v2 CI passed$(N)"
 
 # ============================================================================
-# CI targets
+# Combined targets
 # ============================================================================
 
-.PHONY: ci
-ci: deps check-spec-all validate-examples-all test ## Run all CI checks
-	@echo "$(GREEN)All CI checks passed!$(NC)"
+.PHONY: spec-all test-all ci-all clean
 
-.PHONY: check
-check: validate-schema validate-examples-en spec-en ## Quick check (schemas, examples, spec)
-	@echo "$(GREEN)All checks passed!$(NC)"
+spec-all: spec-v1 spec-v2 ## Build all SPEC.md files
 
-# ============================================================================
-# Quick Start
-# ============================================================================
+test-all: test-v1 test-v2 ## Run all tests
 
-.PHONY: quickstart
-quickstart: venv deps validate-hello render-hello ## Quick start: setup venv, install deps, validate and render hello
-	@echo ""
-	@echo "$(GREEN)Quick start complete!$(NC)"
-	@echo "Try running:"
-	@echo "  make validate-examples"
-	@echo "  make test"
+ci-all: ci-v1 ci-v2 ## Run all CI checks
+	@echo "$(G)All CI passed$(N)"
 
-# ============================================================================
-# Clean
-# ============================================================================
+clean: ## Clean generated files
+	@rm -rf __pycache__ .pytest_cache .coverage htmlcov
+	@find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f -name '*.pyc' -delete 2>/dev/null || true
+	@echo "$(G)Clean$(N)"
 
-.PHONY: clean
-clean: ## Clean generated files (keeps venv)
-	@echo "$(YELLOW)Cleaning...$(NC)"
-	rm -rf $(EXAMPLES_DIR)/output
-	rm -rf __pycache__ .pytest_cache .coverage htmlcov
-	find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name '*.pyc' -delete 2>/dev/null || true
-	@echo "$(GREEN)Clean!$(NC)"
-
-.PHONY: clean-all
-clean-all: clean venv-clean ## Clean everything including venv
-	@echo "$(GREEN)All clean!$(NC)"
+clean-all: clean ## Clean everything including venv
+	@rm -rf $(VENV_DIR)
+	@echo "$(G)All clean$(N)"

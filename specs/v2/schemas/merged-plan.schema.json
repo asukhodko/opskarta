@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opskarta.dev/schemas/v2/merged-plan.schema.json",
+  "title": "opskarta v2 merged plan",
+  "description": "Schema for merged plan (result of merging multiple fragments) in opskarta v2. Requirement 6.5",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 2,
+      "description": "Plan format version, must be 2 for v2. Required in merged plan."
+    },
+    "meta": {
+      "$ref": "fragment.schema.json#/$defs/meta"
+    },
+    "statuses": {
+      "type": "object",
+      "description": "Dictionary of status_id -> status definition (merged from all fragments)",
+      "additionalProperties": {
+        "$ref": "fragment.schema.json#/$defs/status"
+      }
+    },
+    "nodes": {
+      "type": "object",
+      "description": "Dictionary of node_id -> node definition (merged from all fragments)",
+      "additionalProperties": {
+        "$ref": "fragment.schema.json#/$defs/node"
+      }
+    },
+    "schedule": {
+      "$ref": "fragment.schema.json#/$defs/schedule"
+    },
+    "views": {
+      "type": "object",
+      "description": "Dictionary of view_id -> view definition (merged from all fragments)",
+      "additionalProperties": {
+        "$ref": "fragment.schema.json#/$defs/view"
+      }
+    },
+    "x": {
+      "type": "object",
+      "description": "Extension data (arbitrary key-value pairs, merged from all fragments)"
+    },
+    "sources": {
+      "type": "object",
+      "description": "Metadata tracking which file contributed each element. Format: 'type:id' -> 'file_path'. Example: 'node:task1' -> 'nodes.plan.yaml'",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

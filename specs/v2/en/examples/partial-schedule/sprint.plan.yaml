@@ -1,0 +1,404 @@
+# Example plan with partial schedule
+# This file demonstrates a key v2 capability: some nodes are scheduled
+# for the current sprint, while others remain in the backlog without dates.
+#
+# This is a typical scenario for:
+# - Sprint planning (Scrum)
+# - Iterative development
+# - Horizon planning (near-term tasks are detailed, distant ones are not)
+
+version: 2
+
+# ============================================================
+# Plan Metadata
+# ============================================================
+meta:
+  id: sprint-2024-03
+  title: "Sprint 2024-03: Authentication and Profile"
+  effort_unit: "sp"  # story points
+
+# ============================================================
+# Statuses
+# ============================================================
+statuses:
+  backlog:
+    label: "Backlog"
+    color: "#9ca3af"
+  
+  ready:
+    label: "Ready"
+    color: "#22d3ee"
+  
+  in_progress:
+    label: "In Progress"
+    color: "#0ea5e9"
+  
+  review:
+    label: "In Review"
+    color: "#a78bfa"
+  
+  done:
+    label: "Done"
+    color: "#22c55e"
+
+# ============================================================
+# Work Structure
+# ============================================================
+nodes:
+  # ------------------------------------------------------------
+  # Root node — entire project
+  # ------------------------------------------------------------
+  project:
+    title: "Mobile Application"
+    kind: summary
+    status: in_progress
+    effort: 89
+
+  # ============================================================
+  # EPIC 1: Authentication (in current sprint)
+  # ============================================================
+  auth:
+    title: "Authentication"
+    kind: epic
+    parent: project
+    status: in_progress
+    effort: 21
+    notes: |
+      Authentication epic — current sprint priority.
+      All tasks scheduled for March 2024.
+
+  # --- Authentication tasks (SCHEDULED) ---
+  auth-ui:
+    title: "Login UI screens"
+    kind: task
+    parent: auth
+    status: done
+    effort: 3
+    notes: "Login, registration, password recovery screens"
+
+  auth-api:
+    title: "Authentication API"
+    kind: task
+    parent: auth
+    after: [auth-ui]
+    status: in_progress
+    effort: 5
+    notes: "JWT tokens, refresh, logout"
+
+  auth-oauth:
+    title: "OAuth integration"
+    kind: task
+    parent: auth
+    after: [auth-api]
+    status: ready
+    effort: 8
+    notes: "Google, Apple, Facebook"
+
+  auth-2fa:
+    title: "Two-factor authentication"
+    kind: task
+    parent: auth
+    after: [auth-oauth]
+    status: ready
+    effort: 5
+    notes: "SMS and TOTP"
+
+  # ============================================================
+  # EPIC 2: User Profile (partially in sprint)
+  # ============================================================
+  profile:
+    title: "User Profile"
+    kind: epic
+    parent: project
+    after: [auth]
+    status: in_progress
+    effort: 13
+    notes: |
+      Some tasks in current sprint, others in backlog.
+
+  # --- Profile tasks (SCHEDULED) ---
+  profile-view:
+    title: "View profile"
+    kind: task
+    parent: profile
+    status: in_progress
+    effort: 3
+    notes: "Display user data"
+
+  profile-edit:
+    title: "Edit profile"
+    kind: task
+    parent: profile
+    after: [profile-view]
+    status: ready
+    effort: 5
+    notes: "Change name, avatar, contacts"
+
+  # --- Profile tasks (NOT SCHEDULED — backlog) ---
+  profile-privacy:
+    title: "Privacy settings"
+    kind: task
+    parent: profile
+    after: [profile-edit]
+    status: backlog
+    effort: 3
+    notes: "Who can see profile, user blocking"
+
+  profile-export:
+    title: "Data export"
+    kind: task
+    parent: profile
+    after: [profile-privacy]
+    status: backlog
+    effort: 2
+    notes: "GDPR compliance — export user data"
+
+  # ============================================================
+  # EPIC 3: Notifications (fully in backlog)
+  # ============================================================
+  notifications:
+    title: "Notifications"
+    kind: epic
+    parent: project
+    after: [profile]
+    status: backlog
+    effort: 21
+    notes: |
+      Entire epic in backlog — planned for next sprint.
+
+  # --- Notification tasks (NOT SCHEDULED) ---
+  notif-push:
+    title: "Push notifications"
+    kind: task
+    parent: notifications
+    status: backlog
+    effort: 8
+    notes: "Firebase Cloud Messaging"
+
+  notif-email:
+    title: "Email notifications"
+    kind: task
+    parent: notifications
+    after: [notif-push]
+    status: backlog
+    effort: 5
+    notes: "Transactional emails"
+
+  notif-settings:
+    title: "Notification settings"
+    kind: task
+    parent: notifications
+    after: [notif-push]
+    status: backlog
+    effort: 3
+    notes: "Subscription management"
+
+  notif-history:
+    title: "Notification history"
+    kind: task
+    parent: notifications
+    after: [notif-settings]
+    status: backlog
+    effort: 5
+    notes: "In-app notification feed"
+
+  # ============================================================
+  # EPIC 4: Social Features (fully in backlog)
+  # ============================================================
+  social:
+    title: "Social Features"
+    kind: epic
+    parent: project
+    after: [notifications]
+    status: backlog
+    effort: 34
+    notes: |
+      Planned for Q2 2024.
+
+  # --- Social feature tasks (NOT SCHEDULED) ---
+  social-friends:
+    title: "Friends"
+    kind: task
+    parent: social
+    status: backlog
+    effort: 8
+
+  social-feed:
+    title: "Activity feed"
+    kind: task
+    parent: social
+    after: [social-friends]
+    status: backlog
+    effort: 13
+
+  social-sharing:
+    title: "Content sharing"
+    kind: task
+    parent: social
+    after: [social-feed]
+    status: backlog
+    effort: 8
+
+  social-comments:
+    title: "Comments"
+    kind: task
+    parent: social
+    after: [social-sharing]
+    status: backlog
+    effort: 5
+
+  # ============================================================
+  # Milestone: MVP Release
+  # ============================================================
+  mvp-release:
+    title: "MVP Release"
+    kind: task
+    parent: project
+    after: [auth, profile]
+    status: ready
+    milestone: true
+    notes: |
+      MVP includes authentication and basic profile.
+      Scheduled for end of current sprint.
+
+# ============================================================
+# Schedule (only for current sprint!)
+# ============================================================
+schedule:
+  calendars:
+    work:
+      excludes:
+        - weekends
+        - "2024-03-29"  # Good Friday
+
+  default_calendar: work
+
+  # IMPORTANT: Only these nodes have calendar dates!
+  # Other nodes are in backlog without dates.
+  nodes:
+    # --- Authentication (entire epic in sprint) ---
+    auth-ui:
+      start: "2024-03-01"
+      duration: "3d"
+
+    auth-api:
+      # start computed from after: [auth-ui]
+      duration: "5d"
+
+    auth-oauth:
+      # start computed from after: [auth-api]
+      duration: "6d"  # 8 sp ≈ 6 work days
+
+    auth-2fa:
+      # start computed from after: [auth-oauth]
+      duration: "4d"  # 5 sp ≈ 4 work days
+
+    # --- Profile (only part in sprint) ---
+    profile-view:
+      start: "2024-03-01"  # parallel with auth-ui
+      duration: "3d"
+
+    profile-edit:
+      # start computed from after: [profile-view]
+      duration: "4d"
+
+    # profile-privacy and profile-export — NOT in schedule (backlog)
+
+    # --- MVP Milestone ---
+    mvp-release: {}
+      # start computed from after: [auth, profile]
+      # Milestone — no duration
+
+# ============================================================
+# Views
+# ============================================================
+views:
+  # ----------------------------------------------------------
+  # Key view: only scheduled tasks
+  # ----------------------------------------------------------
+  sprint:
+    title: "Current Sprint"
+    where:
+      has_schedule: true  # ONLY nodes from schedule.nodes
+    order_by: status
+
+  # ----------------------------------------------------------
+  # Key view: only backlog (unscheduled)
+  # ----------------------------------------------------------
+  backlog:
+    title: "Backlog (unscheduled)"
+    where:
+      has_schedule: false  # ONLY nodes NOT in schedule.nodes
+    order_by: parent
+
+  # ----------------------------------------------------------
+  # Sprint Gantt diagram
+  # ----------------------------------------------------------
+  gantt:
+    title: "Gantt: Sprint 2024-03"
+    where:
+      has_schedule: true
+    date_format: "YYYY-MM-DD"
+    axis_format: "%d %b"
+    tick_interval: "1week"
+
+  # ----------------------------------------------------------
+  # Full project tree
+  # ----------------------------------------------------------
+  tree:
+    title: "Project Structure"
+    order_by: parent
+
+  # ----------------------------------------------------------
+  # Tasks by status
+  # ----------------------------------------------------------
+  by-status:
+    title: "By Status"
+    order_by: status
+
+  # ----------------------------------------------------------
+  # Epics only
+  # ----------------------------------------------------------
+  epics:
+    title: "Epics"
+    where:
+      kind: [epic]
+
+  # ----------------------------------------------------------
+  # Dependency graph
+  # ----------------------------------------------------------
+  deps:
+    title: "Dependencies"
+
+# ============================================================
+# Extensions
+# ============================================================
+x:
+  sprint_info:
+    number: "2024-03"
+    start: "2024-03-01"
+    end: "2024-03-29"
+    goal: "Implement authentication and basic profile for MVP"
+    team_capacity: 40  # sp
+    committed: 29      # sp (auth: 21 + profile-view: 3 + profile-edit: 5)
+
+  backlog_stats:
+    total_effort: 60   # sp in backlog
+    next_sprint_candidates:
+      - profile-privacy
+      - profile-export
+      - notif-push
+
+# ============================================================
+# Node Summary:
+# ============================================================
+# SCHEDULED (in schedule.nodes):
+#   - auth-ui, auth-api, auth-oauth, auth-2fa (auth epic)
+#   - profile-view, profile-edit (part of profile epic)
+#   - mvp-release (milestone)
+#
+# NOT SCHEDULED (backlog):
+#   - profile-privacy, profile-export (part of profile epic)
+#   - notif-push, notif-email, notif-settings, notif-history (notifications epic)
+#   - social-friends, social-feed, social-sharing, social-comments (social epic)
+#   - project, auth, profile, notifications, social (summary/epic nodes)

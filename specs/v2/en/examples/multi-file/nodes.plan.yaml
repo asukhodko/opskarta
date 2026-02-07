@@ -1,0 +1,197 @@
+# Work structure file — plan nodes
+# This file contains task hierarchy, dependencies, and effort estimates.
+# Note: NO calendar dates here — only structure and effort.
+
+version: 2
+
+nodes:
+  # ============================================================
+  # Root project node
+  # ============================================================
+  project:
+    title: "Web Platform v1.0"
+    kind: summary
+    status: in_progress
+    effort: 50
+
+  # ============================================================
+  # PHASE 1: Backend
+  # ============================================================
+  backend:
+    title: "Backend"
+    kind: phase
+    parent: project
+    status: in_progress
+    effort: 25
+
+  api:
+    title: "REST API"
+    kind: epic
+    parent: backend
+    status: in_progress
+    effort: 15
+
+  api-auth:
+    title: "Authentication and Authorization"
+    kind: task
+    parent: api
+    status: done
+    effort: 5
+    notes: |
+      JWT tokens, refresh tokens.
+      OAuth2 provider integration.
+
+  api-tasks:
+    title: "Task CRUD Operations"
+    kind: task
+    parent: api
+    after: [api-auth]
+    status: in_progress
+    effort: 5
+
+  api-projects:
+    title: "Project Management"
+    kind: task
+    parent: api
+    after: [api-auth]
+    status: ready
+    effort: 5
+
+  database:
+    title: "Database"
+    kind: epic
+    parent: backend
+    status: done
+    effort: 10
+
+  db-schema:
+    title: "Schema Design"
+    kind: task
+    parent: database
+    status: done
+    effort: 3
+
+  db-migrations:
+    title: "Migrations"
+    kind: task
+    parent: database
+    after: [db-schema]
+    status: done
+    effort: 2
+
+  db-indexes:
+    title: "Index Optimization"
+    kind: task
+    parent: database
+    after: [db-migrations]
+    status: done
+    effort: 5
+
+  # ============================================================
+  # PHASE 2: Frontend
+  # ============================================================
+  frontend:
+    title: "Frontend"
+    kind: phase
+    parent: project
+    after: [api]
+    status: ready
+    effort: 20
+
+  ui-components:
+    title: "UI Components"
+    kind: epic
+    parent: frontend
+    status: ready
+    effort: 8
+
+  ui-design-system:
+    title: "Design System"
+    kind: task
+    parent: ui-components
+    status: ready
+    effort: 3
+
+  ui-forms:
+    title: "Forms and Validation"
+    kind: task
+    parent: ui-components
+    after: [ui-design-system]
+    status: backlog
+    effort: 3
+
+  ui-tables:
+    title: "Tables and Lists"
+    kind: task
+    parent: ui-components
+    after: [ui-design-system]
+    status: backlog
+    effort: 2
+
+  pages:
+    title: "Application Pages"
+    kind: epic
+    parent: frontend
+    after: [ui-components]
+    status: backlog
+    effort: 12
+
+  page-dashboard:
+    title: "Dashboard"
+    kind: task
+    parent: pages
+    status: backlog
+    effort: 5
+
+  page-tasks:
+    title: "Task List"
+    kind: task
+    parent: pages
+    after: [page-dashboard]
+    status: backlog
+    effort: 4
+
+  page-settings:
+    title: "Settings"
+    kind: task
+    parent: pages
+    after: [page-dashboard]
+    status: backlog
+    effort: 3
+
+  # ============================================================
+  # PHASE 3: Testing and Release
+  # ============================================================
+  testing:
+    title: "Testing"
+    kind: phase
+    parent: project
+    after: [backend, frontend]
+    status: backlog
+    effort: 5
+
+  e2e-tests:
+    title: "E2E Tests"
+    kind: task
+    parent: testing
+    status: backlog
+    effort: 3
+
+  performance-tests:
+    title: "Performance Testing"
+    kind: task
+    parent: testing
+    after: [e2e-tests]
+    status: backlog
+    effort: 2
+
+  release-v1:
+    title: "Release v1.0"
+    kind: task
+    parent: project
+    after: [testing]
+    status: backlog
+    milestone: true
+    notes: |
+      Final release of first platform version.
+      Includes all core features.

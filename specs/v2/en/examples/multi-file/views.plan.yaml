@@ -1,0 +1,62 @@
+# Views file — plan visualization
+# Views define how to display the plan but DO NOT affect schedule calculation.
+# In v2, excludes is moved to schedule.calendars, not here.
+
+version: 2
+
+views:
+  overview:
+    title: "Project Overview"
+    where:
+      kind: [phase, epic]
+      has_schedule: true
+    order_by: start
+
+  gantt-full:
+    title: "Full Gantt Chart"
+    where:
+      has_schedule: true
+    
+    lanes:
+      backend:
+        title: "Backend"
+        nodes: [api-auth, api-tasks, api-projects, db-schema, db-migrations, db-indexes]
+      
+      frontend:
+        title: "Frontend"
+        nodes: [ui-design-system, ui-forms, ui-tables, page-dashboard, page-tasks, page-settings]
+      
+      testing:
+        title: "Testing"
+        nodes: [e2e-tests, performance-tests]
+      
+      milestones:
+        title: "Milestones"
+        nodes: [release-v1]
+
+  backlog:
+    title: "Backlog"
+    where:
+      has_schedule: false
+    order_by: effort
+
+  in-progress:
+    title: "In Progress"
+    where:
+      status: [in_progress, review]
+    order_by: title
+
+  backend-tasks:
+    title: "Backend Tasks"
+    where:
+      parent: backend
+      kind: [task]
+    order_by: status
+
+  tree:
+    title: "Project Structure"
+
+  deps:
+    title: "Dependencies"
+    where:
+      kind: [task]

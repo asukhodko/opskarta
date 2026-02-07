@@ -1,0 +1,404 @@
+# Пример плана с частичным расписанием (partial-schedule)
+# Этот файл демонстрирует ключевую возможность v2: часть узлов запланирована
+# на текущий спринт, а остальные остаются в бэклоге без дат.
+#
+# Это типичный сценарий для:
+# - Спринт-планирования (Scrum)
+# - Итеративной разработки
+# - Планирования с горизонтом (ближайшие задачи детализированы, дальние — нет)
+
+version: 2
+
+# ============================================================
+# Метаданные плана
+# ============================================================
+meta:
+  id: sprint-2024-03
+  title: "Спринт 2024-03: Авторизация и профиль"
+  effort_unit: "sp"  # story points
+
+# ============================================================
+# Статусы
+# ============================================================
+statuses:
+  backlog:
+    label: "Бэклог"
+    color: "#9ca3af"
+  
+  ready:
+    label: "Готово к работе"
+    color: "#22d3ee"
+  
+  in_progress:
+    label: "В работе"
+    color: "#0ea5e9"
+  
+  review:
+    label: "На ревью"
+    color: "#a78bfa"
+  
+  done:
+    label: "Готово"
+    color: "#22c55e"
+
+# ============================================================
+# Структура работ
+# ============================================================
+nodes:
+  # ------------------------------------------------------------
+  # Корневой узел — весь проект
+  # ------------------------------------------------------------
+  project:
+    title: "Мобильное приложение"
+    kind: summary
+    status: in_progress
+    effort: 89
+
+  # ============================================================
+  # ЭПИК 1: Авторизация (в текущем спринте)
+  # ============================================================
+  auth:
+    title: "Авторизация"
+    kind: epic
+    parent: project
+    status: in_progress
+    effort: 21
+    notes: |
+      Эпик авторизации — приоритет текущего спринта.
+      Все задачи запланированы на март 2024.
+
+  # --- Задачи авторизации (ЗАПЛАНИРОВАНЫ) ---
+  auth-ui:
+    title: "UI экранов входа"
+    kind: task
+    parent: auth
+    status: done
+    effort: 3
+    notes: "Экраны логина, регистрации, восстановления пароля"
+
+  auth-api:
+    title: "API авторизации"
+    kind: task
+    parent: auth
+    after: [auth-ui]
+    status: in_progress
+    effort: 5
+    notes: "JWT токены, refresh, logout"
+
+  auth-oauth:
+    title: "OAuth интеграция"
+    kind: task
+    parent: auth
+    after: [auth-api]
+    status: ready
+    effort: 8
+    notes: "Google, Apple, VK"
+
+  auth-2fa:
+    title: "Двухфакторная аутентификация"
+    kind: task
+    parent: auth
+    after: [auth-oauth]
+    status: ready
+    effort: 5
+    notes: "SMS и TOTP"
+
+  # ============================================================
+  # ЭПИК 2: Профиль пользователя (частично в спринте)
+  # ============================================================
+  profile:
+    title: "Профиль пользователя"
+    kind: epic
+    parent: project
+    after: [auth]
+    status: in_progress
+    effort: 13
+    notes: |
+      Часть задач в текущем спринте, часть — в бэклоге.
+
+  # --- Задачи профиля (ЗАПЛАНИРОВАНЫ) ---
+  profile-view:
+    title: "Просмотр профиля"
+    kind: task
+    parent: profile
+    status: in_progress
+    effort: 3
+    notes: "Отображение данных пользователя"
+
+  profile-edit:
+    title: "Редактирование профиля"
+    kind: task
+    parent: profile
+    after: [profile-view]
+    status: ready
+    effort: 5
+    notes: "Изменение имени, аватара, контактов"
+
+  # --- Задачи профиля (НЕ ЗАПЛАНИРОВАНЫ — бэклог) ---
+  profile-privacy:
+    title: "Настройки приватности"
+    kind: task
+    parent: profile
+    after: [profile-edit]
+    status: backlog
+    effort: 3
+    notes: "Кто видит профиль, блокировка пользователей"
+
+  profile-export:
+    title: "Экспорт данных"
+    kind: task
+    parent: profile
+    after: [profile-privacy]
+    status: backlog
+    effort: 2
+    notes: "GDPR compliance — выгрузка данных пользователя"
+
+  # ============================================================
+  # ЭПИК 3: Уведомления (полностью в бэклоге)
+  # ============================================================
+  notifications:
+    title: "Уведомления"
+    kind: epic
+    parent: project
+    after: [profile]
+    status: backlog
+    effort: 21
+    notes: |
+      Весь эпик в бэклоге — планируется на следующий спринт.
+
+  # --- Задачи уведомлений (НЕ ЗАПЛАНИРОВАНЫ) ---
+  notif-push:
+    title: "Push-уведомления"
+    kind: task
+    parent: notifications
+    status: backlog
+    effort: 8
+    notes: "Firebase Cloud Messaging"
+
+  notif-email:
+    title: "Email-уведомления"
+    kind: task
+    parent: notifications
+    after: [notif-push]
+    status: backlog
+    effort: 5
+    notes: "Транзакционные письма"
+
+  notif-settings:
+    title: "Настройки уведомлений"
+    kind: task
+    parent: notifications
+    after: [notif-push]
+    status: backlog
+    effort: 3
+    notes: "Управление подписками"
+
+  notif-history:
+    title: "История уведомлений"
+    kind: task
+    parent: notifications
+    after: [notif-settings]
+    status: backlog
+    effort: 5
+    notes: "Лента уведомлений в приложении"
+
+  # ============================================================
+  # ЭПИК 4: Социальные функции (полностью в бэклоге)
+  # ============================================================
+  social:
+    title: "Социальные функции"
+    kind: epic
+    parent: project
+    after: [notifications]
+    status: backlog
+    effort: 34
+    notes: |
+      Планируется на Q2 2024.
+
+  # --- Задачи социальных функций (НЕ ЗАПЛАНИРОВАНЫ) ---
+  social-friends:
+    title: "Друзья"
+    kind: task
+    parent: social
+    status: backlog
+    effort: 8
+
+  social-feed:
+    title: "Лента активности"
+    kind: task
+    parent: social
+    after: [social-friends]
+    status: backlog
+    effort: 13
+
+  social-sharing:
+    title: "Шаринг контента"
+    kind: task
+    parent: social
+    after: [social-feed]
+    status: backlog
+    effort: 8
+
+  social-comments:
+    title: "Комментарии"
+    kind: task
+    parent: social
+    after: [social-sharing]
+    status: backlog
+    effort: 5
+
+  # ============================================================
+  # Веха: Релиз MVP
+  # ============================================================
+  mvp-release:
+    title: "Релиз MVP"
+    kind: task
+    parent: project
+    after: [auth, profile]
+    status: ready
+    milestone: true
+    notes: |
+      MVP включает авторизацию и базовый профиль.
+      Запланирован на конец текущего спринта.
+
+# ============================================================
+# Расписание (только для текущего спринта!)
+# ============================================================
+schedule:
+  calendars:
+    work:
+      excludes:
+        - weekends
+        - "2024-03-08"  # Международный женский день
+
+  default_calendar: work
+
+  # ВАЖНО: Только эти узлы имеют календарные даты!
+  # Остальные узлы — в бэклоге без дат.
+  nodes:
+    # --- Авторизация (весь эпик в спринте) ---
+    auth-ui:
+      start: "2024-03-01"
+      duration: "3d"
+
+    auth-api:
+      # start вычисляется из after: [auth-ui]
+      duration: "5d"
+
+    auth-oauth:
+      # start вычисляется из after: [auth-api]
+      duration: "6d"  # 8 sp ≈ 6 рабочих дней
+
+    auth-2fa:
+      # start вычисляется из after: [auth-oauth]
+      duration: "4d"  # 5 sp ≈ 4 рабочих дня
+
+    # --- Профиль (только часть в спринте) ---
+    profile-view:
+      start: "2024-03-01"  # параллельно с auth-ui
+      duration: "3d"
+
+    profile-edit:
+      # start вычисляется из after: [profile-view]
+      duration: "4d"
+
+    # profile-privacy и profile-export — НЕ в schedule (бэклог)
+
+    # --- Веха MVP ---
+    mvp-release: {}
+      # start вычисляется из after: [auth, profile]
+      # Веха — без duration
+
+# ============================================================
+# Представления
+# ============================================================
+views:
+  # ----------------------------------------------------------
+  # Ключевое представление: только запланированные задачи
+  # ----------------------------------------------------------
+  sprint:
+    title: "Текущий спринт"
+    where:
+      has_schedule: true  # ТОЛЬКО узлы из schedule.nodes
+    order_by: status
+
+  # ----------------------------------------------------------
+  # Ключевое представление: только бэклог (незапланированные)
+  # ----------------------------------------------------------
+  backlog:
+    title: "Бэклог (незапланированные)"
+    where:
+      has_schedule: false  # ТОЛЬКО узлы НЕ в schedule.nodes
+    order_by: parent
+
+  # ----------------------------------------------------------
+  # Gantt-диаграмма спринта
+  # ----------------------------------------------------------
+  gantt:
+    title: "Gantt: Спринт 2024-03"
+    where:
+      has_schedule: true
+    date_format: "YYYY-MM-DD"
+    axis_format: "%d %b"
+    tick_interval: "1week"
+
+  # ----------------------------------------------------------
+  # Полное дерево проекта
+  # ----------------------------------------------------------
+  tree:
+    title: "Структура проекта"
+    order_by: parent
+
+  # ----------------------------------------------------------
+  # Задачи по статусам
+  # ----------------------------------------------------------
+  by-status:
+    title: "По статусам"
+    order_by: status
+
+  # ----------------------------------------------------------
+  # Только эпики
+  # ----------------------------------------------------------
+  epics:
+    title: "Эпики"
+    where:
+      kind: [epic]
+
+  # ----------------------------------------------------------
+  # Граф зависимостей
+  # ----------------------------------------------------------
+  deps:
+    title: "Зависимости"
+
+# ============================================================
+# Расширения
+# ============================================================
+x:
+  sprint_info:
+    number: "2024-03"
+    start: "2024-03-01"
+    end: "2024-03-29"
+    goal: "Реализовать авторизацию и базовый профиль для MVP"
+    team_capacity: 40  # sp
+    committed: 29      # sp (auth: 21 + profile-view: 3 + profile-edit: 5)
+
+  backlog_stats:
+    total_effort: 60   # sp в бэклоге
+    next_sprint_candidates:
+      - profile-privacy
+      - profile-export
+      - notif-push
+
+# ============================================================
+# Сводка по узлам:
+# ============================================================
+# ЗАПЛАНИРОВАНЫ (в schedule.nodes):
+#   - auth-ui, auth-api, auth-oauth, auth-2fa (эпик auth)
+#   - profile-view, profile-edit (часть эпика profile)
+#   - mvp-release (веха)
+#
+# НЕ ЗАПЛАНИРОВАНЫ (бэклог):
+#   - profile-privacy, profile-export (часть эпика profile)
+#   - notif-push, notif-email, notif-settings, notif-history (эпик notifications)
+#   - social-friends, social-feed, social-sharing, social-comments (эпик social)
+#   - project, auth, profile, notifications, social (summary/epic узлы)

@@ -1,0 +1,391 @@
+# Пример плана без расписания (no-schedule)
+# Этот файл демонстрирует, что план v2 может быть валидным и полезным
+# без блока schedule — только структура, иерархия, зависимости и effort.
+#
+# Такой формат идеален для:
+# - Бэклогов продукта
+# - Дорожных карт (roadmaps)
+# - Ранних стадий планирования
+# - Оценки объёма работ до привязки к календарю
+
+version: 2
+
+# ============================================================
+# Метаданные плана
+# ============================================================
+meta:
+  id: product-backlog
+  title: "Бэклог продукта: Мобильное приложение"
+  effort_unit: "sp"  # story points
+
+# ============================================================
+# Статусы для отслеживания прогресса
+# ============================================================
+statuses:
+  idea:
+    label: "Идея"
+    color: "#e5e7eb"
+  
+  refined:
+    label: "Уточнено"
+    color: "#a78bfa"
+  
+  ready:
+    label: "Готово к разработке"
+    color: "#22d3ee"
+  
+  in_progress:
+    label: "В работе"
+    color: "#0ea5e9"
+  
+  done:
+    label: "Готово"
+    color: "#22c55e"
+
+# ============================================================
+# Структура работ (без календарных дат!)
+# ============================================================
+nodes:
+  # ------------------------------------------------------------
+  # Корневой узел — весь бэклог
+  # ------------------------------------------------------------
+  backlog:
+    title: "Бэклог мобильного приложения"
+    kind: summary
+    status: in_progress
+    effort: 100  # общая оценка бэклога
+    notes: |
+      Полный бэклог продукта для мобильного приложения.
+      Приоритизация по бизнес-ценности.
+
+  # ============================================================
+  # ЭПИК 1: Онбординг пользователей
+  # ============================================================
+  onboarding:
+    title: "Онбординг пользователей"
+    kind: epic
+    parent: backlog
+    status: refined
+    effort: 21
+    notes: |
+      Первый опыт пользователя в приложении.
+      Критически важен для удержания.
+
+  # --- User Stories для онбординга ---
+  welcome-screens:
+    title: "Экраны приветствия"
+    kind: user_story
+    parent: onboarding
+    status: ready
+    effort: 5
+    notes: |
+      Как новый пользователь, я хочу увидеть краткий обзор
+      возможностей приложения при первом запуске.
+
+  registration:
+    title: "Регистрация"
+    kind: user_story
+    parent: onboarding
+    after: [welcome-screens]
+    status: ready
+    effort: 8
+    notes: |
+      Как новый пользователь, я хочу зарегистрироваться
+      через email или социальные сети.
+
+  profile-setup:
+    title: "Настройка профиля"
+    kind: user_story
+    parent: onboarding
+    after: [registration]
+    status: refined
+    effort: 5
+    notes: |
+      Как зарегистрированный пользователь, я хочу
+      заполнить свой профиль и настроить предпочтения.
+
+  tutorial:
+    title: "Интерактивный туториал"
+    kind: user_story
+    parent: onboarding
+    after: [profile-setup]
+    status: idea
+    effort: 3
+    notes: |
+      Как новый пользователь, я хочу пройти короткий
+      интерактивный туториал по основным функциям.
+
+  # ============================================================
+  # ЭПИК 2: Основной функционал
+  # ============================================================
+  core-features:
+    title: "Основной функционал"
+    kind: epic
+    parent: backlog
+    after: [onboarding]
+    status: refined
+    effort: 34
+    notes: |
+      Ключевые функции приложения.
+      MVP включает этот эпик.
+
+  # --- User Stories для основного функционала ---
+  dashboard:
+    title: "Главный экран (дашборд)"
+    kind: user_story
+    parent: core-features
+    status: ready
+    effort: 8
+    notes: |
+      Как пользователь, я хочу видеть сводку
+      важной информации на главном экране.
+
+  search:
+    title: "Поиск"
+    kind: user_story
+    parent: core-features
+    status: refined
+    effort: 5
+    notes: |
+      Как пользователь, я хочу быстро находить
+      нужную информацию через поиск.
+
+  notifications:
+    title: "Уведомления"
+    kind: user_story
+    parent: core-features
+    after: [dashboard]
+    status: refined
+    effort: 8
+    notes: |
+      Как пользователь, я хочу получать push-уведомления
+      о важных событиях.
+
+  settings:
+    title: "Настройки приложения"
+    kind: user_story
+    parent: core-features
+    status: idea
+    effort: 5
+    notes: |
+      Как пользователь, я хочу настраивать
+      поведение приложения под себя.
+
+  offline-mode:
+    title: "Офлайн-режим"
+    kind: user_story
+    parent: core-features
+    after: [dashboard, search]
+    status: idea
+    effort: 8
+    notes: |
+      Как пользователь, я хочу использовать
+      основные функции без интернета.
+
+  # ============================================================
+  # ЭПИК 3: Социальные функции
+  # ============================================================
+  social:
+    title: "Социальные функции"
+    kind: epic
+    parent: backlog
+    after: [core-features]
+    status: idea
+    effort: 21
+    notes: |
+      Функции для взаимодействия между пользователями.
+      Планируется после MVP.
+
+  # --- User Stories для социальных функций ---
+  user-profiles:
+    title: "Профили пользователей"
+    kind: user_story
+    parent: social
+    status: idea
+    effort: 5
+    notes: |
+      Как пользователь, я хочу просматривать
+      профили других пользователей.
+
+  friends:
+    title: "Друзья и подписки"
+    kind: user_story
+    parent: social
+    after: [user-profiles]
+    status: idea
+    effort: 8
+    notes: |
+      Как пользователь, я хочу добавлять друзей
+      и подписываться на интересных людей.
+
+  sharing:
+    title: "Шаринг контента"
+    kind: user_story
+    parent: social
+    after: [user-profiles]
+    status: idea
+    effort: 5
+    notes: |
+      Как пользователь, я хочу делиться
+      контентом с друзьями и в соцсетях.
+
+  comments:
+    title: "Комментарии"
+    kind: user_story
+    parent: social
+    after: [friends]
+    status: idea
+    effort: 3
+    notes: |
+      Как пользователь, я хочу оставлять
+      комментарии к контенту других.
+
+  # ============================================================
+  # ЭПИК 4: Монетизация
+  # ============================================================
+  monetization:
+    title: "Монетизация"
+    kind: epic
+    parent: backlog
+    after: [social]
+    status: idea
+    effort: 13
+    notes: |
+      Функции для монетизации приложения.
+      Планируется после набора базы пользователей.
+
+  # --- User Stories для монетизации ---
+  premium-subscription:
+    title: "Премиум-подписка"
+    kind: user_story
+    parent: monetization
+    status: idea
+    effort: 8
+    notes: |
+      Как пользователь, я хочу оформить подписку
+      для доступа к премиум-функциям.
+
+  in-app-purchases:
+    title: "Внутренние покупки"
+    kind: user_story
+    parent: monetization
+    after: [premium-subscription]
+    status: idea
+    effort: 5
+    notes: |
+      Как пользователь, я хочу покупать
+      дополнительный контент в приложении.
+
+  # ============================================================
+  # Технический долг (без привязки к эпикам)
+  # ============================================================
+  tech-debt:
+    title: "Технический долг"
+    kind: epic
+    parent: backlog
+    status: refined
+    effort: 11
+    notes: |
+      Задачи по улучшению кодовой базы.
+      Выполняются параллельно с фичами.
+
+  refactor-auth:
+    title: "Рефакторинг авторизации"
+    kind: task
+    parent: tech-debt
+    status: ready
+    effort: 3
+
+  improve-performance:
+    title: "Оптимизация производительности"
+    kind: task
+    parent: tech-debt
+    status: idea
+    effort: 5
+
+  update-dependencies:
+    title: "Обновление зависимостей"
+    kind: task
+    parent: tech-debt
+    status: refined
+    effort: 3
+
+# ============================================================
+# Представления для визуализации бэклога
+# ============================================================
+views:
+  # Полное дерево бэклога
+  tree:
+    title: "Структура бэклога"
+    order_by: parent
+
+  # Список по статусам
+  by-status:
+    title: "По статусам"
+    order_by: status
+
+  # Только готовые к разработке
+  ready-for-dev:
+    title: "Готово к разработке"
+    where:
+      status: [ready]
+    order_by: parent
+
+  # Только идеи (для груминга)
+  ideas:
+    title: "Идеи для груминга"
+    where:
+      status: [idea]
+
+  # Только эпики (для roadmap)
+  epics:
+    title: "Эпики (Roadmap)"
+    where:
+      kind: [epic]
+    order_by: parent
+
+  # User stories
+  user-stories:
+    title: "User Stories"
+    where:
+      kind: [user_story]
+    order_by: status
+
+  # Граф зависимостей
+  deps:
+    title: "Зависимости"
+
+# ============================================================
+# Расширения — дополнительные данные
+# ============================================================
+x:
+  priorities:
+    onboarding: "P0 - Критично"
+    core-features: "P0 - Критично"
+    social: "P1 - Важно"
+    monetization: "P2 - Желательно"
+    tech-debt: "P1 - Важно"
+  
+  team:
+    product_owner: "Анна Иванова"
+    tech_lead: "Сергей Петров"
+    designers: ["Мария", "Дмитрий"]
+    developers: ["Алексей", "Елена", "Николай"]
+
+# ============================================================
+# Вычисляемые метрики effort (для справки):
+# ============================================================
+# backlog:
+#   effort = 100 (явно задан)
+#   effort_rollup = 21 + 34 + 21 + 13 + 11 = 100
+#   effort_gap = max(0, 100 - 100) = 0 ✓ (декомпозиция полная)
+#
+# onboarding:
+#   effort = 21 (явно задан)
+#   effort_rollup = 5 + 8 + 5 + 3 = 21
+#   effort_gap = 0 ✓
+#
+# core-features:
+#   effort = 34 (явно задан)
+#   effort_rollup = 8 + 5 + 8 + 5 + 8 = 34
+#   effort_gap = 0 ✓

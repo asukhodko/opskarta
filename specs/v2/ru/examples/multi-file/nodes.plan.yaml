@@ -1,0 +1,202 @@
+# Файл структуры работ — узлы плана
+# Этот файл содержит иерархию задач, их зависимости и оценки трудозатрат.
+# Обратите внимание: здесь НЕТ календарных дат — только структура и effort.
+
+version: 2
+
+nodes:
+  # ============================================================
+  # Корневой узел проекта
+  # ============================================================
+  project:
+    title: "Веб-платформа v1.0"
+    kind: summary
+    status: in_progress
+    effort: 50  # общая оценка проекта в story points
+
+  # ============================================================
+  # ФАЗА 1: Бэкенд
+  # ============================================================
+  backend:
+    title: "Бэкенд"
+    kind: phase
+    parent: project
+    status: in_progress
+    effort: 25
+
+  # --- Эпик: API ---
+  api:
+    title: "REST API"
+    kind: epic
+    parent: backend
+    status: in_progress
+    effort: 15
+
+  api-auth:
+    title: "Аутентификация и авторизация"
+    kind: task
+    parent: api
+    status: done
+    effort: 5
+    notes: |
+      JWT токены, refresh tokens.
+      Интеграция с OAuth2 провайдерами.
+
+  api-tasks:
+    title: "CRUD операции для задач"
+    kind: task
+    parent: api
+    after: [api-auth]  # зависимость определена здесь, не в schedule
+    status: in_progress
+    effort: 5
+
+  api-projects:
+    title: "Управление проектами"
+    kind: task
+    parent: api
+    after: [api-auth]
+    status: ready
+    effort: 5
+
+  # --- Эпик: База данных ---
+  database:
+    title: "База данных"
+    kind: epic
+    parent: backend
+    status: done
+    effort: 10
+
+  db-schema:
+    title: "Проектирование схемы"
+    kind: task
+    parent: database
+    status: done
+    effort: 3
+
+  db-migrations:
+    title: "Миграции"
+    kind: task
+    parent: database
+    after: [db-schema]
+    status: done
+    effort: 2
+
+  db-indexes:
+    title: "Оптимизация индексов"
+    kind: task
+    parent: database
+    after: [db-migrations]
+    status: done
+    effort: 5
+
+  # ============================================================
+  # ФАЗА 2: Фронтенд
+  # ============================================================
+  frontend:
+    title: "Фронтенд"
+    kind: phase
+    parent: project
+    after: [api]  # фронтенд начинается после готовности API
+    status: ready
+    effort: 20
+
+  # --- Эпик: UI компоненты ---
+  ui-components:
+    title: "UI компоненты"
+    kind: epic
+    parent: frontend
+    status: ready
+    effort: 8
+
+  ui-design-system:
+    title: "Дизайн-система"
+    kind: task
+    parent: ui-components
+    status: ready
+    effort: 3
+
+  ui-forms:
+    title: "Формы и валидация"
+    kind: task
+    parent: ui-components
+    after: [ui-design-system]
+    status: backlog
+    effort: 3
+
+  ui-tables:
+    title: "Таблицы и списки"
+    kind: task
+    parent: ui-components
+    after: [ui-design-system]
+    status: backlog
+    effort: 2
+
+  # --- Эпик: Страницы ---
+  pages:
+    title: "Страницы приложения"
+    kind: epic
+    parent: frontend
+    after: [ui-components]
+    status: backlog
+    effort: 12
+
+  page-dashboard:
+    title: "Дашборд"
+    kind: task
+    parent: pages
+    status: backlog
+    effort: 5
+
+  page-tasks:
+    title: "Список задач"
+    kind: task
+    parent: pages
+    after: [page-dashboard]
+    status: backlog
+    effort: 4
+
+  page-settings:
+    title: "Настройки"
+    kind: task
+    parent: pages
+    after: [page-dashboard]
+    status: backlog
+    effort: 3
+
+  # ============================================================
+  # ФАЗА 3: Тестирование и релиз
+  # ============================================================
+  testing:
+    title: "Тестирование"
+    kind: phase
+    parent: project
+    after: [backend, frontend]
+    status: backlog
+    effort: 5
+
+  e2e-tests:
+    title: "E2E тесты"
+    kind: task
+    parent: testing
+    status: backlog
+    effort: 3
+
+  performance-tests:
+    title: "Нагрузочное тестирование"
+    kind: task
+    parent: testing
+    after: [e2e-tests]
+    status: backlog
+    effort: 2
+
+  # --- Веха: Релиз ---
+  release-v1:
+    title: "Релиз v1.0"
+    kind: task
+    parent: project
+    after: [testing]
+    status: backlog
+    milestone: true
+    notes: |
+      Финальный релиз первой версии платформы.
+      Включает все основные функции.

@@ -1,0 +1,45 @@
+# Main plan file — metadata and statuses
+# This file contains general project information and status definitions
+# used across all other fragments.
+
+version: 2
+
+meta:
+  id: web-platform
+  title: "Web Platform for Task Management"
+  effort_unit: "sp"  # story points
+
+statuses:
+  backlog:
+    label: "Backlog"
+    color: "#9ca3af"
+  
+  ready:
+    label: "Ready"
+    color: "#a78bfa"
+  
+  in_progress:
+    label: "In Progress"
+    color: "#0ea5e9"
+  
+  review:
+    label: "In Review"
+    color: "#f59e0b"
+  
+  done:
+    label: "Done"
+    color: "#22c55e"
+  
+  blocked:
+    label: "Blocked"
+    color: "#ef4444"
+
+x:
+  team:
+    backend: ["Alex", "Maria"]
+    frontend: ["David", "Elena"]
+    qa: ["Olga"]
+  
+  contacts:
+    product_owner: "John Smith"
+    tech_lead: "Alex Johnson"

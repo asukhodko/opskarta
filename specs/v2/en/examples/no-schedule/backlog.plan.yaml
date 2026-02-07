@@ -1,0 +1,345 @@
+# Example: Plan without schedule (no-schedule)
+# This file demonstrates that a v2 plan can be valid and useful
+# without a schedule block — just structure, hierarchy, dependencies, and effort.
+#
+# This format is ideal for:
+# - Product backlogs
+# - Roadmaps
+# - Early planning stages
+# - Scope estimation before calendar binding
+
+version: 2
+
+# ============================================================
+# Plan Metadata
+# ============================================================
+meta:
+  id: product-backlog
+  title: "Product Backlog: Mobile App"
+  effort_unit: "sp"  # story points
+
+# ============================================================
+# Statuses for Progress Tracking
+# ============================================================
+statuses:
+  idea:
+    label: "Idea"
+    color: "#e5e7eb"
+  
+  refined:
+    label: "Refined"
+    color: "#a78bfa"
+  
+  ready:
+    label: "Ready for Dev"
+    color: "#22d3ee"
+  
+  in_progress:
+    label: "In Progress"
+    color: "#0ea5e9"
+  
+  done:
+    label: "Done"
+    color: "#22c55e"
+
+# ============================================================
+# Work Structure (no calendar dates!)
+# ============================================================
+nodes:
+  # ------------------------------------------------------------
+  # Root node — entire backlog
+  # ------------------------------------------------------------
+  backlog:
+    title: "Mobile App Backlog"
+    kind: summary
+    status: in_progress
+    effort: 100
+    notes: |
+      Complete product backlog for mobile app.
+      Prioritized by business value.
+
+  # ============================================================
+  # EPIC 1: User Onboarding
+  # ============================================================
+  onboarding:
+    title: "User Onboarding"
+    kind: epic
+    parent: backlog
+    status: refined
+    effort: 21
+    notes: |
+      First user experience in the app.
+      Critical for retention.
+
+  welcome-screens:
+    title: "Welcome Screens"
+    kind: user_story
+    parent: onboarding
+    status: ready
+    effort: 5
+    notes: |
+      As a new user, I want to see a brief overview
+      of app features on first launch.
+
+  registration:
+    title: "Registration"
+    kind: user_story
+    parent: onboarding
+    after: [welcome-screens]
+    status: ready
+    effort: 8
+    notes: |
+      As a new user, I want to register
+      via email or social networks.
+
+  profile-setup:
+    title: "Profile Setup"
+    kind: user_story
+    parent: onboarding
+    after: [registration]
+    status: refined
+    effort: 5
+    notes: |
+      As a registered user, I want to
+      fill my profile and set preferences.
+
+  tutorial:
+    title: "Interactive Tutorial"
+    kind: user_story
+    parent: onboarding
+    after: [profile-setup]
+    status: idea
+    effort: 3
+    notes: |
+      As a new user, I want to complete a short
+      interactive tutorial on main features.
+
+  # ============================================================
+  # EPIC 2: Core Features
+  # ============================================================
+  core-features:
+    title: "Core Features"
+    kind: epic
+    parent: backlog
+    after: [onboarding]
+    status: refined
+    effort: 34
+    notes: |
+      Key app functionality.
+      MVP includes this epic.
+
+  dashboard:
+    title: "Dashboard"
+    kind: user_story
+    parent: core-features
+    status: ready
+    effort: 8
+    notes: |
+      As a user, I want to see a summary
+      of important information on the main screen.
+
+  search:
+    title: "Search"
+    kind: user_story
+    parent: core-features
+    status: refined
+    effort: 5
+    notes: |
+      As a user, I want to quickly find
+      needed information via search.
+
+  notifications:
+    title: "Notifications"
+    kind: user_story
+    parent: core-features
+    after: [dashboard]
+    status: refined
+    effort: 8
+    notes: |
+      As a user, I want to receive push notifications
+      about important events.
+
+  settings:
+    title: "App Settings"
+    kind: user_story
+    parent: core-features
+    status: idea
+    effort: 5
+    notes: |
+      As a user, I want to customize
+      app behavior to my preferences.
+
+  offline-mode:
+    title: "Offline Mode"
+    kind: user_story
+    parent: core-features
+    after: [dashboard, search]
+    status: idea
+    effort: 8
+    notes: |
+      As a user, I want to use
+      main features without internet.
+
+  # ============================================================
+  # EPIC 3: Social Features
+  # ============================================================
+  social:
+    title: "Social Features"
+    kind: epic
+    parent: backlog
+    after: [core-features]
+    status: idea
+    effort: 21
+    notes: |
+      Features for user interaction.
+      Planned after MVP.
+
+  user-profiles:
+    title: "User Profiles"
+    kind: user_story
+    parent: social
+    status: idea
+    effort: 5
+    notes: |
+      As a user, I want to view
+      other users' profiles.
+
+  friends:
+    title: "Friends and Follows"
+    kind: user_story
+    parent: social
+    after: [user-profiles]
+    status: idea
+    effort: 8
+    notes: |
+      As a user, I want to add friends
+      and follow interesting people.
+
+  sharing:
+    title: "Content Sharing"
+    kind: user_story
+    parent: social
+    after: [user-profiles]
+    status: idea
+    effort: 5
+    notes: |
+      As a user, I want to share
+      content with friends and on social media.
+
+  comments:
+    title: "Comments"
+    kind: user_story
+    parent: social
+    after: [friends]
+    status: idea
+    effort: 3
+    notes: |
+      As a user, I want to leave
+      comments on others' content.
+
+  # ============================================================
+  # EPIC 4: Monetization
+  # ============================================================
+  monetization:
+    title: "Monetization"
+    kind: epic
+    parent: backlog
+    after: [social]
+    status: idea
+    effort: 13
+    notes: |
+      App monetization features.
+      Planned after user base growth.
+
+  premium-subscription:
+    title: "Premium Subscription"
+    kind: user_story
+    parent: monetization
+    status: idea
+    effort: 8
+    notes: |
+      As a user, I want to subscribe
+      for access to premium features.
+
+  in-app-purchases:
+    title: "In-App Purchases"
+    kind: user_story
+    parent: monetization
+    after: [premium-subscription]
+    status: idea
+    effort: 5
+    notes: |
+      As a user, I want to buy
+      additional content in the app.
+
+  # ============================================================
+  # Technical Debt
+  # ============================================================
+  tech-debt:
+    title: "Technical Debt"
+    kind: epic
+    parent: backlog
+    status: refined
+    effort: 11
+    notes: |
+      Codebase improvement tasks.
+      Done in parallel with features.
+
+  refactor-auth:
+    title: "Auth Refactoring"
+    kind: task
+    parent: tech-debt
+    status: ready
+    effort: 3
+
+  improve-performance:
+    title: "Performance Optimization"
+    kind: task
+    parent: tech-debt
+    status: idea
+    effort: 5
+
+  update-dependencies:
+    title: "Update Dependencies"
+    kind: task
+    parent: tech-debt
+    status: refined
+    effort: 3
+
+# ============================================================
+# Views for Backlog Visualization
+# ============================================================
+views:
+  tree:
+    title: "Backlog Structure"
+    order_by: parent
+
+  by-status:
+    title: "By Status"
+    order_by: status
+
+  ready-for-dev:
+    title: "Ready for Development"
+    where:
+      status: [ready]
+    order_by: parent
+
+  ideas:
+    title: "Ideas for Grooming"
+    where:
+      status: [idea]
+
+  epics:
+    title: "Epics (Roadmap)"
+    where:
+      kind: [epic]
+    order_by: parent
+
+  user-stories:
+    title: "User Stories"
+    where:
+      kind: [user_story]
+    order_by: status
+
+  deps:
+    title: "Dependencies"
