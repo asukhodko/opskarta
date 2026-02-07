@@ -101,7 +101,7 @@ def parse_duration(duration_str: str) -> Optional[int]:
     if unit == "d":
         return value
     elif unit == "w":
-        return value * 7
+        return value * 5  # 1 week = 5 working days (per spec)
     
     return None
 

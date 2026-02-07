@@ -1165,3 +1165,257 @@ meta:
         self.assertEqual(result.meta.title, "Project X Title")
         self.assertEqual(result.sources["meta:id"], path1)
         self.assertEqual(result.sources["meta:title"], path2)
+
+
+class TestForbiddenNodeFields(unittest.TestCase):
+    """Tests for forbidden fields in nodes (Requirement 2.4).
+    
+    In v2, calendar-related fields (start, finish, duration, excludes)
+    are forbidden in nodes and must be in schedule.nodes instead.
+    """
+    
+    def test_forbidden_node_fields_constant(self):
+        """FORBIDDEN_NODE_FIELDS contains all forbidden fields."""
+        from specs.v2.tools.loader import FORBIDDEN_NODE_FIELDS
+        
+        expected = {"start", "finish", "duration", "excludes"}
+        self.assertEqual(FORBIDDEN_NODE_FIELDS, expected)
+    
+    def test_node_with_start_raises_error(self):
+        """Node with 'start' field raises LoadError."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 2,
+            "nodes": {
+                "task1": {
+                    "title": "Task 1",
+                    "start": "2024-03-01",  # Forbidden!
+                },
+            },
+        }
+        
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+        
+        self.assertIn("start", str(ctx.exception))
+        self.assertIn("task1", str(ctx.exception))
+        self.assertIn("schedule.nodes", str(ctx.exception))
+    
+    def test_node_with_finish_raises_error(self):
+        """Node with 'finish' field raises LoadError."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 2,
+            "nodes": {
+                "task1": {
+                    "title": "Task 1",
+                    "finish": "2024-03-10",  # Forbidden!
+                },
+            },
+        }
+        
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+        
+        self.assertIn("finish", str(ctx.exception))
+        self.assertIn("task1", str(ctx.exception))
+    
+    def test_node_with_duration_raises_error(self):
+        """Node with 'duration' field raises LoadError."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 2,
+            "nodes": {
+                "task1": {
+                    "title": "Task 1",
+                    "duration": "5d",  # Forbidden!
+                },
+            },
+        }
+        
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+        
+        self.assertIn("duration", str(ctx.exception))
+        self.assertIn("task1", str(ctx.exception))
+    
+    def test_node_with_excludes_raises_error(self):
+        """Node with 'excludes' field raises LoadError."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 2,
+            "nodes": {
+                "task1": {
+                    "title": "Task 1",
+                    "excludes": ["weekends"],  # Forbidden!
+                },
+            },
+        }
+        
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+        
+        self.assertIn("excludes", str(ctx.exception))
+        self.assertIn("task1", str(ctx.exception))
+    
+    def test_error_includes_file_path(self):
+        """Error message includes file path."""
+        fragment = {
+            "_source": "/path/to/plan.yaml",
+            "version": 2,
+            "nodes": {
+                "task1": {
+                    "title": "Task 1",
+                    "start": "2024-03-01",
+                },
+            },
+        }
+        
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+        
+        self.assertEqual(ctx.exception.file_path, "/path/to/plan.yaml")
+    
+    def test_error_includes_block_name(self):
+        """Error message includes block name with path."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 2,
+            "nodes": {
+                "my_task": {
+                    "title": "My Task",
+                    "duration": "3d",
+                },
+            },
+        }
+        
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+        
+        self.assertEqual(ctx.exception.block_name, "nodes.my_task.duration")
+    
+    def test_multiple_forbidden_fields_reports_first(self):
+        """Multiple forbidden fields - first one is reported."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 2,
+            "nodes": {
+                "task1": {
+                    "title": "Task 1",
+                    "start": "2024-03-01",
+                    "duration": "5d",
+                    "finish": "2024-03-10",
+                },
+            },
+        }
+        
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+        
+        # At least one forbidden field is reported
+        error_msg = str(ctx.exception)
+        self.assertTrue(
+            "start" in error_msg or "duration" in error_msg or "finish" in error_msg
+        )
+    
+    def test_valid_node_without_forbidden_fields(self):
+        """Node without forbidden fields is valid."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 2,
+            "nodes": {
+                "task1": {
+                    "title": "Task 1",
+                    "kind": "task",
+                    "status": "in_progress",
+                    "parent": "root",
+                    "after": ["task0"],
+                    "effort": 5,
+                },
+            },
+        }
+        
+        result = merge_fragments([fragment])
+        
+        self.assertEqual(len(result.nodes), 1)
+        self.assertEqual(result.nodes["task1"].title, "Task 1")
+    
+    def test_schedule_nodes_can_have_calendar_fields(self):
+        """schedule.nodes CAN have start/finish/duration (not forbidden there)."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 2,
+            "nodes": {
+                "task1": {"title": "Task 1"},
+            },
+            "schedule": {
+                "nodes": {
+                    "task1": {
+                        "start": "2024-03-01",
+                        "duration": "5d",
+                        "finish": "2024-03-08",
+                    },
+                },
+            },
+        }
+        
+        result = merge_fragments([fragment])
+        
+        self.assertEqual(result.schedule.nodes["task1"].start, "2024-03-01")
+        self.assertEqual(result.schedule.nodes["task1"].duration, "5d")
+        self.assertEqual(result.schedule.nodes["task1"].finish, "2024-03-08")
+
+
+class TestLoadPlanSetForbiddenFields(unittest.TestCase):
+    """Integration tests for forbidden fields via load_plan_set."""
+    
+    def setUp(self):
+        """Create a temporary directory for test files."""
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def _write_yaml(self, filename: str, content: str) -> str:
+        """Write YAML content to a temp file and return path."""
+        path = Path(self.temp_dir) / filename
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+    
+    def test_load_file_with_forbidden_field_raises_error(self):
+        """Loading file with forbidden node field raises LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+    start: "2024-03-01"
+"""
+        path = self._write_yaml("invalid.yaml", yaml_content)
+        
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        
+        self.assertIn("start", str(ctx.exception))
+        self.assertIn("task1", str(ctx.exception))
+        self.assertIn(path, str(ctx.exception))
+    
+    def test_load_valid_v2_plan(self):
+        """Loading valid v2 plan with schedule.nodes works."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+    effort: 5
+schedule:
+  nodes:
+    task1:
+      start: "2024-03-01"
+      duration: "5d"
+"""
+        path = self._write_yaml("valid.yaml", yaml_content)
+        
+        result = load_plan_set([path])
+        
+        self.assertEqual(result.nodes["task1"].title, "Task 1")
+        self.assertEqual(result.nodes["task1"].effort, 5)
+        self.assertEqual(result.schedule.nodes["task1"].start, "2024-03-01")
+        self.assertEqual(result.schedule.nodes["task1"].duration, "5d")

@@ -124,7 +124,8 @@ make quickstart
 
 ### Make Targets
 
-> **Important**: All `make` commands must be run from the project root directory.
+> ⚠️ **Important**: All `make` commands must be run from the **project root directory** (where `Makefile` is located).
+> If you get "No rule to make target" or import errors, check your current directory with `pwd`.
 
 #### Setup
 ```bash

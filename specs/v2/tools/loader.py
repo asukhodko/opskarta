@@ -50,6 +50,14 @@ ALLOWED_TOP_LEVEL_BLOCKS: frozenset[str] = frozenset({
     "x",
 })
 
+# Fields forbidden in nodes (moved to schedule.nodes in v2)
+FORBIDDEN_NODE_FIELDS: frozenset[str] = frozenset({
+    "start",
+    "finish",
+    "duration",
+    "excludes",
+})
+
 
 class LoadError(Exception):
     """
@@ -358,6 +366,17 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                         element_id=node_id,
                         files=[sources[f"node:{node_id}"], source],
                     )
+                
+                # Check for forbidden fields (Requirement 2.4)
+                for forbidden_field in FORBIDDEN_NODE_FIELDS:
+                    if forbidden_field in node_data:
+                        raise LoadError(
+                            f"Node '{node_id}' contains forbidden field '{forbidden_field}'. "
+                            f"In v2, '{forbidden_field}' should be in schedule.nodes, not in nodes.",
+                            file_path=source,
+                            block_name=f"nodes.{node_id}.{forbidden_field}",
+                        )
+                
                 result.nodes[node_id] = Node(
                     title=node_data.get("title", ""),
                     kind=node_data.get("kind"),

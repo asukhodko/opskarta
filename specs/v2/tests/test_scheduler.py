@@ -66,10 +66,10 @@ class TestParseDurationFunction(unittest.TestCase):
         self.assertEqual(parse_duration("100d"), 100)
 
     def test_weeks(self):
-        """Parse duration in weeks (converted to days)."""
-        self.assertEqual(parse_duration("1w"), 7)
-        self.assertEqual(parse_duration("2w"), 14)
-        self.assertEqual(parse_duration("4w"), 28)
+        """Parse duration in weeks (converted to working days)."""
+        self.assertEqual(parse_duration("1w"), 5)   # 1 week = 5 working days
+        self.assertEqual(parse_duration("2w"), 10)  # 2 weeks = 10 working days
+        self.assertEqual(parse_duration("4w"), 20)  # 4 weeks = 20 working days
 
     def test_invalid_format(self):
         """Invalid format returns None."""
