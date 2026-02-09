@@ -883,26 +883,26 @@ schedule:
 
 ```bash
 # Валидация одного файла
-opskarta validate plan.yaml
+python -m specs.v2.tools.cli validate plan.yaml
 
 # Валидация нескольких файлов (Plan Set)
-opskarta validate main.yaml nodes.yaml schedule.yaml
+python -m specs.v2.tools.cli validate main.yaml nodes.yaml schedule.yaml
 ```
 
 ### Проверка рендеринга
 
 ```bash
 # Рендеринг дерева (работает без schedule)
-opskarta render tree plan.yaml
+python -m specs.v2.tools.cli render tree plan.yaml
 
 # Рендеринг списка
-opskarta render list plan.yaml
+python -m specs.v2.tools.cli render list plan.yaml
 
 # Рендеринг Gantt (требует schedule)
-opskarta render gantt plan.yaml --view gantt
+python -m specs.v2.tools.cli render gantt plan.yaml --view gantt
 
 # Рендеринг графа зависимостей
-opskarta render deps plan.yaml
+python -m specs.v2.tools.cli render deps plan.yaml
 ```
 
 ### Чек-лист миграции
@@ -914,31 +914,27 @@ opskarta render deps plan.yaml
 - [ ] Зависимости `after` остались в `nodes`
 - [ ] Флаг `milestone` остался в `nodes`
 - [ ] Удалены все `excludes` из `views`
-- [ ] План проходит валидацию (`opskarta validate`)
-- [ ] Gantt рендерится корректно (`opskarta render gantt`)
+- [ ] План проходит валидацию
+- [ ] Gantt рендерится корректно
 - [ ] Даты вычисляются правильно
 
 ### Пример вывода валидатора
 
 **Успешная валидация:**
 ```
-✓ Plan is valid
-  Nodes: 5
-  Scheduled nodes: 3
-  Calendars: 1
+OK
 ```
 
 **Ошибки валидации:**
 ```
-✗ Validation failed
+[error] [loading] [plan.yaml] Node 'task1' contains forbidden field 'start'. In v2, 'start' should be in schedule.nodes, not in nodes. (block: 'nodes.task1.start')
+```
 
-[error] [validation] plan.yaml
-  Node 'task1' contains forbidden field 'start'
-  Expected: start should be in schedule.nodes.task1
-
-[error] [validation] plan.yaml
-  View 'gantt' contains forbidden field 'excludes'
-  Expected: excludes should be in schedule.calendars
+```
+[error] [validation] Invalid version: 1. v2 tools require 'version: 2'. For version 1 files, use v1 tools instead.
+  path: version
+  value: 1
+  expected: 2
 ```
 
 ---

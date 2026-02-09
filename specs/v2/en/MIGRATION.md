@@ -883,26 +883,26 @@ After migration, validate the plan using CLI:
 
 ```bash
 # Validate single file
-opskarta validate plan.yaml
+python -m specs.v2.tools.cli validate plan.yaml
 
 # Validate multiple files (Plan Set)
-opskarta validate main.yaml nodes.yaml schedule.yaml
+python -m specs.v2.tools.cli validate main.yaml nodes.yaml schedule.yaml
 ```
 
 ### Rendering Check
 
 ```bash
 # Render tree (works without schedule)
-opskarta render tree plan.yaml
+python -m specs.v2.tools.cli render tree plan.yaml
 
 # Render list
-opskarta render list plan.yaml
+python -m specs.v2.tools.cli render list plan.yaml
 
 # Render Gantt (requires schedule)
-opskarta render gantt plan.yaml --view gantt
+python -m specs.v2.tools.cli render gantt plan.yaml --view gantt
 
 # Render dependency graph
-opskarta render deps plan.yaml
+python -m specs.v2.tools.cli render deps plan.yaml
 ```
 
 ### Migration Checklist
@@ -914,31 +914,27 @@ opskarta render deps plan.yaml
 - [ ] Dependencies `after` remain in `nodes`
 - [ ] Flag `milestone` remains in `nodes`
 - [ ] All `excludes` removed from `views`
-- [ ] Plan passes validation (`opskarta validate`)
-- [ ] Gantt renders correctly (`opskarta render gantt`)
+- [ ] Plan passes validation
+- [ ] Gantt renders correctly
 - [ ] Dates are computed correctly
 
 ### Example Validator Output
 
 **Successful validation:**
 ```
-✓ Plan is valid
-  Nodes: 5
-  Scheduled nodes: 3
-  Calendars: 1
+OK
 ```
 
 **Validation errors:**
 ```
-✗ Validation failed
+[error] [loading] [plan.yaml] Node 'task1' contains forbidden field 'start'. In v2, 'start' should be in schedule.nodes, not in nodes. (block: 'nodes.task1.start')
+```
 
-[error] [validation] plan.yaml
-  Node 'task1' contains forbidden field 'start'
-  Expected: start should be in schedule.nodes.task1
-
-[error] [validation] plan.yaml
-  View 'gantt' contains forbidden field 'excludes'
-  Expected: excludes should be in schedule.calendars
+```
+[error] [validation] Invalid version: 1. v2 tools require 'version: 2'. For version 1 files, use v1 tools instead.
+  path: version
+  value: 1
+  expected: 2
 ```
 
 ---
