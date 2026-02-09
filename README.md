@@ -12,14 +12,14 @@ Key idea: **"source of truth" — not Jira, not Confluence, not "in your head", 
 | Version | Status | Language | Description |
 |---------|--------|----------|-------------|
 | [v2](specs/v2/) | Alpha | [EN](specs/v2/en/SPEC.md) \| [RU](specs/v2/ru/SPEC.md) | Overlay schedule concept — separation of work structure and calendar planning |
-| [v1](specs/v1/) | Alpha | [EN](specs/v1/en/SPEC.md) (canonical) \| [RU](specs/v1/ru/SPEC.md) | Initial specification version |
+| [v1](specs/v1/) | Alpha | [EN](specs/v1/en/SPEC.md) \| [RU](specs/v1/ru/SPEC.md) | Initial specification version |
 
 ## What It Looks Like
 
-Plan file (`hello.plan.yaml`):
+Plan file (v2 format with separate structure and schedule):
 
 ```yaml
-version: 1
+version: 2
 
 meta:
   id: hello-upgrade
@@ -29,9 +29,9 @@ statuses:
   not_started: { label: "Not Started", color: "#9ca3af" }
   in_progress: { label: "In Progress", color: "#0ea5e9" }
   done:        { label: "Done",        color: "#22c55e" }
-  blocked:     { label: "Blocked",     color: "#fecaca" }
 
 nodes:
+  # Work structure — NO dates here, only hierarchy and dependencies
   root:
     title: "Git Service Upgrade"
     kind: summary
@@ -41,60 +41,77 @@ nodes:
     title: "Preparation"
     kind: phase
     parent: root
-    start: "2026-02-01"
-    duration: "10d"
     status: in_progress
+    effort: 10
 
   rollout:
     title: "Rollout"
     kind: phase
     parent: root
     after: [prep]
-    duration: "5d"
     status: not_started
+    effort: 5
 
   switch:
     title: "Traffic Switch"
     kind: task
     parent: rollout
     after: [rollout]
-    duration: "1d"
     status: not_started
     notes: |
       Critical step. Rollback plan needed.
+
+schedule:
+  # Calendar planning — separate layer
+  calendars:
+    work:
+      excludes: [weekends, "2026-02-16"]  # holiday
+  
+  default_calendar: work
+  
+  nodes:
+    prep:
+      start: "2026-02-02"
+      duration: 10d
+    rollout:
+      duration: 5d
+    switch:
+      duration: 1d
 ```
 
-From this plan you can generate Gantt charts, dependency graphs, reports — see the [full v1 specification](specs/v1/).
+Key v2 concept: **work structure** (nodes with hierarchy, dependencies, effort) is separated from **calendar planning** (schedule with dates and calendars). This allows using the same plan for backlog management (no schedule) and Gantt charts (with schedule).
+
+See the [full v2 specification](specs/v2/) for details.
 
 ## Quick Start
+
+> All commands run from the **project root directory**.
 
 ### v2 (recommended for new projects)
 
 ```bash
-cd specs/v2
-
 # Validate example
-python -m tools.cli validate ru/examples/multi-file/*.plan.yaml
+python -m specs.v2.tools.cli validate specs/v2/ru/examples/multi-file/*.plan.yaml
 
 # Render tree view
-python -m tools.cli render tree ru/examples/no-schedule/backlog.plan.yaml
+python -m specs.v2.tools.cli render tree specs/v2/ru/examples/no-schedule/backlog.plan.yaml
 
 # Render Gantt diagram
-python -m tools.cli render gantt ru/examples/multi-file/*.plan.yaml --view gantt-full
+python -m specs.v2.tools.cli render gantt specs/v2/ru/examples/multi-file/*.plan.yaml --view gantt-full
 ```
 
 ### v1
 
 ```bash
-cd specs/v1
-
 # Validate example
-python tools/validate.py en/examples/hello/hello.plan.yaml en/examples/hello/hello.views.yaml
+python specs/v1/tools/validate.py \
+    specs/v1/en/examples/hello/hello.plan.yaml \
+    specs/v1/en/examples/hello/hello.views.yaml
 
 # Generate Mermaid Gantt
-python -m tools.render.plan2gantt \
-    --plan en/examples/hello/hello.plan.yaml \
-    --views en/examples/hello/hello.views.yaml \
+python -m specs.v1.tools.render.plan2gantt \
+    --plan specs/v1/en/examples/hello/hello.plan.yaml \
+    --views specs/v1/en/examples/hello/hello.views.yaml \
     --view overview
 ```
 
@@ -149,7 +166,7 @@ make ci-v1         # Full v1 CI: deps + check-spec + validate + test
 make spec-v2       # Build v2 SPEC.md (en + ru)
 make check-spec-v2 # Check v2 SPEC.md is up-to-date
 make validate-v2   # Validate v2 examples and schemas
-make test-v2       # Run v2 tests (474 tests)
+make test-v2       # Run v2 tests (502 tests)
 make ci-v2         # Full v2 CI: check-spec + validate + test
 ```
 

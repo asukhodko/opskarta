@@ -355,12 +355,64 @@ class TestForbiddenNodeFields(unittest.TestCase):
         self.assertIsInstance(FORBIDDEN_NODE_FIELDS, frozenset)
 
 
+class TestValidateVersion(unittest.TestCase):
+    """Tests for version validation."""
+    
+    def test_version_2_is_valid(self):
+        """Plan with version 2 is valid."""
+        plan = MergedPlan(version=2)
+        
+        result = validate(plan)
+        
+        self.assertTrue(result.is_valid)
+    
+    def test_version_1_is_invalid(self):
+        """Plan with version 1 is invalid for v2 tools."""
+        plan = MergedPlan(version=1)
+        
+        result = validate(plan)
+        
+        self.assertFalse(result.is_valid)
+        self.assertEqual(len(result.errors), 1)
+        self.assertIn("version", result.errors[0].message.lower())
+        self.assertIn("v1 tools", result.errors[0].message)
+    
+    def test_version_1_error_includes_expected_and_actual(self):
+        """Version error includes expected and actual values."""
+        plan = MergedPlan(version=1)
+        
+        result = validate(plan)
+        
+        self.assertFalse(result.is_valid)
+        error = result.errors[0]
+        self.assertEqual(error.expected, "2")
+        self.assertEqual(error.actual, "1")
+        self.assertEqual(error.path, "version")
+    
+    def test_default_version_is_valid(self):
+        """Plan with default version (2) is valid."""
+        plan = MergedPlan()  # version defaults to 2
+        
+        result = validate(plan)
+        
+        self.assertTrue(result.is_valid)
+    
+    def test_version_3_is_invalid(self):
+        """Plan with version 3 is invalid for v2 tools."""
+        plan = MergedPlan(version=3)
+        
+        result = validate(plan)
+        
+        self.assertFalse(result.is_valid)
+        self.assertIn("3", result.errors[0].actual)
+
+
 class TestValidateEmptyPlan(unittest.TestCase):
     """Tests for validating empty plans."""
     
     def test_empty_plan_is_valid(self):
         """Empty plan (no nodes) is valid."""
-        plan = MergedPlan()
+        plan = MergedPlan(version=2)
         
         result = validate(plan)
         
@@ -369,6 +421,7 @@ class TestValidateEmptyPlan(unittest.TestCase):
     def test_plan_without_schedule_is_valid(self):
         """Plan without schedule block is valid (Requirement 3.2)."""
         plan = MergedPlan(
+            version=2,
             nodes={"task1": Node(title="Task 1")},
         )
         

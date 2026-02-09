@@ -189,12 +189,37 @@ class ValidationResult:
 # Fields that are forbidden in nodes (moved to Schedule in v2)
 FORBIDDEN_NODE_FIELDS = frozenset({"start", "finish", "duration", "excludes"})
 
+# Required version for v2 tools
+REQUIRED_VERSION = 2
+
+
+def _validate_version(plan: MergedPlan, result: ValidationResult) -> None:
+    """
+    Validate that plan version is 2.
+    
+    v2 tools require version: 2. Files with version: 1 should use v1 tools.
+    Files without explicit version default to 2 (handled by MergedPlan).
+    
+    Args:
+        plan: The merged plan to validate
+        result: ValidationResult to add errors to
+    """
+    if plan.version != REQUIRED_VERSION:
+        result.add_error(
+            message=f"Invalid version: {plan.version}. v2 tools require 'version: 2'. "
+                    f"For version 1 files, use v1 tools instead.",
+            path="version",
+            expected=str(REQUIRED_VERSION),
+            actual=str(plan.version),
+        )
+
 
 def validate(plan: MergedPlan) -> ValidationResult:
     """
     Validate a merged plan.
     
     Performs the following validations:
+    - Version: must be 2 for v2 tools
     - Required fields: title in all nodes (Requirement 2.1)
     - Forbidden fields: start, finish, duration, excludes in nodes (Requirement 2.4)
     - Effort format: non-negative number >= 0 (Requirement 2.5)
@@ -212,6 +237,9 @@ def validate(plan: MergedPlan) -> ValidationResult:
     Requirements: 2.1, 2.2, 2.4, 2.5, 3.7, 3.9, 4.2, 4.3, 5.2, 5.3
     """
     result = ValidationResult()
+    
+    # Validate version (must be 2 for v2 tools)
+    _validate_version(plan, result)
     
     # Validate nodes
     _validate_nodes(plan, result)
