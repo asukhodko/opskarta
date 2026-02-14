@@ -142,7 +142,12 @@ validate-v2: ## Validate v2 examples and schemas
 test-v2: ## Run v2 tests
 	@PYTHONPATH=$(CURDIR) $(PYTHON) -m pytest specs/v2/tests/ -v --tb=short
 
-ci-v2: check-spec-v2 validate-v2 test-v2 ## Run v2 CI checks
+check-spec-min-v2: ## Check v2 SPEC.min.md exists
+	@test -f specs/v2/en/SPEC.min.md || (echo "Error: specs/v2/en/SPEC.min.md not found" && exit 1)
+	@test -f specs/v2/ru/SPEC.min.md || (echo "Error: specs/v2/ru/SPEC.min.md not found" && exit 1)
+	@echo "$(G)v2 SPEC.min.md files exist$(N)"
+
+ci-v2: check-spec-v2 check-spec-min-v2 validate-v2 test-v2 ## Run v2 CI checks
 	@echo "$(G)v2 CI passed$(N)"
 
 # ============================================================================

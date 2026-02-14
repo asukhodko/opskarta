@@ -9,10 +9,10 @@ Key idea: **"source of truth" — not Jira, not Confluence, not "in your head", 
 
 ## Specification Versions
 
-| Version | Status | Language | Description |
-|---------|--------|----------|-------------|
-| [v2](specs/v2/) | Alpha | [EN](specs/v2/en/SPEC.md) \| [RU](specs/v2/ru/SPEC.md) | Overlay schedule concept — separation of work structure and calendar planning |
-| [v1](specs/v1/) | Alpha | [EN](specs/v1/en/SPEC.md) \| [RU](specs/v1/ru/SPEC.md) | Initial specification version |
+| Version | Status | Spec | Spec (compact) | Description |
+|---------|--------|------|----------------|-------------|
+| [v2](specs/v2/) | Alpha | [EN](specs/v2/en/SPEC.md) \| [RU](specs/v2/ru/SPEC.md) | [EN](specs/v2/en/SPEC.min.md) \| [RU](specs/v2/ru/SPEC.min.md) | Overlay schedule concept — separation of work structure and calendar planning |
+| [v1](specs/v1/) | Alpha | [EN](specs/v1/en/SPEC.md) \| [RU](specs/v1/ru/SPEC.md) | [EN](specs/v1/en/SPEC.min.md) \| [RU](specs/v1/ru/SPEC.min.md) | Initial specification version |
 
 ## What It Looks Like
 
