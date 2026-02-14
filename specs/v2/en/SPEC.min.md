@@ -21,11 +21,11 @@ opskarta v2 (draft) — ultra-compact spec (LLM-paste), core-complete + anti-amb
 2) nodes (Work Structure)
 - node_id: unique string key in nodes map; recommended regex ^[a-zA-Z][a-zA-Z0-9._-]*$; avoid spaces/parentheses/colons for Mermaid.
 - Required: title (string).
-- Optional: kind (string), status (string), parent (string), after (list[string]), milestone (bool), effort (number ≥0), issue (string), notes (string), x (object).
+- Optional: kind (string), status (string), parent (string), deps (list[string|dep_edge]), milestone (bool), effort (number ≥0), issue (string), notes (string), x (object).
 - FORBIDDEN in v2 nodes: start, finish, duration, excludes — moved to schedule.
 - parent: existing node_id; circular references forbidden.
-- after: list of node_ids; circular dependencies forbidden; dependencies defined in nodes, NOT in schedule.nodes.
-- milestone: true = point event; when computing start from after, no +1 workday added.
+- deps: list of string (shorthand) or dep_edge objects; dep_edge fields: id (required), type (fs|ss, default fs), lag (default 0d), hard (bool, default true), note (string); circular dependencies forbidden (both hard and soft); dependencies defined in nodes, NOT in schedule.nodes.
+- milestone: true = point event; when computing start from deps, no +1 workday added.
 - effort: non-negative number; unit in meta.effort_unit (display only).
 - effort_rollup: sum of effort_effective of direct children.
 - effort_effective: effort if set, else effort_rollup.
@@ -52,13 +52,13 @@ opskarta v2 (draft) — ultra-compact spec (LLM-paste), core-complete + anti-amb
 4.3) schedule.nodes
 - node_id: must exist in nodes.
 - Fields: start (YYYY-MM-DD), finish (YYYY-MM-DD), duration (Nd or Nw), calendar (calendar_id).
-- after FORBIDDEN in schedule.nodes — dependencies only in nodes.
+- deps FORBIDDEN in schedule.nodes — dependencies only in nodes.
 - Node states: unscheduled (not in schedule.nodes), scheduled (in schedule.nodes), computed (scheduled + dates computed).
 
 4.4) Date Computation
-- start priority: 1) explicit start, 2) finish + duration (backward), 3) after dependencies.
-- after algorithm: get deps from nodes.<id>.after; filter only scheduled deps; compute max(finish); regular node: start = next_workday(max_finish); milestone: start = max_finish.
-- Unschedulable: no explicit start, no finish+duration, all after deps unscheduled/unschedulable.
+- start priority: 1) explicit start, 2) finish + duration (backward), 3) deps dependencies (only hard deps).
+- deps algorithm: get deps from nodes.<id>.deps; filter only scheduled hard deps; for each dep: if type=fs, use dep.finish; if type=ss, use dep.start; apply lag; compute max of adjusted dates; regular node: start = next_workday(max_date); milestone: start = max_date. Soft deps (hard: false) do not affect date computation.
+- Unschedulable: no explicit start, no finish+duration, all hard deps unscheduled/unschedulable.
 - duration format: ^[1-9][0-9]*[dw]$; d=workdays; w=5 workdays (1w=5d).
 - finish = add_workdays(start, duration - 1, calendar); start day included.
 - Backward planning: start = sub_workdays(finish, duration - 1, calendar).
@@ -80,9 +80,15 @@ opskarta v2 (draft) — ultra-compact spec (LLM-paste), core-complete + anti-amb
 5.2) lanes (for Gantt)
 - lane_id: { title: string, nodes: list[node_id] }.
 
+5a) execution (Progress Tracking)
+- Optional overlay; plan valid without execution.
+- execution.nodes.<node_id>: progress (0..1), actual_start (YYYY-MM-DD), actual_finish (YYYY-MM-DD), updated_at (ISO 8601), confidence (0..1), note (string).
+- node_id must exist in nodes.
+- progress_rollup: weighted by effort_effective; progress_coverage: fraction of effort with data.
+
 6) Validation
 - Severity: error (invalid), warn (valid with warning), info (valid).
-- Errors: missing required fields; non-existent references (parent/after/status/calendar); circular dependencies; duplicate keys; invalid formats; inconsistent dates; forbidden fields in wrong blocks.
+- Errors: missing required fields; non-existent references (parent/deps/status/calendar); circular dependencies; duplicate keys; invalid formats; inconsistent dates; forbidden fields in wrong blocks.
 - Warnings: unschedulable nodes; start on excluded day; all deps unscheduled.
 - Info: unscheduled nodes; computed dates.
 
@@ -91,14 +97,19 @@ opskarta v2 (draft) — ultra-compact spec (LLM-paste), core-complete + anti-amb
 - Namespace x: for extensions; allowed in plan root, meta, statuses.*, nodes.*, schedule, views.*, lanes.*.
 - Extensions MUST NOT affect core semantics.
 
+7a) profiles (Extension Namespace Management)
+- profiles: list of {id, version, namespace}.
+- namespace format: ^[a-zA-Z_][a-zA-Z0-9_]*$.
+- Duplicate namespaces between profiles: error.
+
 8) Migration from v1
 - nodes: remove start/finish/duration/excludes; move to schedule.nodes.
 - views: remove excludes; move to schedule.calendars.
-- after: keep in nodes (unchanged).
+- after: convert to deps.
 - finish (v1 inclusive) → finish (v2 inclusive): no change.
 
 9) Anti-ambiguity
-- Dependencies (after) defined ONLY in nodes, never in schedule.nodes.
+- Dependencies (deps) defined ONLY in nodes, never in schedule.nodes.
 - Calendar (excludes) defined ONLY in schedule.calendars, never in views.
 - Plan without schedule is valid — structure exists independently of calendar.
 - Unscheduled nodes not shown on Gantt but exist in tree/list/deps.

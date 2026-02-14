@@ -6,8 +6,10 @@
 - [Спецификация opskarta v2](#спецификация-opskarta-v2)
 - [Plan Set (многофайловая структура)](#plan-set-многофайловая-структура)
 - [Узлы (`nodes`)](#узлы-nodes)
+- [Execution (Отслеживание выполнения)](#execution-отслеживание-выполнения)
 - [Schedule (слой календарного планирования)](#schedule-слой-календарного-планирования)
 - [Views (представления)](#views-представления)
+- [Profiles (Пространства расширений)](#profiles-пространства-расширений)
 - [Валидация](#валидация)
 
 # Спецификация opskarta v2
@@ -31,7 +33,7 @@
 | Даты в узлах | `start`, `finish`, `duration` в `nodes` | Только в `schedule.nodes` |
 | Календарь | `excludes` в `views` | `excludes` в `schedule.calendars` |
 | План без дат | Невозможен | Полностью валиден |
-| Зависимости | `after` в `nodes` | `after` в `nodes` (без изменений) |
+| Зависимости | `after` в `nodes` | `deps` в `nodes` (типизированные рёбра) |
 
 ### Plan Set (многофайловая структура)
 
@@ -67,7 +69,9 @@ nodes:
 | `10-plan-set.md` | Plan Set: многофайловая структура, слияние фрагментов |
 | `20-nodes.md` | Узлы: структура работ без календарных полей |
 | `30-schedule.md` | Schedule: слой календарного планирования |
+| `25-execution.md` | Execution: отслеживание прогресса |
 | `40-views.md` | Views: представления для визуализации |
+| `45-profiles.md` | Profiles: управление пространствами расширений |
 | `50-validation.md` | Валидация: правила и сообщения об ошибках |
 
 ## Допустимые top-level блоки
@@ -82,6 +86,8 @@ nodes:
 | `nodes` | Словарь узлов работ | Опционально |
 | `schedule` | Слой календарного планирования | Опционально |
 | `views` | Представления для визуализации | Опционально |
+| `execution` | Оверлей отслеживания выполнения | Опционально |
+| `profiles` | Декларации профилей расширений | Опционально |
 | `x` | Расширения (namespace для кастомных полей) | Опционально |
 
 Любые другие top-level блоки являются **ошибкой**.
@@ -132,7 +138,7 @@ nodes:
     title: "Фаза 2: Разработка"
     kind: phase
     parent: root
-    after: [phase1]
+    deps: [{id: phase1}]
     effort: 20
 
 schedule:
@@ -151,7 +157,7 @@ schedule:
     
     phase2:
       duration: "20d"
-      # start вычисляется из after: [phase1] в nodes
+      # start вычисляется из deps
 
 views:
   gantt:
@@ -453,7 +459,7 @@ opskarta render gantt main.plan.yaml nodes.plan.yaml schedule.plan.yaml --view g
 
 ## Идентификаторы узлов (node_id)
 
-Каждый узел идентифицируется ключом в словаре `nodes`. Этот ключ (`node_id`) используется для ссылок в `parent`, `after`, `schedule.nodes`, `views`.
+Каждый узел идентифицируется ключом в словаре `nodes`. Этот ключ (`node_id`) используется для ссылок в `parent`, `deps`, `schedule.nodes`, `views`.
 
 ### Требования
 
@@ -497,7 +503,7 @@ nodes:
 | `kind` | string | Тип узла (summary, phase, epic, task и др.) |
 | `status` | string | Ключ статуса из `statuses` |
 | `parent` | string | ID родительского узла (иерархия) |
-| `after` | list[string] | Зависимости "после чего" (граф) |
+| `deps` | list[string\|dep_edge] | Зависимости (типизированные рёбра) |
 | `milestone` | boolean | Является ли узел вехой |
 | `effort` | number | Оценка трудозатрат (≥ 0) |
 | `issue` | string | Ссылка на задачу в трекере |
@@ -571,34 +577,78 @@ nodes:
 - Значение `parent` ДОЛЖНО быть существующим `node_id`.
 - Циклические ссылки через `parent` **запрещены**.
 
-## Поле `after` (зависимости)
+## Поле `deps` (зависимости)
 
-Список узлов, после завершения которых может начаться данный узел.
+Список типизированных рёбер зависимостей к другим узлам.
+
+### Сокращённый синтаксис
 
 ```yaml
 nodes:
   design:
     title: "Дизайн"
-  
+
   implementation:
     title: "Реализация"
-    after: [design]
-  
-  testing:
-    title: "Тестирование"
-    after: [implementation]
+    deps: [design]  # сокращение для [{id: design}]
 ```
 
-### Семантика
+### Полный синтаксис (dep_edge)
 
-- Узел может стартовать после завершения **всех** узлов из `after`.
-- Зависимости определяются в `nodes`, **не** в `schedule.nodes`.
-- При вычислении расписания учитываются только **scheduled** зависимости.
+```yaml
+nodes:
+  backend:
+    title: "Backend API"
+
+  frontend:
+    title: "Фронтенд"
+    deps:
+      - id: backend
+        type: fs       # finish-to-start (по умолчанию)
+        lag: "2d"       # 2 рабочих дня задержки
+        hard: true      # влияет на расписание (по умолчанию)
+      - id: design_review
+        type: ss        # start-to-start
+        hard: false     # только визуальная связь
+        note: "Параллельная работа возможна"
+```
+
+### Поля dep_edge
+
+| Поле | Тип | По умолчанию | Описание |
+|------|-----|-------------|----------|
+| `id` | string | *обязательно* | Целевой node_id |
+| `type` | string | `"fs"` | Тип зависимости: `fs` (finish-to-start) или `ss` (start-to-start) |
+| `lag` | string | `"0d"` | Неотрицательная задержка (напр. `"0d"`, `"3d"`, `"1w"`) |
+| `hard` | boolean | `true` | Влияет ли на расписание (`true`) или только визуальная (`false`) |
+| `note` | string | — | Необязательная аннотация |
+
+### Типы зависимостей
+
+| Тип | Описание | Вычисление старта |
+|-----|----------|-------------------|
+| `fs` | Finish-to-start | Узел начинается после завершения зависимости |
+| `ss` | Start-to-start | Узел начинается когда начинается зависимость |
+
+### Hard и Soft зависимости
+
+- **Hard** (`hard: true`, по умолчанию): Влияет на вычисление дат в планировщике
+- **Soft** (`hard: false`): Показывается в графах зависимостей, но игнорируется планировщиком
+
+### Задержка (Lag)
+
+Неотрицательная длительность между зависимостью и стартом узла:
+
+- Формат: `^(0|[1-9][0-9]*)[dw]$` (напр. `"0d"`, `"3d"`, `"1w"`)
+- `0d` означает без задержки (по умолчанию)
+- Только рабочие дни (учитывает исключения календаря)
 
 ### Правила
 
-- Каждый элемент `after` ДОЛЖЕН быть существующим `node_id`.
-- Циклические зависимости через `after` **запрещены**.
+- `dep.id` ДОЛЖЕН быть существующим `node_id`.
+- `dep.type` ДОЛЖЕН быть `"fs"` или `"ss"`.
+- `dep.lag` ДОЛЖЕН соответствовать формату `^(0|[1-9][0-9]*)[dw]$`.
+- Циклические зависимости через `deps` **запрещены** (проверяются и hard, и soft рёбра).
 
 ## Поле `milestone` (вехи)
 
@@ -609,13 +659,13 @@ nodes:
   release_v1:
     title: "Релиз v1.0"
     milestone: true
-    after: [testing]
+    deps: [testing]
 ```
 
 ### Поведение
 
 - Веха отображается как точка/ромб на диаграмме Gantt.
-- При вычислении `start` из `after` для вехи **не добавляется** следующий рабочий день:
+- При вычислении `start` из `deps` для вехи **не добавляется** следующий рабочий день:
   - Обычный узел: `start = next_workday(max_finish)`
   - Веха: `start = max_finish`
 
@@ -779,11 +829,115 @@ nodes:
     title: "Вход через OAuth"
     kind: user_story
     parent: epic1
-    after: [story1]
+    deps: [story1]
     effort: 8
 ```
 
 Такой план можно рендерить как tree, list, deps, но не как Gantt (нет дат).
+
+---
+
+# Execution (Отслеживание выполнения)
+
+Execution — **опциональный** оверлей для отслеживания факта выполнения: прогресс, фактические даты, уверенность.
+
+## Концепция
+
+Блок execution повторяет паттерн overlay schedule:
+
+- **Nodes** описывают структуру работ
+- **Schedule** добавляет календарное планирование
+- **Execution** добавляет отслеживание прогресса
+
+План может существовать без данных execution. Данные execution можно вести в отдельном файле-фрагменте.
+
+## Структура блока Execution
+
+```yaml
+execution:
+  nodes:
+    <node_id>:
+      progress: 0.75
+      actual_start: "2024-03-01"
+      actual_finish: "2024-03-15"
+      updated_at: "2024-03-15T10:30:00Z"
+      confidence: 0.9
+      note: "По плану"
+```
+
+## Поля execution.nodes
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `progress` | number | Завершённость от 0.0 до 1.0 |
+| `actual_start` | string | Фактическая дата начала (YYYY-MM-DD) |
+| `actual_finish` | string | Фактическая дата завершения (YYYY-MM-DD) |
+| `updated_at` | string | Время последнего обновления (ISO 8601) |
+| `confidence` | number | Уровень уверенности от 0.0 до 1.0 |
+| `note` | string | Необязательная аннотация |
+
+## Агрегация прогресса (Rollup)
+
+Для родительских узлов прогресс вычисляется автоматически через взвешенную агрегацию:
+
+```
+progress_rollup = sum(effort_effective_i * progress_i) / sum(effort_effective_i)
+```
+
+Только дочерние узлы с данными execution участвуют в агрегации.
+
+### Покрытие прогресса (Coverage)
+
+`progress_coverage` показывает, какая доля трудозатрат покрыта данными прогресса:
+
+```
+progress_coverage = sum(effort_effective с данными) / sum(всего effort_effective)
+```
+
+## Правила
+
+- `node_id` в `execution.nodes` ДОЛЖЕН существовать в `nodes`.
+- `progress` ДОЛЖЕН быть в диапазоне [0.0, 1.0].
+- `confidence` ДОЛЖЕН быть в диапазоне [0.0, 1.0].
+- `actual_start` и `actual_finish` ДОЛЖНЫ быть валидными датами `YYYY-MM-DD`.
+
+## Пример
+
+```yaml
+version: 2
+
+nodes:
+  epic:
+    title: "Аутентификация"
+    effort: 13
+  login:
+    title: "Email логин"
+    parent: epic
+    effort: 5
+  oauth:
+    title: "OAuth логин"
+    parent: epic
+    effort: 8
+
+execution:
+  nodes:
+    login:
+      progress: 1.0
+      actual_start: "2024-03-01"
+      actual_finish: "2024-03-05"
+      confidence: 1.0
+    oauth:
+      progress: 0.3
+      actual_start: "2024-03-06"
+      confidence: 0.7
+      note: "Задержка с API провайдера"
+```
+
+В этом примере:
+- `login`: 100% завершён, трудозатраты 5
+- `oauth`: 30% завершён, трудозатраты 8
+- `epic` rollup: (5 * 1.0 + 8 * 0.3) / (5 + 8) = 7.4 / 13 ≈ 0.57 (57%)
+- `epic` coverage: (5 + 8) / 13 = 1.0 (100%)
 
 ---
 
@@ -893,10 +1047,10 @@ schedule:
     
     task2:
       duration: "3d"
-      # start вычисляется из after в nodes
-    
+      # start вычисляется из deps в nodes
+
     milestone1:
-      # start вычисляется из after в nodes
+      # start вычисляется из deps в nodes
 ```
 
 ### Поля schedule.nodes
@@ -912,7 +1066,7 @@ schedule:
 
 - `node_id` в `schedule.nodes` ДОЛЖЕН существовать в `nodes`.
 - `calendar` ДОЛЖЕН существовать в `schedule.calendars`.
-- Поле `after` **запрещено** в `schedule.nodes` — зависимости только в `nodes`.
+- Поле `deps` **запрещено** в `schedule.nodes` — зависимости только в `nodes`.
 
 ## Состояния узлов
 
@@ -932,7 +1086,7 @@ nodes:
     title: "Задача 2"
   task3:
     title: "Задача 3"
-    after: [task2]
+    deps: [task2]
 
 schedule:
   nodes:
@@ -951,17 +1105,23 @@ schedule:
 
 1. **Явный `start`**: использовать указанную дату
 2. **`finish` + `duration`**: вычислить `start` назад от `finish`
-3. **Зависимости `after`**: вычислить из завершения зависимостей
+3. **Зависимости `deps`**: вычислить из завершения зависимостей
 
-### Алгоритм для after
+### Алгоритм вычисления из deps
 
-При вычислении `start` из `after`:
+При вычислении `start` из `deps`:
 
-1. Взять зависимости из `nodes.<id>.after` (не из schedule!)
-2. Отфильтровать только **scheduled** зависимости
-3. Вычислить `max(finish)` для всех scheduled зависимостей
-4. Для обычного узла: `start = next_workday(max_finish)`
-5. Для вехи: `start = max_finish`
+1. Взять зависимости из `nodes.<id>.deps` (не из schedule!)
+2. Отфильтровать только **hard** зависимости (`hard: true`)
+3. Отфильтровать только **scheduled** hard зависимости
+4. Для каждой scheduled hard зависимости:
+   - **fs** (finish-to-start): base = дата завершения зависимости
+   - **ss** (start-to-start): base = дата начала зависимости
+   - Применить lag: `candidate = add_workdays(base, lag_days, calendar)`
+   - Для fs с 0 lag (обычный узел): `candidate = next_workday(dep_finish)`
+   - Для fs с 0 lag (веха): `candidate = dep_finish`
+   - Для ss с 0 lag: `candidate = dep_start`
+5. `start = max(all candidates)`
 
 ```yaml
 nodes:
@@ -969,10 +1129,10 @@ nodes:
     title: "Задача 1"
   task2:
     title: "Задача 2"
-    after: [task1]
+    deps: [task1]
   task3:
     title: "Задача 3"
-    after: [task1, task2]
+    deps: [task1, task2]
 
 schedule:
   nodes:
@@ -985,8 +1145,8 @@ schedule:
     
     task3:
       duration: "3d"
-      # after = [task1, task2]
-      # scheduled зависимости = [task1]
+      # deps = [task1, task2]
+      # scheduled hard зависимости = [task1]
       # start = next_workday(2024-03-05) = 2024-03-06
 ```
 
@@ -996,7 +1156,7 @@ schedule:
 
 - Нет явного `start`
 - Нет `finish` + `duration`
-- Все зависимости `after` либо unscheduled, либо unschedulable
+- Все hard зависимости `deps` либо unscheduled, либо unschedulable
 
 ```yaml
 nodes:
@@ -1004,7 +1164,7 @@ nodes:
     title: "Задача 1"
   task2:
     title: "Задача 2"
-    after: [task1]
+    deps: [task1]
 
 schedule:
   nodes:
@@ -1126,7 +1286,7 @@ nodes:
   milestone1:
     title: "MVP"
     milestone: true
-    after: [task2]
+    deps: [task2]
   
   task1:
     title: "Backend API"
@@ -1134,7 +1294,7 @@ nodes:
   
   task2:
     title: "Frontend"
-    after: [task1]
+    deps: [task1]
     effort: 5
   
   task3:
@@ -1155,10 +1315,10 @@ schedule:
     
     task2:
       duration: "5d"
-      # start из after: [task1]
-    
+      # start из deps: [task1]
+
     milestone1:
-      # start из after: [task2]
+      # start из deps: [task2]
       # milestone: true берётся из nodes
 ```
 
@@ -1514,6 +1674,82 @@ views:
 
 ---
 
+# Profiles (Пространства расширений)
+
+Profiles объявляют пространства имён расширений, используемые в полях `x` плана.
+
+## Концепция
+
+Поле `x` в узлах и на верхнем уровне хранит произвольные данные расширений. Profiles позволяют документировать и валидировать используемые пространства имён.
+
+## Структура Profile
+
+```yaml
+profiles:
+  - id: "opskarta.ai-dev"
+    version: 1
+    namespace: "ai"
+```
+
+## Поля Profile
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | string | Идентификатор профиля (напр. `"opskarta.ai-dev"`) |
+| `version` | integer | Версия схемы профиля |
+| `namespace` | string | Ключ в `x`, где размещаются данные профиля |
+
+## Соглашение о пространствах имён
+
+Значение `namespace` определяет ключ в полях `x`:
+
+```yaml
+profiles:
+  - id: "opskarta.ai-dev"
+    version: 1
+    namespace: "ai"
+
+nodes:
+  task1:
+    title: "Реализовать фичу"
+    x:
+      ai:
+        complexity: high
+        suggested_approach: "Использовать паттерн X"
+```
+
+## Правила
+
+- `namespace` ДОЛЖЕН соответствовать `^[a-zA-Z_][a-zA-Z0-9_]*$`.
+- Два профиля с одинаковым `namespace` — **ошибка**.
+- `id`, `version` и `namespace` — все **обязательные** поля.
+
+## Пример
+
+```yaml
+version: 2
+
+profiles:
+  - id: "opskarta.ai-dev"
+    version: 1
+    namespace: "ai"
+  - id: "mycompany.pm"
+    version: 2
+    namespace: "pm"
+
+nodes:
+  task1:
+    title: "Backend API"
+    x:
+      ai:
+        complexity: medium
+      pm:
+        assignee: "john"
+        sprint: 5
+```
+
+---
+
 # Валидация
 
 Этот раздел описывает правила валидации файлов плана v2.
@@ -1544,6 +1780,8 @@ views:
 - `nodes`
 - `schedule`
 - `views`
+- `execution`
+- `profiles`
 - `x`
 
 ```yaml
@@ -1639,26 +1877,29 @@ nodes:
     parent: a  # ОШИБКА: circular parent reference
 ```
 
-### Зависимости (`after`)
+### Зависимости (`deps`)
 
-- Каждый элемент `after` ДОЛЖЕН быть существующим `node_id`.
-- Циклические зависимости через `after` **запрещены**.
+- Каждый `dep.id` ДОЛЖЕН быть существующим `node_id`.
+- `dep.type` ДОЛЖЕН быть `"fs"` или `"ss"`.
+- `dep.lag` ДОЛЖЕН соответствовать формату `^(0|[1-9][0-9]*)[dw]$`.
+- Циклические зависимости через `deps` **запрещены** (проверяются и hard, и soft рёбра).
 
 ```yaml
 # ОШИБКА: несуществующая зависимость
 nodes:
   task:
     title: "Task"
-    after: [missing]  # ОШИБКА: after reference 'missing' does not exist
+    deps:
+      - id: missing  # ОШИБКА: dep reference 'missing' does not exist
 
 # ОШИБКА: циклическая зависимость
 nodes:
   a:
     title: "A"
-    after: [b]
+    deps: [b]
   b:
     title: "B"
-    after: [a]  # ОШИБКА: circular dependency
+    deps: [a]  # ОШИБКА: circular dependency
 ```
 
 ### Статусы (`status`)
@@ -1758,14 +1999,14 @@ schedule:
 
 ### Запрещённые поля в schedule.nodes
 
-Поле `after` **запрещено** в `schedule.nodes`:
+Поле `deps` **запрещено** в `schedule.nodes`:
 
 ```yaml
 schedule:
   nodes:
     task:
       start: "2024-03-01"
-      after: [other]  # ОШИБКА: 'after' is not allowed in schedule.nodes
+      deps: [other]  # ОШИБКА: 'deps' is not allowed in schedule.nodes
 ```
 
 ## Валидация views
@@ -1832,6 +2073,47 @@ Error: Merge conflict - schedule.default_calendar defined in multiple files
   File 2: schedule2.plan.yaml
 ```
 
+## Валидация Execution
+
+### Ссылки на узлы
+
+- `node_id` в `execution.nodes` ДОЛЖЕН существовать в `nodes`.
+
+### Прогресс
+
+- `progress` ДОЛЖЕН быть числом в диапазоне [0.0, 1.0].
+
+### Уверенность
+
+- `confidence` ДОЛЖЕН быть числом в диапазоне [0.0, 1.0].
+
+### Формат дат
+
+- `actual_start` и `actual_finish` ДОЛЖНЫ соответствовать формату `YYYY-MM-DD`.
+
+### Предупреждения согласованности
+
+| Условие | Уровень |
+|---------|---------|
+| `actual_finish` задан, но `actual_start` отсутствует | warn |
+| `progress == 1.0`, но нет `actual_finish` | warn |
+| `actual_finish` задан, но `progress != 1.0` | warn |
+| `progress > 0`, но нет `actual_start` | warn |
+
+## Валидация Profiles
+
+### Обязательные поля
+
+- Каждый профиль ДОЛЖЕН иметь `id`, `version` и `namespace`.
+
+### Формат namespace
+
+- `namespace` ДОЛЖЕН соответствовать `^[a-zA-Z_][a-zA-Z0-9_]*$`.
+
+### Дублирование namespace
+
+- Два профиля с одинаковым `namespace` — **ошибка**.
+
 ## Классификация ошибок
 
 | Ошибка | Уровень | Фаза |
@@ -1846,14 +2128,20 @@ Error: Merge conflict - schedule.default_calendar defined in multiple files
 | Узел содержит start/finish/duration | error | Валидация |
 | Невалидный формат effort | error | Валидация |
 | Несуществующий parent | error | Валидация |
-| Несуществующий after | error | Валидация |
+| Несуществующая ссылка dep | error | Валидация |
 | Несуществующий status | error | Валидация |
 | Несуществующий node в schedule.nodes | error | Валидация |
 | Несуществующий calendar | error | Валидация |
 | View содержит excludes | error | Валидация |
 | Циклические зависимости | error | Валидация |
+| Несуществующий node в execution.nodes | error | Валидация |
+| Невалидное значение progress | error | Валидация |
+| Невалидное значение confidence | error | Валидация |
+| Отсутствует обязательное поле профиля | error | Валидация |
+| Невалидный формат namespace | error | Валидация |
+| Дублирование namespace профиля | error | Валидация |
 | Несогласованные start/finish/duration | error | Планирование |
-| Цепочка after без якоря | warn | Планирование |
+| Цепочка deps без якоря | warn | Планирование |
 | start раньше finish зависимости | warn | Планирование |
 | start на исключённом дне | warn | Планирование |
 

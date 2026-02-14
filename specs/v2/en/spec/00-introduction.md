@@ -19,7 +19,7 @@ The main difference between v2 and v1 is **separating work structure from calend
 | Dates in nodes | `start`, `finish`, `duration` in `nodes` | Only in `schedule.nodes` |
 | Calendar | `excludes` in `views` | `excludes` in `schedule.calendars` |
 | Plan without dates | Not possible | Fully valid |
-| Dependencies | `after` in `nodes` | `after` in `nodes` (unchanged) |
+| Dependencies | `after` in `nodes` | `deps` in `nodes` (typed edges) |
 
 ### Plan Set (Multi-file Structure)
 
@@ -55,7 +55,9 @@ The unit of measure is set in `meta.effort_unit` for UI display.
 | `10-plan-set.md` | Plan Set: multi-file structure, fragment merging |
 | `20-nodes.md` | Nodes: work structure without calendar fields |
 | `30-schedule.md` | Schedule: calendar planning layer |
+| `25-execution.md` | Execution: progress tracking overlay |
 | `40-views.md` | Views: visualization representations |
+| `45-profiles.md` | Profiles: extension namespace management |
 | `50-validation.md` | Validation: rules and error messages |
 
 ## Allowed Top-Level Blocks
@@ -70,6 +72,8 @@ Each YAML file (fragment) can contain the following blocks:
 | `nodes` | Work node dictionary | Optional |
 | `schedule` | Calendar planning layer | Optional |
 | `views` | Visualization views | Optional |
+| `execution` | Execution tracking overlay | Optional |
+| `profiles` | Extension profile declarations | Optional |
 | `x` | Extensions (namespace for custom fields) | Optional |
 
 Any other top-level blocks are **errors**.
@@ -120,7 +124,7 @@ nodes:
     title: "Phase 2: Development"
     kind: phase
     parent: root
-    after: [phase1]
+    deps: [{id: phase1}]
     effort: 20
 
 schedule:
@@ -139,7 +143,7 @@ schedule:
     
     phase2:
       duration: "20d"
-      # start computed from after: [phase1] in nodes
+      # start computed from deps in nodes
 
 views:
   gantt:

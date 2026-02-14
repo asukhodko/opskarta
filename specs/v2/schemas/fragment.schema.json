@@ -30,11 +30,21 @@
     "schedule": {
       "$ref": "#/$defs/schedule"
     },
+    "execution": {
+      "$ref": "#/$defs/execution"
+    },
     "views": {
       "type": "object",
       "description": "Dictionary of view_id -> view definition",
       "additionalProperties": {
         "$ref": "#/$defs/view"
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "description": "List of extension profile declarations",
+      "items": {
+        "$ref": "#/$defs/profile"
       }
     },
     "x": {
@@ -105,12 +115,20 @@
           "type": "string",
           "description": "Reference to parent node_id for hierarchy"
         },
-        "after": {
+        "deps": {
           "type": "array",
           "items": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Shorthand: node_id (defaults to fs, 0d, hard)"
+              },
+              {
+                "$ref": "#/$defs/dep_edge"
+              }
+            ]
           },
-          "description": "List of node_ids this node depends on"
+          "description": "List of dependency edges to other nodes"
         },
         "milestone": {
           "type": "boolean",
@@ -152,7 +170,7 @@
     },
     "schedule_node": {
       "type": "object",
-      "description": "Scheduling information for a node. Note: dependencies (after) are defined in Node, not here",
+      "description": "Scheduling information for a node. Note: dependencies (deps) are defined in Node, not here",
       "properties": {
         "start": {
           "type": "string",
@@ -197,6 +215,111 @@
           "additionalProperties": {
             "$ref": "#/$defs/schedule_node"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "dep_edge": {
+      "type": "object",
+      "description": "Typed dependency edge between nodes",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Target node_id (required)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["fs", "ss"],
+          "default": "fs",
+          "description": "Dependency type: finish-to-start or start-to-start"
+        },
+        "lag": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)[dw]$",
+          "default": "0d",
+          "description": "Non-negative lag duration"
+        },
+        "hard": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this dep affects scheduling (true) or is visual-only (false)"
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional human-readable annotation"
+        }
+      },
+      "additionalProperties": false
+    },
+    "execution_node": {
+      "type": "object",
+      "description": "Per-node execution tracking data",
+      "properties": {
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Completion progress from 0.0 to 1.0"
+        },
+        "actual_start": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "Actual start date (YYYY-MM-DD)"
+        },
+        "actual_finish": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "Actual finish date (YYYY-MM-DD)"
+        },
+        "updated_at": {
+          "type": "string",
+          "description": "Timestamp of last update (ISO 8601)"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence level from 0.0 to 1.0"
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional annotation"
+        }
+      },
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "description": "Execution overlay block for progress tracking",
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "description": "Dictionary of node_id -> execution tracking data",
+          "additionalProperties": {
+            "$ref": "#/$defs/execution_node"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "Extension profile declaration",
+      "required": ["id", "version", "namespace"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Profile identifier (e.g., 'opskarta.ai-dev')"
+        },
+        "version": {
+          "type": "integer",
+          "description": "Profile schema version"
+        },
+        "namespace": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+          "description": "Key under x where profile data lives"
         }
       },
       "additionalProperties": false

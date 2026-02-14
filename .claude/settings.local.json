@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(wsl -e bash -c \"ls /mnt/c/Users/asukh/git/claude/opskarta/specs/v2/tools/\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && git diff:*)",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && PYTHONPATH=. python -m pytest:*)",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -m pytest specs/v2/tests/ -x --tb=short 2>&1 | tail -60\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -m pip list | grep pytest\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && ls -la specs/v2/tools/render/list.py\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && head -30 specs/v2/tools/render/list.py\")",
+      "Bash(wsl -e bash -c \"ls specs/v2/tests/*.py\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && grep -r ''after=\\\\['' specs/v2/tests/ --include=''*.py'' || echo ''No matches found''\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && grep -n ''^from\\\\|^import'' specs/v2/tools/render/list.py\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import sys; sys.path.insert\\(0, ''.''\\); from specs.v2.tools.render.list import render_list; print\\(''Import successful''\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import pytest; print\\(pytest.__version__\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && cat Makefile | head -50\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && ls -la .venv/ 2>&1 | head -5\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && ls -la venv/ 2>&1 | head -5\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 --version && which python3\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && git status --short:*)",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import sys; sys.path.insert\\(0, ''.''\\); from specs.v2.tools import models; print\\(''models.py OK''\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import sys; sys.path.insert\\(0, ''.''\\); from specs.v2.tools import validator; print\\(''validator.py OK''\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import sys; sys.path.insert\\(0, ''.''\\); from specs.v2.tools import scheduler; print\\(''scheduler.py OK''\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import sys; sys.path.insert\\(0, ''.''\\); from specs.v2.tools.render import tree, list, deps, gantt; print\\(''All render modules OK''\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import sys; sys.path.insert\\(0, ''.''\\); from specs.v2.tools.cli import main; print\\(''cli.py OK''\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import sys; sys.path.insert\\(0, ''.''\\); from specs.v2.tools.loader import load_plan_set; print\\(''loader.py OK''\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -m py_compile specs/v2/tests/test_validator.py && echo ''test_validator.py: OK''\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -m py_compile specs/v2/tests/test_scheduler.py && echo ''test_scheduler.py: OK''\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && for f in specs/v2/tests/test_*.py; do python3 -m py_compile \"\"$f\"\" && echo \"\"$f: OK\"\" || echo \"\"$f: ERROR\"\"; done\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && grep -n ''class DepEdge\\\\|class Node\\\\|class Execution'' specs/v2/tools/models.py | head -20\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && python3 -c \"\"import sys; sys.path.insert\\(0, ''.''\\); from specs.v2.tools.execution import compute_execution_metrics; print\\(''execution.py OK''\\)\"\"\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && grep -n ''def parse_lag'' specs/v2/tools/scheduler.py\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && grep -n ''from specs.v2.tools.execution import'' specs/v2/tools/*.py\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && git log:*)",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && make venv && make deps && make deps-dev 2>&1 | tail -20\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && source venv/bin/activate && PYTHONPATH=. python -m pytest specs/v2/tests/ -x --tb=short 2>&1 | tail -80\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/asukh/git/claude/opskarta && source venv/bin/activate && PYTHONPATH=. python -m pytest:*)",
+      "Bash(wsl bash:*)"
+    ]
+  }
+}

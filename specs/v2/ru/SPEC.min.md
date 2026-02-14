@@ -21,11 +21,11 @@ opskarta v2 (draft) — ультра-компактная спецификаци
 2) nodes (Структура работ)
 - node_id: уникальный строковый ключ в nodes; рекомендуемый regex ^[a-zA-Z][a-zA-Z0-9._-]*$; избегать пробелов/скобок/двоеточий для Mermaid.
 - Обязательно: title (string).
-- Опционально: kind (string), status (string), parent (string), after (list[string]), milestone (bool), effort (number ≥0), issue (string), notes (string), x (object).
+- Опционально: kind (string), status (string), parent (string), deps (list[string|dep_edge]), milestone (bool), effort (number ≥0), issue (string), notes (string), x (object).
 - ЗАПРЕЩЕНО в v2 nodes: start, finish, duration, excludes — перенесены в schedule.
 - parent: существующий node_id; циклические ссылки запрещены.
-- after: список node_id; циклические зависимости запрещены; зависимости определяются в nodes, НЕ в schedule.nodes.
-- milestone: true = точечное событие; при вычислении start из after не добавляется +1 рабочий день.
+- deps: список string (сокращённый синтаксис) или объектов dep_edge; поля dep_edge: id (обязательно), type (fs|ss, по умолчанию fs), lag (по умолчанию 0d), hard (bool, по умолчанию true), note (string); циклические зависимости запрещены (и hard, и soft); зависимости определяются в nodes, НЕ в schedule.nodes.
+- milestone: true = точечное событие; при вычислении start из deps не добавляется +1 рабочий день.
 - effort: неотрицательное число; единица измерения в meta.effort_unit (только для отображения).
 - effort_rollup: сумма effort_effective прямых потомков.
 - effort_effective: effort если задан, иначе effort_rollup.
@@ -52,13 +52,13 @@ opskarta v2 (draft) — ультра-компактная спецификаци
 4.3) schedule.nodes
 - node_id: должен существовать в nodes.
 - Поля: start (YYYY-MM-DD), finish (YYYY-MM-DD), duration (Nd или Nw), calendar (calendar_id).
-- after ЗАПРЕЩЁН в schedule.nodes — зависимости только в nodes.
+- deps ЗАПРЕЩЁН в schedule.nodes — зависимости только в nodes.
 - Состояния узла: unscheduled (нет в schedule.nodes), scheduled (есть в schedule.nodes), computed (scheduled + даты вычислены).
 
 4.4) Вычисление дат
-- Приоритет start: 1) явный start, 2) finish + duration (обратное), 3) зависимости after.
-- Алгоритм after: получить deps из nodes.<id>.after; отфильтровать только scheduled deps; вычислить max(finish); обычный узел: start = next_workday(max_finish); milestone: start = max_finish.
-- Unschedulable: нет явного start, нет finish+duration, все after deps unscheduled/unschedulable.
+- Приоритет start: 1) явный start, 2) finish + duration (обратное), 3) зависимости deps (только hard deps).
+- Алгоритм deps: получить deps из nodes.<id>.deps; отфильтровать только scheduled hard deps; для каждого dep: если type=fs, использовать dep.finish; если type=ss, использовать dep.start; применить lag; вычислить max из скорректированных дат; обычный узел: start = next_workday(max_date); milestone: start = max_date. Soft deps (hard: false) не влияют на вычисление дат.
+- Unschedulable: нет явного start, нет finish+duration, все hard deps unscheduled/unschedulable.
 - Формат duration: ^[1-9][0-9]*[dw]$; d=рабочие дни; w=5 рабочих дней (1w=5d).
 - finish = add_workdays(start, duration - 1, calendar); день start включён.
 - Обратное планирование: start = sub_workdays(finish, duration - 1, calendar).
@@ -80,9 +80,15 @@ opskarta v2 (draft) — ультра-компактная спецификаци
 5.2) lanes (для Gantt)
 - lane_id: { title: string, nodes: list[node_id] }.
 
+5a) execution (Отслеживание прогресса)
+- Опциональный слой; план валиден без execution.
+- execution.nodes.<node_id>: progress (0..1), actual_start (YYYY-MM-DD), actual_finish (YYYY-MM-DD), updated_at (ISO 8601), confidence (0..1), note (string).
+- node_id должен существовать в nodes.
+- progress_rollup: взвешенный по effort_effective; progress_coverage: доля effort с данными.
+
 6) Валидация
 - Severity: error (невалидно), warn (валидно с предупреждением), info (валидно).
-- Ошибки: отсутствуют обязательные поля; несуществующие ссылки (parent/after/status/calendar); циклические зависимости; дублирующиеся ключи; невалидные форматы; несогласованные даты; запрещённые поля в неправильных блоках.
+- Ошибки: отсутствуют обязательные поля; несуществующие ссылки (parent/deps/status/calendar); циклические зависимости; дублирующиеся ключи; невалидные форматы; несогласованные даты; запрещённые поля в неправильных блоках.
 - Предупреждения: unschedulable узлы; start на исключённом дне; все deps unscheduled.
 - Info: unscheduled узлы; вычисленные даты.
 
@@ -91,14 +97,19 @@ opskarta v2 (draft) — ультра-компактная спецификаци
 - Namespace x: для расширений; допускается в plan root, meta, statuses.*, nodes.*, schedule, views.*, lanes.*.
 - Расширения НЕ ДОЛЖНЫ влиять на core-семантику.
 
+7a) profiles (Управление пространствами имён расширений)
+- profiles: список {id, version, namespace}.
+- Формат namespace: ^[a-zA-Z_][a-zA-Z0-9_]*$.
+- Дублирующиеся namespace между профилями: ошибка.
+
 8) Миграция с v1
 - nodes: удалить start/finish/duration/excludes; перенести в schedule.nodes.
 - views: удалить excludes; перенести в schedule.calendars.
-- after: оставить в nodes (без изменений).
+- after: сконвертировать в deps.
 - finish (v1 inclusive) → finish (v2 inclusive): без изменений.
 
 9) Anti-ambiguity
-- Зависимости (after) определяются ТОЛЬКО в nodes, никогда в schedule.nodes.
+- Зависимости (deps) определяются ТОЛЬКО в nodes, никогда в schedule.nodes.
 - Календарь (excludes) определяется ТОЛЬКО в schedule.calendars, никогда в views.
 - План без schedule валиден — структура существует независимо от календаря.
 - Unscheduled узлы не показываются на Gantt, но существуют в tree/list/deps.

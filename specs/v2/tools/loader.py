@@ -30,9 +30,13 @@ import yaml
 
 from specs.v2.tools.models import (
     Calendar,
+    DepEdge,
+    Execution,
+    ExecutionNode,
     Meta,
     MergedPlan,
     Node,
+    Profile,
     Schedule,
     ScheduleNode,
     Status,
@@ -48,7 +52,9 @@ ALLOWED_TOP_LEVEL_BLOCKS: frozenset[str] = frozenset({
     "statuses",
     "nodes",
     "schedule",
+    "execution",
     "views",
+    "profiles",
     "x",
 })
 
@@ -58,6 +64,7 @@ FORBIDDEN_NODE_FIELDS: frozenset[str] = frozenset({
     "finish",
     "duration",
     "excludes",
+    "after",
 })
 
 
@@ -372,19 +379,32 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 # Check for forbidden fields (Requirement 2.4)
                 for forbidden_field in FORBIDDEN_NODE_FIELDS:
                     if forbidden_field in node_data:
+                        if forbidden_field == "after":
+                            raise LoadError(
+                                f"Node '{node_id}' contains removed field 'after'. "
+                                f"Use 'deps' instead: deps: [{{id: X, type: fs}}]",
+                                file_path=source,
+                                block_name=f"nodes.{node_id}.after",
+                            )
                         raise LoadError(
                             f"Node '{node_id}' contains forbidden field '{forbidden_field}'. "
                             f"In v2, '{forbidden_field}' should be in schedule.nodes, not in nodes.",
                             file_path=source,
                             block_name=f"nodes.{node_id}.{forbidden_field}",
                         )
-                
+
+                # Parse deps field
+                deps = None
+                raw_deps = node_data.get("deps")
+                if raw_deps is not None:
+                    deps = _parse_deps(raw_deps, node_id, source)
+
                 result.nodes[node_id] = Node(
                     title=node_data.get("title", ""),
                     kind=node_data.get("kind"),
                     status=node_data.get("status"),
                     parent=node_data.get("parent"),
-                    after=node_data.get("after"),
+                    deps=deps,
                     milestone=node_data.get("milestone", False),
                     issue=node_data.get("issue"),
                     notes=node_data.get("notes"),
@@ -492,8 +512,123 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                     )
                 result.x[x_key] = x_value
                 sources[f"x:{x_key}"] = source
-    
+
+        # 10. Merge execution
+        if "execution" in fragment and fragment["execution"]:
+            frag_execution = fragment["execution"]
+
+            if result.execution is None:
+                result.execution = Execution()
+
+            if "nodes" in frag_execution and frag_execution["nodes"]:
+                for en_id, en_data in frag_execution["nodes"].items():
+                    if en_id in result.execution.nodes:
+                        raise MergeConflictError(
+                            f"Duplicate execution node_id '{en_id}'",
+                            element_type="execution_node",
+                            element_id=en_id,
+                            files=[sources[f"execution_node:{en_id}"], source],
+                        )
+                    result.execution.nodes[en_id] = _parse_execution_node(en_data)
+                    sources[f"execution_node:{en_id}"] = source
+
+        # 11. Merge profiles
+        if "profiles" in fragment and fragment["profiles"]:
+            frag_profiles = fragment["profiles"]
+            if isinstance(frag_profiles, list):
+                for profile_data in frag_profiles:
+                    profile = _parse_profile(profile_data, source)
+                    # Check for duplicate profile id
+                    for existing in result.profiles:
+                        if existing.id == profile.id:
+                            raise MergeConflictError(
+                                f"Duplicate profile id '{profile.id}'",
+                                element_type="profile",
+                                element_id=profile.id,
+                                files=[sources[f"profile:{existing.id}"], source],
+                            )
+                    result.profiles.append(profile)
+                    sources[f"profile:{profile.id}"] = source
+
     # Store sources in result (Requirement 1.10)
     result.sources = sources
-    
+
     return result
+
+
+def _parse_deps(
+    raw_deps: list,
+    node_id: str,
+    source: str,
+) -> list[DepEdge]:
+    """Parse raw deps list into DepEdge objects."""
+    if not isinstance(raw_deps, list):
+        raise LoadError(
+            f"Node '{node_id}' has invalid deps: expected list, got {type(raw_deps).__name__}",
+            file_path=source,
+            block_name=f"nodes.{node_id}.deps",
+        )
+
+    deps = []
+    for i, dep_data in enumerate(raw_deps):
+        if isinstance(dep_data, str):
+            # Shorthand: just a node_id → defaults to fs, 0d, hard
+            deps.append(DepEdge(id=dep_data))
+        elif isinstance(dep_data, dict):
+            if "id" not in dep_data:
+                raise LoadError(
+                    f"Node '{node_id}' deps[{i}] is missing required field 'id'",
+                    file_path=source,
+                    block_name=f"nodes.{node_id}.deps[{i}]",
+                )
+            deps.append(DepEdge(
+                id=dep_data["id"],
+                type=dep_data.get("type", "fs"),
+                lag=dep_data.get("lag", "0d"),
+                hard=dep_data.get("hard", True),
+                note=dep_data.get("note"),
+            ))
+        else:
+            raise LoadError(
+                f"Node '{node_id}' deps[{i}] must be a string or object, "
+                f"got {type(dep_data).__name__}",
+                file_path=source,
+                block_name=f"nodes.{node_id}.deps[{i}]",
+            )
+    return deps
+
+
+def _parse_execution_node(data: dict) -> ExecutionNode:
+    """Parse raw dict into ExecutionNode."""
+    if not isinstance(data, dict):
+        return ExecutionNode()
+    return ExecutionNode(
+        progress=data.get("progress"),
+        actual_start=data.get("actual_start"),
+        actual_finish=data.get("actual_finish"),
+        updated_at=data.get("updated_at"),
+        confidence=data.get("confidence"),
+        note=data.get("note"),
+    )
+
+
+def _parse_profile(data: dict, source: str) -> Profile:
+    """Parse raw dict into Profile."""
+    if not isinstance(data, dict):
+        raise LoadError(
+            f"Profile entry must be an object, got {type(data).__name__}",
+            file_path=source,
+            block_name="profiles",
+        )
+    for required in ("id", "version", "namespace"):
+        if required not in data:
+            raise LoadError(
+                f"Profile entry is missing required field '{required}'",
+                file_path=source,
+                block_name="profiles",
+            )
+    return Profile(
+        id=data["id"],
+        version=data["version"],
+        namespace=data["namespace"],
+    )

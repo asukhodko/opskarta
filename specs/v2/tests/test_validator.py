@@ -11,7 +11,10 @@ Tests cover:
 
 import unittest
 
-from specs.v2.tools.models import MergedPlan, Node, Meta, Status
+from specs.v2.tools.models import (
+    MergedPlan, Node, Meta, Status, DepEdge,
+    ExecutionNode, Execution, Profile,
+)
 from specs.v2.tools.validator import (
     FORBIDDEN_NODE_FIELDS,
     Severity,
@@ -642,10 +645,10 @@ class TestStructuredErrorMessages(unittest.TestCase):
         self.assertEqual(error.expected, "existing status_id")
         self.assertEqual(error.actual, "unknown")
     
-    def test_after_reference_error_includes_expected_and_actual(self):
-        """After reference error includes expected and actual."""
+    def test_deps_reference_error_includes_expected_and_actual(self):
+        """Deps reference error includes expected and actual."""
         plan = MergedPlan(
-            nodes={"task1": Node(title="Task", after=["missing"])},
+            nodes={"task1": Node(title="Task", deps=[DepEdge(id="missing")])},
         )
         
         result = validate(plan)
@@ -824,7 +827,7 @@ class TestValidateComplexPlan(unittest.TestCase):
                 "root": Node(title="Project", kind="summary"),
                 "phase1": Node(title="Phase 1", parent="root", effort=10),
                 "task1": Node(title="Task 1", parent="phase1", effort=5),
-                "task2": Node(title="Task 2", parent="phase1", after=["task1"], effort=5),
+                "task2": Node(title="Task 2", parent="phase1", deps=[DepEdge(id="task1")], effort=5),
             },
         )
         
@@ -895,13 +898,13 @@ class TestValidateNodeReferences(unittest.TestCase):
         self.assertIn("nonexistent", result.errors[0].message)
         self.assertEqual(result.errors[0].path, "nodes.task1.parent")
     
-    def test_valid_after_references(self):
-        """Node with valid after references is valid."""
+    def test_valid_deps_references(self):
+        """Node with valid deps references is valid."""
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
                 "task2": Node(title="Task 2"),
-                "task3": Node(title="Task 3", after=["task1", "task2"]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task1"), DepEdge(id="task2")]),
             },
         )
         
@@ -909,27 +912,27 @@ class TestValidateNodeReferences(unittest.TestCase):
         
         self.assertTrue(result.is_valid)
     
-    def test_invalid_after_reference(self):
-        """Node with non-existent after reference is invalid."""
+    def test_invalid_deps_reference(self):
+        """Node with non-existent deps reference is invalid."""
         plan = MergedPlan(
             nodes={
-                "task1": Node(title="Task 1", after=["nonexistent"]),
+                "task1": Node(title="Task 1", deps=[DepEdge(id="nonexistent")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertFalse(result.is_valid)
         self.assertEqual(len(result.errors), 1)
-        self.assertIn("after", result.errors[0].message)
+        self.assertIn("deps[0]", result.errors[0].message)
         self.assertIn("nonexistent", result.errors[0].message)
-        self.assertEqual(result.errors[0].path, "nodes.task1.after")
+        self.assertEqual(result.errors[0].path, "nodes.task1.deps[0].id")
     
-    def test_multiple_invalid_after_references(self):
-        """Node with multiple non-existent after references generates multiple errors."""
+    def test_multiple_invalid_deps_references(self):
+        """Node with multiple non-existent deps references generates multiple errors."""
         plan = MergedPlan(
             nodes={
-                "task1": Node(title="Task 1", after=["missing1", "missing2"]),
+                "task1": Node(title="Task 1", deps=[DepEdge(id="missing1"), DepEdge(id="missing2")]),
             },
         )
         
@@ -998,11 +1001,11 @@ class TestValidateNodeReferences(unittest.TestCase):
         
         self.assertTrue(result.is_valid)
     
-    def test_empty_after_list_is_valid(self):
-        """Node with empty after list is valid."""
+    def test_empty_deps_list_is_valid(self):
+        """Node with empty deps list is valid."""
         plan = MergedPlan(
             nodes={
-                "task1": Node(title="Task 1", after=[]),
+                "task1": Node(title="Task 1", deps=[]),
             },
         )
         
@@ -1111,133 +1114,133 @@ class TestDetectParentCycles(unittest.TestCase):
         self.assertGreaterEqual(len(cycle_errors), 1)
 
 
-class TestDetectAfterCycles(unittest.TestCase):
-    """Tests for after dependency cycle detection (Requirement 2.2)."""
-    
-    def test_no_after_cycle(self):
-        """Plan without after cycles is valid."""
+class TestDetectDepCycles(unittest.TestCase):
+    """Tests for deps dependency cycle detection (Requirement 2.2)."""
+
+    def test_no_dep_cycle(self):
+        """Plan without deps cycles is valid."""
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
-                "task3": Node(title="Task 3", after=["task2"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task2")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertTrue(result.is_valid)
-    
-    def test_self_referencing_after(self):
-        """Node referencing itself in after is invalid."""
+
+    def test_self_referencing_dep(self):
+        """Node referencing itself in deps is invalid."""
         plan = MergedPlan(
             nodes={
-                "task1": Node(title="Task 1", after=["task1"]),
+                "task1": Node(title="Task 1", deps=[DepEdge(id="task1")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertFalse(result.is_valid)
-        cycle_errors = [e for e in result.errors if "Cyclic after" in e.message]
+        cycle_errors = [e for e in result.errors if "Cyclic dependency" in e.message]
         self.assertEqual(len(cycle_errors), 1)
         self.assertIn("task1", cycle_errors[0].message)
-    
-    def test_two_node_after_cycle(self):
-        """Two nodes forming an after cycle is invalid."""
+
+    def test_two_node_dep_cycle(self):
+        """Two nodes forming a deps cycle is invalid."""
         plan = MergedPlan(
             nodes={
-                "task1": Node(title="Task 1", after=["task2"]),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task1": Node(title="Task 1", deps=[DepEdge(id="task2")]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertFalse(result.is_valid)
-        cycle_errors = [e for e in result.errors if "Cyclic after" in e.message]
+        cycle_errors = [e for e in result.errors if "Cyclic dependency" in e.message]
         self.assertGreaterEqual(len(cycle_errors), 1)
-    
-    def test_three_node_after_cycle(self):
-        """Three nodes forming an after cycle is invalid."""
+
+    def test_three_node_dep_cycle(self):
+        """Three nodes forming a deps cycle is invalid."""
         plan = MergedPlan(
             nodes={
-                "task1": Node(title="Task 1", after=["task3"]),
-                "task2": Node(title="Task 2", after=["task1"]),
-                "task3": Node(title="Task 3", after=["task2"]),
+                "task1": Node(title="Task 1", deps=[DepEdge(id="task3")]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task2")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertFalse(result.is_valid)
-        cycle_errors = [e for e in result.errors if "Cyclic after" in e.message]
+        cycle_errors = [e for e in result.errors if "Cyclic dependency" in e.message]
         self.assertGreaterEqual(len(cycle_errors), 1)
         # Check that cycle path is in the error message
         error_msg = cycle_errors[0].message
         self.assertIn("->", error_msg)
-    
-    def test_after_cycle_error_includes_path(self):
-        """After cycle error includes path."""
+
+    def test_dep_cycle_error_includes_path(self):
+        """Dep cycle error includes path."""
         plan = MergedPlan(
             nodes={
-                "task1": Node(title="Task 1", after=["task2"]),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task1": Node(title="Task 1", deps=[DepEdge(id="task2")]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertFalse(result.is_valid)
-        cycle_errors = [e for e in result.errors if "Cyclic after" in e.message]
-        self.assertTrue(any("after" in e.path for e in cycle_errors))
-    
-    def test_multiple_after_with_one_cycle(self):
-        """Node with multiple after dependencies where one forms a cycle."""
+        cycle_errors = [e for e in result.errors if "Cyclic dependency" in e.message]
+        self.assertTrue(any("deps" in e.path for e in cycle_errors))
+
+    def test_multiple_deps_with_one_cycle(self):
+        """Node with multiple deps dependencies where one forms a cycle."""
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1", "task3"]),
-                "task3": Node(title="Task 3", after=["task2"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1"), DepEdge(id="task3")]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task2")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertFalse(result.is_valid)
-        cycle_errors = [e for e in result.errors if "Cyclic after" in e.message]
+        cycle_errors = [e for e in result.errors if "Cyclic dependency" in e.message]
         self.assertGreaterEqual(len(cycle_errors), 1)
-    
-    def test_after_cycle_with_valid_nodes(self):
-        """Plan with both valid nodes and an after cycle reports only the cycle."""
+
+    def test_dep_cycle_with_valid_nodes(self):
+        """Plan with both valid nodes and a deps cycle reports only the cycle."""
         plan = MergedPlan(
             nodes={
                 "valid1": Node(title="Valid 1"),
-                "valid2": Node(title="Valid 2", after=["valid1"]),
-                "cycle1": Node(title="Cycle 1", after=["cycle2"]),
-                "cycle2": Node(title="Cycle 2", after=["cycle1"]),
+                "valid2": Node(title="Valid 2", deps=[DepEdge(id="valid1")]),
+                "cycle1": Node(title="Cycle 1", deps=[DepEdge(id="cycle2")]),
+                "cycle2": Node(title="Cycle 2", deps=[DepEdge(id="cycle1")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertFalse(result.is_valid)
-        cycle_errors = [e for e in result.errors if "Cyclic after" in e.message]
+        cycle_errors = [e for e in result.errors if "Cyclic dependency" in e.message]
         self.assertGreaterEqual(len(cycle_errors), 1)
-    
+
     def test_diamond_dependency_is_valid(self):
         """Diamond dependency pattern (not a cycle) is valid."""
         plan = MergedPlan(
             nodes={
                 "start": Node(title="Start"),
-                "left": Node(title="Left", after=["start"]),
-                "right": Node(title="Right", after=["start"]),
-                "end": Node(title="End", after=["left", "right"]),
+                "left": Node(title="Left", deps=[DepEdge(id="start")]),
+                "right": Node(title="Right", deps=[DepEdge(id="start")]),
+                "end": Node(title="End", deps=[DepEdge(id="left"), DepEdge(id="right")]),
             },
         )
-        
+
         result = validate(plan)
-        
+
         self.assertTrue(result.is_valid)
 
 
@@ -1251,9 +1254,9 @@ class TestCombinedReferenceValidation(unittest.TestCase):
                 "root": Node(title="Project", kind="summary", status="in_progress"),
                 "phase1": Node(title="Phase 1", parent="root", status="done"),
                 "task1": Node(title="Task 1", parent="phase1", effort=5),
-                "task2": Node(title="Task 2", parent="phase1", after=["task1"], effort=3),
-                "phase2": Node(title="Phase 2", parent="root", after=["phase1"]),
-                "task3": Node(title="Task 3", parent="phase2", after=["task2"]),
+                "task2": Node(title="Task 2", parent="phase1", deps=[DepEdge(id="task1")], effort=3),
+                "phase2": Node(title="Phase 2", parent="root", deps=[DepEdge(id="phase1")]),
+                "task3": Node(title="Task 3", parent="phase2", deps=[DepEdge(id="task2")]),
             },
             statuses={
                 "in_progress": Status(label="In Progress"),
@@ -1270,7 +1273,7 @@ class TestCombinedReferenceValidation(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1", parent="missing_parent", status="missing_status"),
-                "task2": Node(title="Task 2", after=["missing_dep"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="missing_dep")]),
             },
         )
         
@@ -1286,8 +1289,8 @@ class TestCombinedReferenceValidation(unittest.TestCase):
             nodes={
                 "task1": Node(title="Task 1", parent="task2"),
                 "task2": Node(title="Task 2", parent="task1"),
-                "task3": Node(title="Task 3", after=["task4"]),
-                "task4": Node(title="Task 4", after=["task3"]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task4")]),
+                "task4": Node(title="Task 4", deps=[DepEdge(id="task3")]),
             },
         )
         
@@ -1295,9 +1298,9 @@ class TestCombinedReferenceValidation(unittest.TestCase):
         
         self.assertFalse(result.is_valid)
         parent_cycles = [e for e in result.errors if "Cyclic parent" in e.message]
-        after_cycles = [e for e in result.errors if "Cyclic after" in e.message]
+        dep_cycles = [e for e in result.errors if "Cyclic dependency" in e.message]
         self.assertGreaterEqual(len(parent_cycles), 1)
-        self.assertGreaterEqual(len(after_cycles), 1)
+        self.assertGreaterEqual(len(dep_cycles), 1)
 
 
 
@@ -1533,8 +1536,8 @@ class TestValidateScheduleReferences(unittest.TestCase):
             nodes={
                 "phase1": Node(title="Phase 1"),
                 "task1": Node(title="Task 1", parent="phase1"),
-                "task2": Node(title="Task 2", parent="phase1", after=["task1"]),
-                "milestone": Node(title="Milestone", milestone=True, after=["task2"]),
+                "task2": Node(title="Task 2", parent="phase1", deps=[DepEdge(id="task1")]),
+                "milestone": Node(title="Milestone", milestone=True, deps=[DepEdge(id="task2")]),
             },
             schedule=Schedule(
                 calendars={

@@ -30,7 +30,7 @@ opskarta v2 реализует концепцию **overlay schedule** — ра�
 | Даты в узлах | `start`, `finish`, `duration` в `nodes` | Только в `schedule.nodes` |
 | Календарь | `excludes` в `views` (gantt_views) | `excludes` в `schedule.calendars` |
 | План без дат | Невозможен для Gantt | Полностью валиден |
-| Зависимости | `after` в `nodes` | `after` в `nodes` (без изменений) |
+| Зависимости | `after` в `nodes` | `deps` в `nodes` (типизированные рёбра зависимостей с fs/ss, lag, hard/soft) |
 | Многофайловость | Отдельные файлы plan/views | Единый Plan Set с фрагментами |
 | Оценка трудозатрат | Не поддерживается | Поле `effort` (число) |
 
@@ -117,18 +117,18 @@ schedule:
       duration: "5d"  # Для расчёта дат
 ```
 
-### 4. Зависимости остаются в nodes
+### 4. Зависимости: `after` → `deps`
 
-Поле `after` по-прежнему определяется в `nodes`, **не** в `schedule.nodes`. Это важно: структура зависимостей отделена от календарного планирования.
+В v2 поле `after` заменено на `deps` — типизированные рёбра зависимостей. Поле `deps` определяется в `nodes`, **не** в `schedule.nodes`. Это важно: структура зависимостей отделена от календарного планирования.
 
 ```yaml
-# v2 — правильно
+# v2 — правильно (сокращённый синтаксис, эквивалент v1 after)
 nodes:
   task1:
     title: "Задача 1"
   task2:
     title: "Задача 2"
-    after: [task1]  # Зависимости в nodes
+    deps: [task1]  # Зависимости в nodes
 
 schedule:
   nodes:
@@ -136,7 +136,39 @@ schedule:
       start: "2024-03-01"
       duration: "3d"
     task2:
-      duration: "5d"  # start вычисляется из after в nodes
+      duration: "5d"  # start вычисляется из deps в nodes
+```
+
+### 5. Поле `after` заменено на `deps`
+
+**v1:** Простой список идентификаторов узлов.
+
+```yaml
+# v1
+nodes:
+  task2:
+    title: "Задача 2"
+    after: [task1]
+```
+
+**v2:** Типизированные рёбра зависимостей с опциональными lag, type (fs/ss) и hard/soft.
+
+```yaml
+# v2 — сокращённый синтаксис (эквивалент v1 after)
+nodes:
+  task2:
+    title: "Задача 2"
+    deps: [task1]  # сокращённый синтаксис для [{id: task1}]
+
+# v2 — полный синтаксис
+nodes:
+  task2:
+    title: "Задача 2"
+    deps:
+      - id: task1
+        type: fs
+        lag: "2d"
+        hard: true
 ```
 
 ---
@@ -219,7 +251,7 @@ nodes:
     title: "Задача 1"
   task2:
     title: "Задача 2"
-    after: [task1]  # Зависимости остаются в nodes
+    deps: [task1]  # Зависимости остаются в nodes (after → deps)
 
 schedule:
   nodes:
@@ -264,7 +296,38 @@ nodes:
     effort: 5  # Story points, дни, или другие единицы
 ```
 
-### Шаг 7: Объедините файлы (опционально)
+### Шаг 7: Сконвертируйте `after` в `deps`
+
+Замените все поля `after` в узлах на `deps`. Простейшая миграция — прямое переименование (сокращённый синтаксис эквивалентен v1 `after`):
+
+```yaml
+# Было (v1)
+nodes:
+  task2:
+    title: "Задача 2"
+    after: [task1]
+
+# Стало (v2)
+nodes:
+  task2:
+    title: "Задача 2"
+    deps: [task1]
+```
+
+Если нужны типизированные зависимости (lag, start-to-start, soft deps), используйте полный синтаксис:
+
+```yaml
+nodes:
+  task2:
+    title: "Задача 2"
+    deps:
+      - id: task1
+        type: fs    # finish-to-start (по умолчанию)
+        lag: "2d"   # задержка 2 рабочих дня
+        hard: true  # жёсткая зависимость (по умолчанию)
+```
+
+### Шаг 8: Объедините файлы (опционально)
 
 В v2 можно объединить `*.plan.yaml` и `*.views.yaml` в один файл или разбить на несколько фрагментов по логике.
 
@@ -306,37 +369,37 @@ nodes:
 nodes:
   design:
     title: "Дизайн"
-  
+
   implementation:
     title: "Реализация"
-    after: [design]  # Зависимости остаются здесь
-  
+    deps: [design]  # Зависимости остаются здесь (after → deps)
+
   release:
     title: "Релиз"
     milestone: true  # Флаг вехи остаётся здесь
-    after: [implementation]
+    deps: [implementation]
 
 schedule:
   calendars:
     default:
       excludes: [weekends]
   default_calendar: default
-  
+
   nodes:
     design:
       start: "2024-03-01"
       duration: "5d"
     implementation:
       duration: "10d"
-      # start вычисляется из after: [design]
+      # start вычисляется из deps: [design]
     release:
-      # start вычисляется из after: [implementation]
+      # start вычисляется из deps: [implementation]
       # milestone: true берётся из nodes
 ```
 
 ### Важные замечания
 
-1. **Поле `after` остаётся в nodes** — не переносите его в schedule.nodes
+1. **Поле `deps` остаётся в nodes** — не переносите его в schedule.nodes
 2. **Поле `milestone` остаётся в nodes** — это характеристика узла, не расписания
 3. **Узлы без дат** — если узел не имел `start`/`duration` в v1, его не нужно добавлять в schedule.nodes
 
@@ -531,19 +594,19 @@ nodes:
   
   task2:
     title: "Разработка"
-    after: [task1]
-  
+    deps: [task1]
+
   task3:
     title: "Тестирование"
-    after: [task2]
+    deps: [task2]
 
 schedule:
   calendars:
     default:
       excludes: [weekends]
-  
+
   default_calendar: default
-  
+
   nodes:
     task1:
       start: "2024-03-01"
@@ -613,12 +676,12 @@ nodes:
   
   review:
     title: "Ревью"
-    after: [prep]
-  
+    deps: [prep]
+
   release:
     title: "Релиз"
     milestone: true
-    after: [review]
+    deps: [review]
 
 schedule:
   calendars:
@@ -626,9 +689,9 @@ schedule:
       excludes:
         - weekends
         - "2024-03-08"
-  
+
   default_calendar: default
-  
+
   nodes:
     prep:
       finish: "2024-03-15"
@@ -636,7 +699,7 @@ schedule:
     review:
       duration: "2d"
     release:
-      # start вычисляется из after
+      # start вычисляется из deps
 
 views:
   timeline:
@@ -664,7 +727,7 @@ nodes:
   
   sprint_task2:
     title: "Задача спринта 2"
-    after: [sprint_task1]
+    deps: [sprint_task1]
     effort: 5
   
   # Незапланированные задачи (бэклог)
@@ -835,7 +898,7 @@ schedule:
 
 ### Проблема 6: Даты вычисляются неправильно
 
-**Причина:** Зависимости `after` указаны в `schedule.nodes` вместо `nodes`.
+**Причина:** Зависимости `deps` указаны в `schedule.nodes` вместо `nodes`.
 
 **Решение:** Зависимости должны быть в `nodes`:
 
@@ -853,7 +916,7 @@ schedule:
       start: "2024-03-01"
       duration: "3d"
     task2:
-      after: [task1]  # Ошибка: after запрещён в schedule.nodes!
+      deps: [task1]  # Ошибка: deps запрещён в schedule.nodes!
       duration: "5d"
 
 # Правильно
@@ -862,7 +925,7 @@ nodes:
     title: "Задача 1"
   task2:
     title: "Задача 2"
-    after: [task1]  # Зависимости в nodes
+    deps: [task1]  # Зависимости в nodes
 
 schedule:
   nodes:
@@ -870,7 +933,7 @@ schedule:
       start: "2024-03-01"
       duration: "3d"
     task2:
-      duration: "5d"  # start вычисляется из after в nodes
+      duration: "5d"  # start вычисляется из deps в nodes
 ```
 
 ---
@@ -911,7 +974,7 @@ python -m specs.v2.tools.cli render deps plan.yaml
 - [ ] Поля `start`, `finish`, `duration` перенесены из `nodes` в `schedule.nodes`
 - [ ] Поле `excludes` перенесено из `views` в `schedule.calendars`
 - [ ] Создан `default_calendar` (если используется schedule)
-- [ ] Зависимости `after` остались в `nodes`
+- [ ] Зависимости сконвертированы из `after` в `deps`
 - [ ] Флаг `milestone` остался в `nodes`
 - [ ] Удалены все `excludes` из `views`
 - [ ] План проходит валидацию
@@ -945,7 +1008,7 @@ OK
 
 1. **Перенос календарных полей** (`start`, `finish`, `duration`) из `nodes` в `schedule.nodes`
 2. **Перенос исключений** (`excludes`) из `views` в `schedule.calendars`
-3. **Сохранение зависимостей** (`after`) и флагов (`milestone`) в `nodes`
+3. **Конвертация зависимостей** из `after` в `deps` (с опциональными типизированными рёбрами) и сохранение флагов (`milestone`) в `nodes`
 
 Ключевое преимущество v2 — возможность работать с планами без календарного планирования. Структура работ и зависимости существуют независимо от дат, что упрощает раннее планирование и работу с бэклогом.
 

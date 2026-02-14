@@ -28,6 +28,8 @@
 - `nodes`
 - `schedule`
 - `views`
+- `execution`
+- `profiles`
 - `x`
 
 ```yaml
@@ -123,26 +125,29 @@ nodes:
     parent: a  # ОШИБКА: circular parent reference
 ```
 
-### Зависимости (`after`)
+### Зависимости (`deps`)
 
-- Каждый элемент `after` ДОЛЖЕН быть существующим `node_id`.
-- Циклические зависимости через `after` **запрещены**.
+- Каждый `dep.id` ДОЛЖЕН быть существующим `node_id`.
+- `dep.type` ДОЛЖЕН быть `"fs"` или `"ss"`.
+- `dep.lag` ДОЛЖЕН соответствовать формату `^(0|[1-9][0-9]*)[dw]$`.
+- Циклические зависимости через `deps` **запрещены** (проверяются и hard, и soft рёбра).
 
 ```yaml
 # ОШИБКА: несуществующая зависимость
 nodes:
   task:
     title: "Task"
-    after: [missing]  # ОШИБКА: after reference 'missing' does not exist
+    deps:
+      - id: missing  # ОШИБКА: dep reference 'missing' does not exist
 
 # ОШИБКА: циклическая зависимость
 nodes:
   a:
     title: "A"
-    after: [b]
+    deps: [b]
   b:
     title: "B"
-    after: [a]  # ОШИБКА: circular dependency
+    deps: [a]  # ОШИБКА: circular dependency
 ```
 
 ### Статусы (`status`)
@@ -242,14 +247,14 @@ schedule:
 
 ### Запрещённые поля в schedule.nodes
 
-Поле `after` **запрещено** в `schedule.nodes`:
+Поле `deps` **запрещено** в `schedule.nodes`:
 
 ```yaml
 schedule:
   nodes:
     task:
       start: "2024-03-01"
-      after: [other]  # ОШИБКА: 'after' is not allowed in schedule.nodes
+      deps: [other]  # ОШИБКА: 'deps' is not allowed in schedule.nodes
 ```
 
 ## Валидация views
@@ -316,6 +321,47 @@ Error: Merge conflict - schedule.default_calendar defined in multiple files
   File 2: schedule2.plan.yaml
 ```
 
+## Валидация Execution
+
+### Ссылки на узлы
+
+- `node_id` в `execution.nodes` ДОЛЖЕН существовать в `nodes`.
+
+### Прогресс
+
+- `progress` ДОЛЖЕН быть числом в диапазоне [0.0, 1.0].
+
+### Уверенность
+
+- `confidence` ДОЛЖЕН быть числом в диапазоне [0.0, 1.0].
+
+### Формат дат
+
+- `actual_start` и `actual_finish` ДОЛЖНЫ соответствовать формату `YYYY-MM-DD`.
+
+### Предупреждения согласованности
+
+| Условие | Уровень |
+|---------|---------|
+| `actual_finish` задан, но `actual_start` отсутствует | warn |
+| `progress == 1.0`, но нет `actual_finish` | warn |
+| `actual_finish` задан, но `progress != 1.0` | warn |
+| `progress > 0`, но нет `actual_start` | warn |
+
+## Валидация Profiles
+
+### Обязательные поля
+
+- Каждый профиль ДОЛЖЕН иметь `id`, `version` и `namespace`.
+
+### Формат namespace
+
+- `namespace` ДОЛЖЕН соответствовать `^[a-zA-Z_][a-zA-Z0-9_]*$`.
+
+### Дублирование namespace
+
+- Два профиля с одинаковым `namespace` — **ошибка**.
+
 ## Классификация ошибок
 
 | Ошибка | Уровень | Фаза |
@@ -330,14 +376,20 @@ Error: Merge conflict - schedule.default_calendar defined in multiple files
 | Узел содержит start/finish/duration | error | Валидация |
 | Невалидный формат effort | error | Валидация |
 | Несуществующий parent | error | Валидация |
-| Несуществующий after | error | Валидация |
+| Несуществующая ссылка dep | error | Валидация |
 | Несуществующий status | error | Валидация |
 | Несуществующий node в schedule.nodes | error | Валидация |
 | Несуществующий calendar | error | Валидация |
 | View содержит excludes | error | Валидация |
 | Циклические зависимости | error | Валидация |
+| Несуществующий node в execution.nodes | error | Валидация |
+| Невалидное значение progress | error | Валидация |
+| Невалидное значение confidence | error | Валидация |
+| Отсутствует обязательное поле профиля | error | Валидация |
+| Невалидный формат namespace | error | Валидация |
+| Дублирование namespace профиля | error | Валидация |
 | Несогласованные start/finish/duration | error | Планирование |
-| Цепочка after без якоря | warn | Планирование |
+| Цепочка deps без якоря | warn | Планирование |
 | start раньше finish зависимости | warn | Планирование |
 | start на исключённом дне | warn | Планирование |
 

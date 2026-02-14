@@ -58,7 +58,7 @@ nodes:
   task2:
     title: Task 2
     status: in_progress
-    after: [task1]
+    deps: [task1]
     effort: 3
   task3:
     title: Task 3
@@ -83,11 +83,11 @@ nodes:
     title: Task 1
   task2:
     title: Task 2
-    after: [task1]
+    deps: [task1]
   milestone1:
     title: Milestone 1
     milestone: true
-    after: [task2]
+    deps: [task2]
 
 schedule:
   calendars:
@@ -102,6 +102,10 @@ schedule:
     task2:
       duration: "5d"
     milestone1: {}
+
+views:
+  gantt:
+    title: Gantt View
 """)
     return plan_file
 
@@ -197,7 +201,7 @@ nodes:
   task2:
     title: Task 2
     status: done
-    after: [task1]
+    deps: [task1]
 """)
     return nodes_file
 
@@ -219,13 +223,13 @@ class TestParser:
         assert args.files == ["file1.yaml", "file2.yaml"]
     
     def test_render_gantt_parsing(self):
-        """Render gantt command should parse correctly."""
+        """Render gantt command should parse correctly with required --view."""
         parser = create_parser()
-        args = parser.parse_args(["render", "gantt", "plan.yaml"])
+        args = parser.parse_args(["render", "gantt", "plan.yaml", "--view", "gantt"])
         assert args.command == "render"
         assert args.format == "gantt"
         assert args.files == ["plan.yaml"]
-        assert args.view is None
+        assert args.view == "gantt"
     
     def test_render_gantt_with_view(self):
         """Render gantt with --view should parse correctly."""
@@ -302,29 +306,29 @@ class TestRenderGanttCommand:
     
     def test_render_gantt_basic(self, plan_with_schedule: Path, capsys):
         """Render gantt should produce Mermaid output."""
-        result = cmd_render_gantt([str(plan_with_schedule)], None)
+        result = cmd_render_gantt([str(plan_with_schedule)], "gantt", "plain")
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "gantt" in captured.out
         assert "Task 1" in captured.out
-    
+
     def test_render_gantt_with_view(self, plan_with_views: Path, capsys):
         """Render gantt with view should apply filtering."""
         # This plan doesn't have schedule, so gantt will be minimal
-        result = cmd_render_gantt([str(plan_with_views)], "tasks_only")
+        result = cmd_render_gantt([str(plan_with_views)], "tasks_only", "plain")
         assert result == 0
-    
+
     def test_render_gantt_invalid_view(self, plan_with_schedule: Path):
         """Render gantt with non-existent view should fail."""
-        result = cmd_render_gantt([str(plan_with_schedule)], "nonexistent")
+        result = cmd_render_gantt([str(plan_with_schedule)], "nonexistent", "plain")
         assert result == 1
-    
+
     def test_render_gantt_via_main(self, plan_with_schedule: Path, capsys):
         """Render gantt via main() should work."""
-        result = main(["render", "gantt", str(plan_with_schedule)])
+        result = main(["render", "gantt", str(plan_with_schedule), "--view", "gantt"])
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "gantt" in captured.out
 
@@ -398,23 +402,23 @@ class TestRenderDepsCommand:
     
     def test_render_deps_basic(self, valid_plan_file: Path, capsys):
         """Render deps should produce Mermaid flowchart output."""
-        result = cmd_render_deps([str(valid_plan_file)], None)
+        result = cmd_render_deps([str(valid_plan_file)], None, "simple", "LR", 0, [])
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "flowchart LR" in captured.out
         # task2 depends on task1
         assert "task1" in captured.out
         assert "task2" in captured.out
-    
+
     def test_render_deps_with_view(self, plan_with_views: Path, capsys):
         """Render deps with view should apply filtering."""
-        result = cmd_render_deps([str(plan_with_views)], "tasks_only")
+        result = cmd_render_deps([str(plan_with_views)], "tasks_only", "simple", "LR", 0, [])
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "flowchart LR" in captured.out
-    
+
     def test_render_deps_via_main(self, valid_plan_file: Path, capsys):
         """Render deps via main() should work."""
         result = main(["render", "deps", str(valid_plan_file)])

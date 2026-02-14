@@ -13,7 +13,7 @@ This example demonstrates the **Plan Set** concept — splitting a plan into mul
 ### Key v2 Features
 
 - **Overlay Schedule**: schedule as a separate layer on top of structure
-- **Dependencies in nodes**: `after` field is defined in nodes, not in schedule
+- **Dependencies in nodes**: `deps` field is defined in nodes, not in schedule
 - **Pure views**: views don't contain `excludes` (moved to calendars)
 - **Effort without dates**: effort is estimated independently of calendar
 

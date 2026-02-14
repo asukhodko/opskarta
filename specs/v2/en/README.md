@@ -84,7 +84,7 @@ nodes:
     title: "OAuth Login"
     kind: user_story
     parent: epic1
-    after: [story1]
+    deps: [story1]
     effort: 8
 ```
 
@@ -119,7 +119,7 @@ nodes:
   phase2:
     title: "Phase 2: Development"
     kind: phase
-    after: [phase1]
+    deps: [phase1]
     effort: 20
 ```
 
@@ -141,5 +141,5 @@ schedule:
 
     phase2:
       duration: "20d"
-      # start computed from after: [phase1]
+      # start computed from deps: [phase1]
 ```

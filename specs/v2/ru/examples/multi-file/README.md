@@ -13,7 +13,7 @@
 ### Ключевые особенности v2
 
 - **Overlay Schedule**: расписание как отдельный слой поверх структуры
-- **Зависимости в nodes**: поле `after` определяется в узлах, не в schedule
+- **Зависимости в nodes**: поле `deps` определяется в узлах, не в schedule
 - **Чистые views**: представления не содержат `excludes` (перенесён в calendars)
 - **Effort без дат**: трудозатраты оцениваются независимо от календаря
 
@@ -149,21 +149,21 @@ schedule:
 
 ### Зависимости в nodes
 
-Зависимости (`after`) определяются в узлах, а не в schedule:
+Зависимости (`deps`) определяются в узлах, а не в schedule:
 
 ```yaml
 # nodes.plan.yaml
 nodes:
   task2:
     title: "Задача 2"
-    after: [task1]  # зависимость здесь
+    deps: [task1]  # зависимость здесь
 
 # schedule.plan.yaml
 schedule:
   nodes:
     task2:
       duration: "3d"
-      # start вычисляется из after в nodes
+      # start вычисляется из deps в nodes
 ```
 
 ### Частичное расписание

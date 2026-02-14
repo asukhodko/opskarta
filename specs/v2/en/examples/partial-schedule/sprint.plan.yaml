@@ -80,7 +80,7 @@ nodes:
     title: "Authentication API"
     kind: task
     parent: auth
-    after: [auth-ui]
+    deps: [auth-ui]
     status: in_progress
     effort: 5
     notes: "JWT tokens, refresh, logout"
@@ -89,7 +89,7 @@ nodes:
     title: "OAuth integration"
     kind: task
     parent: auth
-    after: [auth-api]
+    deps: [auth-api]
     status: ready
     effort: 8
     notes: "Google, Apple, Facebook"
@@ -98,7 +98,7 @@ nodes:
     title: "Two-factor authentication"
     kind: task
     parent: auth
-    after: [auth-oauth]
+    deps: [auth-oauth]
     status: ready
     effort: 5
     notes: "SMS and TOTP"
@@ -110,7 +110,7 @@ nodes:
     title: "User Profile"
     kind: epic
     parent: project
-    after: [auth]
+    deps: [auth]
     status: in_progress
     effort: 13
     notes: |
@@ -129,7 +129,7 @@ nodes:
     title: "Edit profile"
     kind: task
     parent: profile
-    after: [profile-view]
+    deps: [profile-view]
     status: ready
     effort: 5
     notes: "Change name, avatar, contacts"
@@ -139,7 +139,7 @@ nodes:
     title: "Privacy settings"
     kind: task
     parent: profile
-    after: [profile-edit]
+    deps: [profile-edit]
     status: backlog
     effort: 3
     notes: "Who can see profile, user blocking"
@@ -148,7 +148,7 @@ nodes:
     title: "Data export"
     kind: task
     parent: profile
-    after: [profile-privacy]
+    deps: [profile-privacy]
     status: backlog
     effort: 2
     notes: "GDPR compliance — export user data"
@@ -160,7 +160,7 @@ nodes:
     title: "Notifications"
     kind: epic
     parent: project
-    after: [profile]
+    deps: [profile]
     status: backlog
     effort: 21
     notes: |
@@ -179,7 +179,7 @@ nodes:
     title: "Email notifications"
     kind: task
     parent: notifications
-    after: [notif-push]
+    deps: [notif-push]
     status: backlog
     effort: 5
     notes: "Transactional emails"
@@ -188,7 +188,7 @@ nodes:
     title: "Notification settings"
     kind: task
     parent: notifications
-    after: [notif-push]
+    deps: [notif-push]
     status: backlog
     effort: 3
     notes: "Subscription management"
@@ -197,7 +197,7 @@ nodes:
     title: "Notification history"
     kind: task
     parent: notifications
-    after: [notif-settings]
+    deps: [notif-settings]
     status: backlog
     effort: 5
     notes: "In-app notification feed"
@@ -209,7 +209,7 @@ nodes:
     title: "Social Features"
     kind: epic
     parent: project
-    after: [notifications]
+    deps: [notifications]
     status: backlog
     effort: 34
     notes: |
@@ -227,7 +227,7 @@ nodes:
     title: "Activity feed"
     kind: task
     parent: social
-    after: [social-friends]
+    deps: [social-friends]
     status: backlog
     effort: 13
 
@@ -235,7 +235,7 @@ nodes:
     title: "Content sharing"
     kind: task
     parent: social
-    after: [social-feed]
+    deps: [social-feed]
     status: backlog
     effort: 8
 
@@ -243,7 +243,7 @@ nodes:
     title: "Comments"
     kind: task
     parent: social
-    after: [social-sharing]
+    deps: [social-sharing]
     status: backlog
     effort: 5
 
@@ -254,7 +254,7 @@ nodes:
     title: "MVP Release"
     kind: task
     parent: project
-    after: [auth, profile]
+    deps: [auth, profile]
     status: ready
     milestone: true
     notes: |
@@ -282,15 +282,15 @@ schedule:
       duration: "3d"
 
     auth-api:
-      # start computed from after: [auth-ui]
+      # start computed from deps: [auth-ui]
       duration: "5d"
 
     auth-oauth:
-      # start computed from after: [auth-api]
+      # start computed from deps: [auth-api]
       duration: "6d"  # 8 sp ≈ 6 work days
 
     auth-2fa:
-      # start computed from after: [auth-oauth]
+      # start computed from deps: [auth-oauth]
       duration: "4d"  # 5 sp ≈ 4 work days
 
     # --- Profile (only part in sprint) ---
@@ -299,14 +299,14 @@ schedule:
       duration: "3d"
 
     profile-edit:
-      # start computed from after: [profile-view]
+      # start computed from deps: [profile-view]
       duration: "4d"
 
     # profile-privacy and profile-export — NOT in schedule (backlog)
 
     # --- MVP Milestone ---
     mvp-release: {}
-      # start computed from after: [auth, profile]
+      # start computed from deps: [auth, profile]
       # Milestone — no duration
 
 # ============================================================

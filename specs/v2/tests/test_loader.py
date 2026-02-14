@@ -26,7 +26,13 @@ from specs.v2.tools.loader import (
     load_plan_set,
     merge_fragments,
 )
-from specs.v2.tools.models import MergedPlan
+from specs.v2.tools.models import (
+    DepEdge,
+    Execution,
+    ExecutionNode,
+    MergedPlan,
+    Profile,
+)
 
 
 class TestAllowedBlocks(unittest.TestCase):
@@ -34,7 +40,7 @@ class TestAllowedBlocks(unittest.TestCase):
     
     def test_allowed_blocks_contains_required(self):
         """All required blocks are in ALLOWED_TOP_LEVEL_BLOCKS."""
-        required = {"version", "meta", "statuses", "nodes", "schedule", "views", "x"}
+        required = {"version", "meta", "statuses", "nodes", "schedule", "execution", "views", "profiles", "x"}
         self.assertEqual(ALLOWED_TOP_LEVEL_BLOCKS, required)
     
     def test_allowed_blocks_is_frozenset(self):
@@ -890,7 +896,7 @@ class TestMergeFragmentsNodeFields(unittest.TestCase):
                     "kind": "task",
                     "status": "in_progress",
                     "parent": "root",
-                    "after": ["task0"],
+                    "deps": ["task0"],
                     "milestone": True,
                     "issue": "PROJ-123",
                     "notes": "Some notes",
@@ -899,15 +905,18 @@ class TestMergeFragmentsNodeFields(unittest.TestCase):
                 },
             },
         }
-        
+
         result = merge_fragments([fragment])
         node = result.nodes["task1"]
-        
+
         self.assertEqual(node.title, "Task 1")
         self.assertEqual(node.kind, "task")
         self.assertEqual(node.status, "in_progress")
         self.assertEqual(node.parent, "root")
-        self.assertEqual(node.after, ["task0"])
+        self.assertIsNotNone(node.deps)
+        self.assertEqual(len(node.deps), 1)
+        self.assertEqual(node.deps[0].id, "task0")
+        self.assertEqual(node.deps[0].type, "fs")
         self.assertTrue(node.milestone)
         self.assertEqual(node.issue, "PROJ-123")
         self.assertEqual(node.notes, "Some notes")
@@ -929,7 +938,7 @@ class TestMergeFragmentsNodeFields(unittest.TestCase):
         self.assertIsNone(node.kind)
         self.assertIsNone(node.status)
         self.assertIsNone(node.parent)
-        self.assertIsNone(node.after)
+        self.assertIsNone(node.deps)
         self.assertFalse(node.milestone)
         self.assertIsNone(node.issue)
         self.assertIsNone(node.notes)
@@ -990,7 +999,7 @@ nodes:
     title: Task 1
   task2:
     title: Task 2
-    after: [task1]
+    deps: [task1]
 """
         schedule_yaml = """
 version: 2
@@ -1178,7 +1187,7 @@ class TestForbiddenNodeFields(unittest.TestCase):
         """FORBIDDEN_NODE_FIELDS contains all forbidden fields."""
         from specs.v2.tools.loader import FORBIDDEN_NODE_FIELDS
         
-        expected = {"start", "finish", "duration", "excludes"}
+        expected = {"start", "finish", "duration", "excludes", "after"}
         self.assertEqual(FORBIDDEN_NODE_FIELDS, expected)
     
     def test_node_with_start_raises_error(self):
@@ -1329,14 +1338,14 @@ class TestForbiddenNodeFields(unittest.TestCase):
                     "kind": "task",
                     "status": "in_progress",
                     "parent": "root",
-                    "after": ["task0"],
+                    "deps": ["task0"],
                     "effort": 5,
                 },
             },
         }
-        
+
         result = merge_fragments([fragment])
-        
+
         self.assertEqual(len(result.nodes), 1)
         self.assertEqual(result.nodes["task1"].title, "Task 1")
     

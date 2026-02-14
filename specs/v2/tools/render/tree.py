@@ -130,7 +130,23 @@ def _format_node_line(
         if plan.meta and plan.meta.effort_unit:
             unit = f" {plan.meta.effort_unit}"
         parts.append(f" ({effort}{unit})")
-    
+
+    # Add progress if present
+    progress = node.progress_rollup
+    if progress is not None:
+        pct = round(progress * 100)
+        coverage = node.progress_coverage
+        if coverage is not None and coverage < 1.0:
+            cov_pct = round(coverage * 100)
+            parts.append(f" {{{pct}% cov:{cov_pct}%}}")
+        else:
+            parts.append(f" {{{pct}%}}")
+    elif plan.execution and node_id in plan.execution.nodes:
+        en = plan.execution.nodes[node_id]
+        if en.progress is not None:
+            pct = round(en.progress * 100)
+            parts.append(f" {{{pct}%}}")
+
     return "".join(parts)
 
 

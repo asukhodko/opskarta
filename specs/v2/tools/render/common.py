@@ -44,10 +44,10 @@ def sanitize_mermaid_text(text: str) -> str:
     Removes or replaces characters that can cause issues in Mermaid:
       - : (colons) - can break Mermaid syntax
       - ： (full-width colons) - same issue
-    
+
     Args:
         text: Original text to sanitize
-        
+
     Returns:
         Sanitized text safe for Mermaid
     """

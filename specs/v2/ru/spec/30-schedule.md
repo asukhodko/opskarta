@@ -104,10 +104,10 @@ schedule:
     
     task2:
       duration: "3d"
-      # start вычисляется из after в nodes
-    
+      # start вычисляется из deps в nodes
+
     milestone1:
-      # start вычисляется из after в nodes
+      # start вычисляется из deps в nodes
 ```
 
 ### Поля schedule.nodes
@@ -123,7 +123,7 @@ schedule:
 
 - `node_id` в `schedule.nodes` ДОЛЖЕН существовать в `nodes`.
 - `calendar` ДОЛЖЕН существовать в `schedule.calendars`.
-- Поле `after` **запрещено** в `schedule.nodes` — зависимости только в `nodes`.
+- Поле `deps` **запрещено** в `schedule.nodes` — зависимости только в `nodes`.
 
 ## Состояния узлов
 
@@ -143,7 +143,7 @@ nodes:
     title: "Задача 2"
   task3:
     title: "Задача 3"
-    after: [task2]
+    deps: [task2]
 
 schedule:
   nodes:
@@ -162,17 +162,23 @@ schedule:
 
 1. **Явный `start`**: использовать указанную дату
 2. **`finish` + `duration`**: вычислить `start` назад от `finish`
-3. **Зависимости `after`**: вычислить из завершения зависимостей
+3. **Зависимости `deps`**: вычислить из завершения зависимостей
 
-### Алгоритм для after
+### Алгоритм вычисления из deps
 
-При вычислении `start` из `after`:
+При вычислении `start` из `deps`:
 
-1. Взять зависимости из `nodes.<id>.after` (не из schedule!)
-2. Отфильтровать только **scheduled** зависимости
-3. Вычислить `max(finish)` для всех scheduled зависимостей
-4. Для обычного узла: `start = next_workday(max_finish)`
-5. Для вехи: `start = max_finish`
+1. Взять зависимости из `nodes.<id>.deps` (не из schedule!)
+2. Отфильтровать только **hard** зависимости (`hard: true`)
+3. Отфильтровать только **scheduled** hard зависимости
+4. Для каждой scheduled hard зависимости:
+   - **fs** (finish-to-start): base = дата завершения зависимости
+   - **ss** (start-to-start): base = дата начала зависимости
+   - Применить lag: `candidate = add_workdays(base, lag_days, calendar)`
+   - Для fs с 0 lag (обычный узел): `candidate = next_workday(dep_finish)`
+   - Для fs с 0 lag (веха): `candidate = dep_finish`
+   - Для ss с 0 lag: `candidate = dep_start`
+5. `start = max(all candidates)`
 
 ```yaml
 nodes:
@@ -180,10 +186,10 @@ nodes:
     title: "Задача 1"
   task2:
     title: "Задача 2"
-    after: [task1]
+    deps: [task1]
   task3:
     title: "Задача 3"
-    after: [task1, task2]
+    deps: [task1, task2]
 
 schedule:
   nodes:
@@ -196,8 +202,8 @@ schedule:
     
     task3:
       duration: "3d"
-      # after = [task1, task2]
-      # scheduled зависимости = [task1]
+      # deps = [task1, task2]
+      # scheduled hard зависимости = [task1]
       # start = next_workday(2024-03-05) = 2024-03-06
 ```
 
@@ -207,7 +213,7 @@ schedule:
 
 - Нет явного `start`
 - Нет `finish` + `duration`
-- Все зависимости `after` либо unscheduled, либо unschedulable
+- Все hard зависимости `deps` либо unscheduled, либо unschedulable
 
 ```yaml
 nodes:
@@ -215,7 +221,7 @@ nodes:
     title: "Задача 1"
   task2:
     title: "Задача 2"
-    after: [task1]
+    deps: [task1]
 
 schedule:
   nodes:
@@ -337,7 +343,7 @@ nodes:
   milestone1:
     title: "MVP"
     milestone: true
-    after: [task2]
+    deps: [task2]
   
   task1:
     title: "Backend API"
@@ -345,7 +351,7 @@ nodes:
   
   task2:
     title: "Frontend"
-    after: [task1]
+    deps: [task1]
     effort: 5
   
   task3:
@@ -366,10 +372,10 @@ schedule:
     
     task2:
       duration: "5d"
-      # start из after: [task1]
-    
+      # start из deps: [task1]
+
     milestone1:
-      # start из after: [task2]
+      # start из deps: [task2]
       # milestone: true берётся из nodes
 ```
 

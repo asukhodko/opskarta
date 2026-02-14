@@ -205,13 +205,31 @@ def _render_deps_simple(
         safe_label = _escape_mermaid_label(node.title)
         lines.append(f'    {safe_id}["{safe_label}"]')
 
-        if node.after:
-            for dep_id in node.after:
-                if dep_id in filtered_ids:
-                    edges.append((dep_id, node_id))
+        if node.deps:
+            for dep in node.deps:
+                if dep.id in filtered_ids:
+                    edges.append((dep, node_id))
 
-    for dep_id, node_id in edges:
-        lines.append(f"    {_sanitize_node_id(dep_id)} --> {_sanitize_node_id(node_id)}")
+    for dep, node_id in edges:
+        src = _sanitize_node_id(dep.id)
+        dst = _sanitize_node_id(node_id)
+        label_parts = []
+        if dep.type == "ss":
+            label_parts.append("ss")
+        if dep.lag != "0d":
+            label_parts.append(f"+{dep.lag}")
+        label = " ".join(label_parts)
+
+        if dep.hard:
+            if label:
+                lines.append(f"    {src} -->|{label}| {dst}")
+            else:
+                lines.append(f"    {src} --> {dst}")
+        else:
+            if label:
+                lines.append(f"    {src} -.->|{label}| {dst}")
+            else:
+                lines.append(f"    {src} -.-> {dst}")
 
     return "\n".join(lines)
 
@@ -304,12 +322,30 @@ def _render_deps_hierarchical(
             lines.append(f"  {_sanitize_node_id(parent)} -.-> {_sanitize_node_id(node_id)}")
 
     lines.append("")
-    lines.append("  %% Dependencies: after - solid arrows")
+    lines.append("  %% Dependencies: deps - solid/dashed arrows")
     for node_id in sorted(visible_ids):
         node = plan.nodes[node_id]
-        for dep_id in node.after or []:
-            if dep_id in visible_ids:
-                lines.append(f"  {_sanitize_node_id(dep_id)} --> {_sanitize_node_id(node_id)}")
+        for dep in node.deps or []:
+            if dep.id in visible_ids:
+                src = _sanitize_node_id(dep.id)
+                dst = _sanitize_node_id(node_id)
+                label_parts = []
+                if dep.type == "ss":
+                    label_parts.append("ss")
+                if dep.lag != "0d":
+                    label_parts.append(f"+{dep.lag}")
+                label = " ".join(label_parts)
+
+                if dep.hard:
+                    if label:
+                        lines.append(f"  {src} -->|{label}| {dst}")
+                    else:
+                        lines.append(f"  {src} --> {dst}")
+                else:
+                    if label:
+                        lines.append(f"  {src} -.->|{label}| {dst}")
+                    else:
+                        lines.append(f"  {src} -.-> {dst}")
 
     return "\n".join(lines)
 

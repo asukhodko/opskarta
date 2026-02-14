@@ -11,6 +11,7 @@ import unittest
 
 from specs.v2.tools.models import (
     Calendar,
+    DepEdge,
     MergedPlan,
     Meta,
     Node,
@@ -124,7 +125,7 @@ class TestRenderDepsBasic(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             }
         )
         
@@ -140,8 +141,8 @@ class TestRenderDepsBasic(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
-                "task3": Node(title="Task 3", after=["task2"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task2")]),
             }
         )
         
@@ -156,7 +157,7 @@ class TestRenderDepsBasic(unittest.TestCase):
             nodes={
                 "task1": Node(title="Task 1"),
                 "task2": Node(title="Task 2"),
-                "task3": Node(title="Task 3", after=["task1", "task2"]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task1"), DepEdge(id="task2")]),
             }
         )
         
@@ -170,9 +171,9 @@ class TestRenderDepsBasic(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "a": Node(title="A"),
-                "b": Node(title="B", after=["a"]),
-                "c": Node(title="C", after=["a"]),
-                "d": Node(title="D", after=["b", "c"]),
+                "b": Node(title="B", deps=[DepEdge(id="a")]),
+                "c": Node(title="C", deps=[DepEdge(id="a")]),
+                "d": Node(title="D", deps=[DepEdge(id="b"), DepEdge(id="c")]),
             }
         )
         
@@ -192,7 +193,7 @@ class TestRenderDepsNodeIdSanitization(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task-1": Node(title="Task 1"),
-                "task-2": Node(title="Task 2", after=["task-1"]),
+                "task-2": Node(title="Task 2", deps=[DepEdge(id="task-1")]),
             }
         )
         
@@ -208,7 +209,7 @@ class TestRenderDepsNodeIdSanitization(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "phase.task1": Node(title="Task 1"),
-                "phase.task2": Node(title="Task 2", after=["phase.task1"]),
+                "phase.task2": Node(title="Task 2", deps=[DepEdge(id="phase.task1")]),
             }
         )
         
@@ -268,7 +269,7 @@ class TestRenderDepsWithView(unittest.TestCase):
             nodes={
                 "task1": Node(title="Task 1", kind="task"),
                 "phase1": Node(title="Phase 1", kind="phase"),
-                "task2": Node(title="Task 2", kind="task", after=["task1"]),
+                "task2": Node(title="Task 2", kind="task", deps=[DepEdge(id="task1")]),
             },
             views={"tasks_only": View(where=ViewFilter(kind=["task"]))}
         )
@@ -285,8 +286,8 @@ class TestRenderDepsWithView(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1", status="done"),
-                "task2": Node(title="Task 2", status="in_progress", after=["task1"]),
-                "task3": Node(title="Task 3", status="done", after=["task2"]),
+                "task2": Node(title="Task 2", status="in_progress", deps=[DepEdge(id="task1")]),
+                "task3": Node(title="Task 3", status="done", deps=[DepEdge(id="task2")]),
             },
             views={"done_only": View(where=ViewFilter(status=["done"]))}
         )
@@ -305,8 +306,8 @@ class TestRenderDepsWithView(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
-                "task3": Node(title="Task 3", after=["task2"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task2")]),
             },
             schedule=Schedule(
                 nodes={
@@ -330,7 +331,7 @@ class TestRenderDepsWithView(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
                 "task3": Node(title="Task 3"),
             },
             schedule=Schedule(
@@ -356,7 +357,7 @@ class TestRenderDepsWithView(unittest.TestCase):
                 "root": Node(title="Root"),
                 "phase1": Node(title="Phase 1", parent="root"),
                 "task1": Node(title="Task 1", parent="phase1"),
-                "task2": Node(title="Task 2", parent="phase1", after=["task1"]),
+                "task2": Node(title="Task 2", parent="phase1", deps=[DepEdge(id="task1")]),
                 "other": Node(title="Other"),
             },
             views={"root_descendants": View(where=ViewFilter(parent="root"))}
@@ -380,7 +381,7 @@ class TestRenderDepsFilteredEdges(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1", kind="phase"),
-                "task2": Node(title="Task 2", kind="task", after=["task1"]),
+                "task2": Node(title="Task 2", kind="task", deps=[DepEdge(id="task1")]),
             },
             views={"tasks_only": View(where=ViewFilter(kind=["task"]))}
         )
@@ -397,7 +398,7 @@ class TestRenderDepsFilteredEdges(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1", kind="task"),
-                "task2": Node(title="Task 2", kind="phase", after=["task1"]),
+                "task2": Node(title="Task 2", kind="phase", deps=[DepEdge(id="task1")]),
             },
             views={"tasks_only": View(where=ViewFilter(kind=["task"]))}
         )
@@ -414,9 +415,9 @@ class TestRenderDepsFilteredEdges(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1", kind="task"),
-                "phase1": Node(title="Phase 1", kind="phase", after=["task1"]),
-                "task2": Node(title="Task 2", kind="task", after=["phase1"]),
-                "task3": Node(title="Task 3", kind="task", after=["task1"]),
+                "phase1": Node(title="Phase 1", kind="phase", deps=[DepEdge(id="task1")]),
+                "task2": Node(title="Task 2", kind="task", deps=[DepEdge(id="phase1")]),
+                "task3": Node(title="Task 3", kind="task", deps=[DepEdge(id="task1")]),
             },
             views={"tasks_only": View(where=ViewFilter(kind=["task"]))}
         )
@@ -454,7 +455,7 @@ class TestRenderDepsNoViewId(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             },
             views={"filtered": View(where=ViewFilter(kind=["phase"]))}
         )
@@ -479,7 +480,7 @@ class TestRenderDepsDesignExamples(unittest.TestCase):
             nodes={
                 "epic1": Node(title="Авторизация", kind="epic", effort=13),
                 "story1": Node(title="Вход по email", kind="user_story", parent="epic1", effort=5),
-                "story2": Node(title="Вход через OAuth", kind="user_story", parent="epic1", after=["story1"], effort=8),
+                "story2": Node(title="Вход через OAuth", kind="user_story", parent="epic1", deps=[DepEdge(id="story1")], effort=8),
             }
         )
         
@@ -501,9 +502,9 @@ class TestRenderDepsDesignExamples(unittest.TestCase):
         """
         plan = MergedPlan(
             nodes={
-                "milestone1": Node(title="MVP", milestone=True, after=["task2"]),
+                "milestone1": Node(title="MVP", milestone=True, deps=[DepEdge(id="task2")]),
                 "task1": Node(title="Backend API", effort=3),
-                "task2": Node(title="Frontend", after=["task1"], effort=5),
+                "task2": Node(title="Frontend", deps=[DepEdge(id="task1")], effort=5),
                 "task3": Node(title="Documentation", effort=2),  # Not scheduled
             },
             schedule=Schedule(
@@ -534,7 +535,7 @@ class TestRenderDepsDesignExamples(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Backend API"),
-                "task2": Node(title="Frontend", after=["task1"]),
+                "task2": Node(title="Frontend", deps=[DepEdge(id="task1")]),
                 "task3": Node(title="Documentation"),  # Not scheduled
             },
             schedule=Schedule(
@@ -586,7 +587,7 @@ class TestRenderDepsOutputFormat(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             }
         )
         
@@ -618,6 +619,102 @@ class TestRenderDepsOutputFormat(unittest.TestCase):
         self.assertIn("a", node_lines[0])
         self.assertIn("b", node_lines[1])
         self.assertIn("c", node_lines[2])
+
+
+class TestRenderDepsArrowStyles(unittest.TestCase):
+    """Tests for dependency arrow styles (hard/soft, fs/ss, lag)."""
+
+    def test_simple_soft_dep(self):
+        """Soft dependency renders as dashed arrow (-.->), not solid."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", hard=False)]),
+            }
+        )
+
+        result = render_deps(plan)
+
+        self.assertIn("task1 -.-> task2", result)
+        self.assertNotIn("task1 --> task2", result)
+
+    def test_simple_ss_dep(self):
+        """Start-to-start dependency renders with |ss| label."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", type="ss")]),
+            }
+        )
+
+        result = render_deps(plan)
+
+        self.assertIn("task1 -->|ss| task2", result)
+
+    def test_simple_dep_with_lag(self):
+        """Dependency with lag renders with +Xd label."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", lag="3d")]),
+            }
+        )
+
+        result = render_deps(plan)
+
+        self.assertIn("task1 -->|+3d| task2", result)
+
+    def test_simple_ss_dep_with_lag(self):
+        """SS dependency with lag renders combined label."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", type="ss", lag="1w")]),
+            }
+        )
+
+        result = render_deps(plan)
+
+        self.assertIn("task1 -->|ss +1w| task2", result)
+
+    def test_simple_soft_ss_dep(self):
+        """Soft SS dependency renders as dashed arrow with |ss| label."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", type="ss", hard=False)]),
+            }
+        )
+
+        result = render_deps(plan)
+
+        self.assertIn("task1 -.->|ss| task2", result)
+        self.assertNotIn("task1 -->", result)
+
+    def test_hierarchical_dep_styles(self):
+        """Hierarchical mode outputs correct arrow styles for deps."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task1", hard=False)]),
+                "task4": Node(title="Task 4", deps=[DepEdge(id="task1", type="ss")]),
+                "task5": Node(title="Task 5", deps=[DepEdge(id="task1", lag="3d")]),
+            }
+        )
+
+        result = render_deps(plan, mode="hierarchical")
+
+        # Comment line for deps section
+        self.assertIn("%% Dependencies: deps - solid/dashed arrows", result)
+        # Hard fs (default): solid arrow, no label
+        self.assertIn("task1 --> task2", result)
+        # Soft fs: dashed arrow, no label
+        self.assertIn("task1 -.-> task3", result)
+        # Hard ss: solid arrow with ss label
+        self.assertIn("task1 -->|ss| task4", result)
+        # Hard fs with lag: solid arrow with +3d label
+        self.assertIn("task1 -->|+3d| task5", result)
 
 
 if __name__ == "__main__":

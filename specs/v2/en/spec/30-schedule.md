@@ -104,10 +104,10 @@ schedule:
     
     task2:
       duration: "3d"
-      # start computed from after in nodes
+      # start computed from deps in nodes
     
     milestone1:
-      # start computed from after in nodes
+      # start computed from deps in nodes
 ```
 
 ### schedule.nodes Fields
@@ -123,7 +123,7 @@ schedule:
 
 - `node_id` in `schedule.nodes` MUST exist in `nodes`.
 - `calendar` MUST exist in `schedule.calendars`.
-- The `after` field is **forbidden** in `schedule.nodes` — dependencies only in `nodes`.
+- The `deps` field is **forbidden** in `schedule.nodes` — dependencies only in `nodes`.
 
 ## Node States
 
@@ -143,7 +143,7 @@ nodes:
     title: "Task 2"
   task3:
     title: "Task 3"
-    after: [task2]
+    deps: [task2]
 
 schedule:
   nodes:
@@ -162,17 +162,23 @@ schedule:
 
 1. **Explicit `start`**: use specified date
 2. **`finish` + `duration`**: compute `start` backward from `finish`
-3. **Dependencies `after`**: compute from dependency completion
+3. **Dependencies `deps`**: compute from dependency completion
 
-### Algorithm for after
+### Algorithm for deps
 
-When computing `start` from `after`:
+When computing `start` from `deps`:
 
-1. Get dependencies from `nodes.<id>.after` (not from schedule!)
-2. Filter only **scheduled** dependencies
-3. Compute `max(finish)` for all scheduled dependencies
-4. For regular node: `start = next_workday(max_finish)`
-5. For milestone: `start = max_finish`
+1. Get dependencies from `nodes.<id>.deps` (not from schedule!)
+2. Filter only **hard** dependencies (`hard: true`)
+3. Filter only **scheduled** hard dependencies
+4. For each scheduled hard dependency:
+   - **fs** (finish-to-start): base = dependency finish date
+   - **ss** (start-to-start): base = dependency start date
+   - Apply lag: `candidate = add_workdays(base, lag_days, calendar)`
+   - For fs with 0 lag (regular node): `candidate = next_workday(dep_finish)`
+   - For fs with 0 lag (milestone): `candidate = dep_finish`
+   - For ss with 0 lag: `candidate = dep_start`
+5. `start = max(all candidates)`
 
 ```yaml
 nodes:
@@ -180,10 +186,10 @@ nodes:
     title: "Task 1"
   task2:
     title: "Task 2"
-    after: [task1]
+    deps: [task1]
   task3:
     title: "Task 3"
-    after: [task1, task2]
+    deps: [task1, task2]
 
 schedule:
   nodes:
@@ -191,12 +197,12 @@ schedule:
       start: "2024-03-01"
       duration: "5d"
       # finish = 2024-03-05
-    
+
     # task2 — unscheduled
-    
+
     task3:
       duration: "3d"
-      # after = [task1, task2]
+      # deps = [task1, task2]
       # scheduled dependencies = [task1]
       # start = next_workday(2024-03-05) = 2024-03-06
 ```
@@ -207,7 +213,7 @@ A node becomes **unschedulable** if:
 
 - No explicit `start`
 - No `finish` + `duration`
-- All `after` dependencies are either unscheduled or unschedulable
+- All hard `deps` dependencies are either unscheduled or unschedulable
 
 ```yaml
 nodes:
@@ -215,7 +221,7 @@ nodes:
     title: "Task 1"
   task2:
     title: "Task 2"
-    after: [task1]
+    deps: [task1]
 
 schedule:
   nodes:
@@ -337,15 +343,15 @@ nodes:
   milestone1:
     title: "MVP"
     milestone: true
-    after: [task2]
-  
+    deps: [task2]
+
   task1:
     title: "Backend API"
     effort: 3
-  
+
   task2:
     title: "Frontend"
-    after: [task1]
+    deps: [task1]
     effort: 5
   
   task3:
@@ -366,10 +372,10 @@ schedule:
     
     task2:
       duration: "5d"
-      # start from after: [task1]
-    
+      # start from deps: [task1]
+
     milestone1:
-      # start from after: [task2]
+      # start from deps: [task2]
       # milestone: true taken from nodes
 ```
 
