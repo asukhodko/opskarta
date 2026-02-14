@@ -21,6 +21,8 @@ Requirements covered:
 - 1.10: Source tracking for each element
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 

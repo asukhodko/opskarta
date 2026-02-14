@@ -12,14 +12,14 @@ pip install -r requirements.txt
 
 ## Tools Overview
 
-| Tool | Description |
-|------|-------------|
-| `cli.py` | Command-line interface for validation and rendering |
-| `loader.py` | Fragment loading and merging (Plan Set) |
-| `validator.py` | Plan validation with structured error messages |
-| `scheduler.py` | Schedule computation with calendar support |
-| `effort.py` | Effort metrics computation (rollup, effective, gap) |
-| `render/` | Renderers (gantt, tree, list, deps) |
+| Tool           | Description                                         |
+|----------------|-----------------------------------------------------|
+| `cli.py`       | Command-line interface for validation and rendering |
+| `loader.py`    | Fragment loading and merging (Plan Set)             |
+| `validator.py` | Plan validation with structured error messages      |
+| `scheduler.py` | Schedule computation with calendar support          |
+| `effort.py`    | Effort metrics computation (rollup, effective, gap) |
+| `render/`      | Renderers (gantt, tree, list, deps)                 |
 
 ## CLI Usage
 
@@ -54,9 +54,19 @@ python -m tools.cli render list plan.yaml --view sorted-by-effort
 # Render dependency graph (Mermaid flowchart)
 python -m tools.cli render deps plan.yaml
 
+# Render dependency graph (hierarchical mode)
+python -m tools.cli render deps plan.yaml --mode hierarchical --track epic-core --direction LR --wrap-column 28
+
 # Render Gantt diagram (requires schedule)
-python -m tools.cli render gantt plan.yaml --view gantt-full
+python -m tools.cli render gantt plan.yaml --view gantt-full --style plain
+
+# Render Gantt with status decorations
+python -m tools.cli render gantt plan.yaml --view gantt-full --style status
 ```
+
+Notes:
+- `render gantt` requires `--view` (v2 spec behavior).
+- `render deps` defaults to `--mode simple`; use `--mode hierarchical` for structured graph rendering.
 
 ## Module Usage
 
@@ -148,8 +158,11 @@ print(render_list(plan))
 # Dependency graph (Mermaid)
 print(render_deps(plan))
 
+# Dependency graph (hierarchical mode)
+print(render_deps(plan, mode="hierarchical", tracks=["epic-core"], direction="LR", wrap_column=28))
+
 # Gantt diagram (Mermaid)
-print(render_gantt(plan, view_id="gantt-full"))
+print(render_gantt(plan, view_id="gantt-full", style="plain"))
 ```
 
 ## Key Concepts
@@ -232,14 +245,14 @@ views:
 Example files are in language-specific directories:
 
 **Russian:**
-- [`../ru/examples/multi-file/`](../ru/examples/multi-file/) — Multi-file plan
-- [`../ru/examples/no-schedule/`](../ru/examples/no-schedule/) — Plan without schedule
-- [`../ru/examples/partial-schedule/`](../ru/examples/partial-schedule/) — Partial schedule
+- [`specs/v2/ru/examples/multi-file`](https://github.com/asukhodko/opskarta/tree/main/specs/v2/ru/examples/multi-file) — Multi-file plan
+- [`specs/v2/ru/examples/no-schedule`](https://github.com/asukhodko/opskarta/tree/main/specs/v2/ru/examples/no-schedule) — Plan without schedule
+- [`specs/v2/ru/examples/partial-schedule`](https://github.com/asukhodko/opskarta/tree/main/specs/v2/ru/examples/partial-schedule) — Partial schedule
 
 **English:**
-- [`../en/examples/multi-file/`](../en/examples/multi-file/) — Multi-file plan
-- [`../en/examples/no-schedule/`](../en/examples/no-schedule/) — Plan without schedule
-- [`../en/examples/partial-schedule/`](../en/examples/partial-schedule/) — Partial schedule
+- [`specs/v2/en/examples/multi-file`](https://github.com/asukhodko/opskarta/tree/main/specs/v2/en/examples/multi-file) — Multi-file plan
+- [`specs/v2/en/examples/no-schedule`](https://github.com/asukhodko/opskarta/tree/main/specs/v2/en/examples/no-schedule) — Plan without schedule
+- [`specs/v2/en/examples/partial-schedule`](https://github.com/asukhodko/opskarta/tree/main/specs/v2/en/examples/partial-schedule) — Partial schedule
 
 ## Quick Start
 
@@ -257,7 +270,7 @@ python -m tools.cli validate ru/examples/multi-file/*.plan.yaml
 python -m tools.cli render tree ru/examples/no-schedule/backlog.plan.yaml
 
 # Render Gantt
-python -m tools.cli render gantt ru/examples/multi-file/*.plan.yaml --view gantt-full
+python -m tools.cli render gantt ru/examples/multi-file/*.plan.yaml --view gantt-full --style plain
 
 # Run tests
 python -m pytest tests/ -v

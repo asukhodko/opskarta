@@ -694,6 +694,10 @@ def _validate_views(plan: MergedPlan, result: ValidationResult) -> None:
         if view.where is not None:
             _validate_view_where(view_id, view.where, node_ids, file_source, result)
 
+        # Validate lanes structure and references (fail-fast for wrong node ids)
+        if view.lanes is not None:
+            _validate_view_lanes(view_id, view.lanes, node_ids, file_source, result)
+
 
 def _validate_view_where(
     view_id: str,
@@ -786,6 +790,107 @@ def _validate_view_where(
                 expected="existing node_id",
                 actual=where.parent,
             )
+
+
+def _validate_view_lanes(
+    view_id: str,
+    lanes: object,
+    node_ids: set[str],
+    file_source: Optional[str],
+    result: ValidationResult,
+) -> None:
+    """
+    Validate view lanes structure and node references.
+
+    Checks:
+    - lanes is an object
+    - each lane is an object
+    - lane.title is string if present
+    - lane.nodes is list[string]
+    - each lane.nodes[i] references an existing node_id
+    """
+    if not isinstance(lanes, dict):
+        result.add_error(
+            message=f"View '{view_id}' has invalid lanes: expected object, got {type(lanes).__name__}",
+            path=f"views.{view_id}.lanes",
+            file_source=file_source,
+            expected="object",
+            actual=f"{type(lanes).__name__}: {repr(lanes)}",
+        )
+        return
+
+    for lane_id, lane_data in lanes.items():
+        lane_path = f"views.{view_id}.lanes.{lane_id}"
+
+        if not isinstance(lane_id, str):
+            result.add_error(
+                message=f"View '{view_id}' has invalid lane id: expected string, got {type(lane_id).__name__}",
+                path=f"views.{view_id}.lanes",
+                file_source=file_source,
+                expected="string lane id",
+                actual=f"{type(lane_id).__name__}: {repr(lane_id)}",
+            )
+            continue
+
+        if not isinstance(lane_data, dict):
+            result.add_error(
+                message=f"View '{view_id}' lane '{lane_id}' must be an object",
+                path=lane_path,
+                file_source=file_source,
+                expected="object",
+                actual=f"{type(lane_data).__name__}: {repr(lane_data)}",
+            )
+            continue
+
+        if "title" in lane_data and lane_data["title"] is not None and not isinstance(lane_data["title"], str):
+            result.add_error(
+                message=f"View '{view_id}' lane '{lane_id}' has invalid title: expected string",
+                path=f"{lane_path}.title",
+                file_source=file_source,
+                expected="string",
+                actual=f"{type(lane_data['title']).__name__}: {repr(lane_data['title'])}",
+            )
+
+        if "nodes" not in lane_data:
+            result.add_error(
+                message=f"View '{view_id}' lane '{lane_id}' is missing required field 'nodes'",
+                path=f"{lane_path}.nodes",
+                file_source=file_source,
+                expected="list of node ids",
+                actual="missing",
+            )
+            continue
+
+        lane_nodes = lane_data.get("nodes")
+        if not isinstance(lane_nodes, list):
+            result.add_error(
+                message=f"View '{view_id}' lane '{lane_id}' has invalid nodes: expected list",
+                path=f"{lane_path}.nodes",
+                file_source=file_source,
+                expected="list[string]",
+                actual=f"{type(lane_nodes).__name__}: {repr(lane_nodes)}",
+            )
+            continue
+
+        for i, node_id in enumerate(lane_nodes):
+            node_path = f"{lane_path}.nodes[{i}]"
+            if not isinstance(node_id, str):
+                result.add_error(
+                    message=f"View '{view_id}' lane '{lane_id}' has invalid node reference type",
+                    path=node_path,
+                    file_source=file_source,
+                    expected="string node_id",
+                    actual=f"{type(node_id).__name__}: {repr(node_id)}",
+                )
+                continue
+            if node_id not in node_ids:
+                result.add_error(
+                    message=f"View '{view_id}' lane '{lane_id}' references non-existent node '{node_id}'",
+                    path=node_path,
+                    file_source=file_source,
+                    expected="existing node_id",
+                    actual=node_id,
+                )
 
 
 def validate_view_dict(
@@ -910,3 +1015,7 @@ def validate_view_dict(
                     expected="existing node_id",
                     actual=parent,
                 )
+
+    # Validate lanes structure and references
+    if "lanes" in view_data and view_data["lanes"] is not None:
+        _validate_view_lanes(view_id, view_data["lanes"], node_ids, file_source, result)

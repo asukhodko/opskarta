@@ -14,7 +14,7 @@ Usage examples:
     python -m specs.v2.tools.cli validate main.yaml nodes.yaml schedule.yaml
 
     # Render with different formats
-    python -m specs.v2.tools.cli render gantt plan.yaml
+    python -m specs.v2.tools.cli render gantt plan.yaml --view gantt --style plain
     python -m specs.v2.tools.cli render tree plan.yaml --view backlog
     python -m specs.v2.tools.cli render list plan.yaml --view tasks_only
     python -m specs.v2.tools.cli render deps plan.yaml
@@ -96,7 +96,14 @@ def create_parser() -> argparse.ArgumentParser:
     gantt_parser.add_argument(
         "--view",
         metavar="VIEW_ID",
-        help="View ID to use for filtering and formatting",
+        required=True,
+        help="View ID to use for filtering and formatting (required for gantt)",
+    )
+    gantt_parser.add_argument(
+        "--style",
+        choices=["plain", "status"],
+        default="plain",
+        help="Gantt rendering style: plain (default) or status",
     )
     
     # Tree subcommand
@@ -151,6 +158,30 @@ def create_parser() -> argparse.ArgumentParser:
         "--view",
         metavar="VIEW_ID",
         help="View ID to use for filtering",
+    )
+    deps_parser.add_argument(
+        "--mode",
+        choices=["simple", "hierarchical"],
+        default="simple",
+        help="Dependency render mode (default: simple)",
+    )
+    deps_parser.add_argument(
+        "--direction",
+        choices=["LR", "TB", "BT", "RL"],
+        default="LR",
+        help="Flowchart direction (default: LR)",
+    )
+    deps_parser.add_argument(
+        "--wrap-column",
+        type=int,
+        default=0,
+        help="Wrap label at this column in hierarchical mode (0 = no wrap)",
+    )
+    deps_parser.add_argument(
+        "--track",
+        action="append",
+        default=[],
+        help="Limit hierarchical graph to one or more track node IDs (repeatable)",
     )
     
     return parser
@@ -207,7 +238,7 @@ def cmd_validate(files: list[str]) -> int:
         return 1
 
 
-def cmd_render_gantt(files: list[str], view_id: Optional[str]) -> int:
+def cmd_render_gantt(files: list[str], view_id: str, style: str) -> int:
     """
     Execute the render gantt command.
     
@@ -215,7 +246,8 @@ def cmd_render_gantt(files: list[str], view_id: Optional[str]) -> int:
     
     Args:
         files: List of YAML file paths
-        view_id: Optional view ID for filtering/formatting
+        view_id: Required view ID for filtering/formatting
+        style: Gantt style (plain/status)
         
     Returns:
         Exit code: 0 on success, 1 on error
@@ -237,9 +269,8 @@ def cmd_render_gantt(files: list[str], view_id: Optional[str]) -> int:
         # Compute schedule
         compute_schedule(plan)
         
-        # Render gantt (view_id is required for gantt)
-        # If no view_id provided, use empty string to render all scheduled nodes
-        output = render_gantt(plan, view_id or "")
+        # Render gantt
+        output = render_gantt(plan, view_id=view_id, style=style)
         print(output)
         
         return 0
@@ -343,7 +374,14 @@ def cmd_render_list(files: list[str], view_id: Optional[str]) -> int:
         return 1
 
 
-def cmd_render_deps(files: list[str], view_id: Optional[str]) -> int:
+def cmd_render_deps(
+    files: list[str],
+    view_id: Optional[str],
+    mode: str,
+    direction: str,
+    wrap_column: int,
+    tracks: list[str],
+) -> int:
     """
     Execute the render deps command.
     
@@ -352,6 +390,10 @@ def cmd_render_deps(files: list[str], view_id: Optional[str]) -> int:
     Args:
         files: List of YAML file paths
         view_id: Optional view ID for filtering
+        mode: Render mode (simple/hierarchical)
+        direction: Graph direction (LR/TB/BT/RL)
+        wrap_column: Label wrap width for hierarchical mode
+        tracks: Track node IDs for hierarchical mode
         
     Returns:
         Exit code: 0 on success, 1 on error
@@ -371,7 +413,14 @@ def cmd_render_deps(files: list[str], view_id: Optional[str]) -> int:
         compute_effort_metrics(plan)
         
         # Render deps
-        output = render_deps(plan, view_id)
+        output = render_deps(
+            plan,
+            view_id=view_id,
+            mode=mode,
+            direction=direction,
+            wrap_column=wrap_column,
+            tracks=tracks,
+        )
         print(output)
         
         return 0
@@ -405,13 +454,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     
     elif args.command == "render":
         if args.format == "gantt":
-            return cmd_render_gantt(args.files, args.view)
+            return cmd_render_gantt(args.files, args.view, args.style)
         elif args.format == "tree":
             return cmd_render_tree(args.files, args.view)
         elif args.format == "list":
             return cmd_render_list(args.files, args.view)
         elif args.format == "deps":
-            return cmd_render_deps(args.files, args.view)
+            return cmd_render_deps(
+                args.files,
+                args.view,
+                args.mode,
+                args.direction,
+                args.wrap_column,
+                args.track,
+            )
     
     # Should not reach here due to required subparsers
     return 1
