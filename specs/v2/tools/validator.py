@@ -1062,7 +1062,15 @@ def _validate_dep_edges(plan: MergedPlan, result: ValidationResult) -> None:
             dep_path = f"nodes.{node_id}.deps[{i}]"
 
             # Validate type
-            if dep.type not in _VALID_DEP_TYPES:
+            if not isinstance(dep.type, str):
+                result.add_error(
+                    message=f"Node '{node_id}' deps[{i}] type must be a string, got {type(dep.type).__name__}",
+                    path=f"{dep_path}.type",
+                    file_source=file_source,
+                    expected="'fs' or 'ss'",
+                    actual=f"{type(dep.type).__name__}: {repr(dep.type)}",
+                )
+            elif dep.type not in _VALID_DEP_TYPES:
                 result.add_error(
                     message=f"Node '{node_id}' deps[{i}] has invalid type '{dep.type}'",
                     path=f"{dep_path}.type",
@@ -1072,7 +1080,15 @@ def _validate_dep_edges(plan: MergedPlan, result: ValidationResult) -> None:
                 )
 
             # Validate lag format
-            if not _LAG_PATTERN.match(dep.lag):
+            if not isinstance(dep.lag, str):
+                result.add_error(
+                    message=f"Node '{node_id}' deps[{i}] lag must be a string, got {type(dep.lag).__name__}",
+                    path=f"{dep_path}.lag",
+                    file_source=file_source,
+                    expected="non-negative duration like '0d', '3d', '1w'",
+                    actual=f"{type(dep.lag).__name__}: {repr(dep.lag)}",
+                )
+            elif not _LAG_PATTERN.match(dep.lag):
                 result.add_error(
                     message=f"Node '{node_id}' deps[{i}] has invalid lag '{dep.lag}'",
                     path=f"{dep_path}.lag",

@@ -1550,3 +1550,115 @@ profiles:
         self.assertEqual(len(result.profiles), 1)
         self.assertEqual(result.profiles[0].id, "my-ext")
         self.assertEqual(result.profiles[0].namespace, "myext")
+
+
+class TestDepFieldTypes(unittest.TestCase):
+    """Reject invalid types for dep edge fields (preemptive hardening)."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_dep_lag_integer_rejected(self):
+        """deps[].lag: 5 (integer) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        lag: 5
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("lag", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_type_integer_rejected(self):
+        """deps[].type: 1 (integer) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        type: 1
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("type", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_hard_string_rejected(self):
+        """deps[].hard: 'yes' must raise LoadError (YAML true is bool, but quoted 'yes' is string)."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        hard: "yes"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("hard", str(ctx.exception))
+        self.assertIn("boolean", str(ctx.exception).lower())
+
+    def test_dep_id_integer_rejected(self):
+        """deps[].id: 123 (integer) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: 123
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("id", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_valid_types_accepted(self):
+        """Valid dep with all correct types is accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        type: ss
+        lag: "3d"
+        hard: false
+        note: "optional link"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        dep = result.nodes["B"].deps[0]
+        self.assertEqual(dep.id, "A")
+        self.assertEqual(dep.type, "ss")
+        self.assertEqual(dep.lag, "3d")
+        self.assertFalse(dep.hard)
+        self.assertEqual(dep.note, "optional link")

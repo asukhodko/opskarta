@@ -586,12 +586,48 @@ def _parse_deps(
                     file_path=source,
                     block_name=f"nodes.{node_id}.deps[{i}]",
                 )
+            dep_id = dep_data["id"]
+            dep_type = dep_data.get("type", "fs")
+            dep_lag = dep_data.get("lag", "0d")
+            dep_hard = dep_data.get("hard", True)
+            dep_note = dep_data.get("note")
+
+            # Validate field types
+            if not isinstance(dep_id, str):
+                raise LoadError(
+                    f"Node '{node_id}' deps[{i}].id must be a string, "
+                    f"got {type(dep_id).__name__}",
+                    file_path=source,
+                    block_name=f"nodes.{node_id}.deps[{i}].id",
+                )
+            if not isinstance(dep_type, str):
+                raise LoadError(
+                    f"Node '{node_id}' deps[{i}].type must be a string, "
+                    f"got {type(dep_type).__name__}",
+                    file_path=source,
+                    block_name=f"nodes.{node_id}.deps[{i}].type",
+                )
+            if not isinstance(dep_lag, str):
+                raise LoadError(
+                    f"Node '{node_id}' deps[{i}].lag must be a string, "
+                    f"got {type(dep_lag).__name__}",
+                    file_path=source,
+                    block_name=f"nodes.{node_id}.deps[{i}].lag",
+                )
+            if not isinstance(dep_hard, bool):
+                raise LoadError(
+                    f"Node '{node_id}' deps[{i}].hard must be a boolean, "
+                    f"got {type(dep_hard).__name__}",
+                    file_path=source,
+                    block_name=f"nodes.{node_id}.deps[{i}].hard",
+                )
+
             deps.append(DepEdge(
-                id=dep_data["id"],
-                type=dep_data.get("type", "fs"),
-                lag=dep_data.get("lag", "0d"),
-                hard=dep_data.get("hard", True),
-                note=dep_data.get("note"),
+                id=dep_id,
+                type=dep_type,
+                lag=dep_lag,
+                hard=dep_hard,
+                note=dep_note,
             ))
         else:
             raise LoadError(

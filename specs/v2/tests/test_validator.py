@@ -1953,7 +1953,55 @@ class TestValidateViewsIntegration(unittest.TestCase):
                 ),
             },
         )
-        
+
         result = validate(plan)
-        
+
+        self.assertTrue(result.is_valid)
+
+
+class TestValidateDepEdgeTypes(unittest.TestCase):
+    """Tests for type safety in dep edge validation."""
+
+    def _make_plan_with_dep(self, **dep_kwargs):
+        """Create a minimal plan with one dep edge using given kwargs."""
+        defaults = {"id": "A", "type": "fs", "lag": "0d", "hard": True}
+        defaults.update(dep_kwargs)
+        return MergedPlan(
+            nodes={
+                "A": Node(title="A"),
+                "B": Node(title="B", deps=[DepEdge(**defaults)]),
+            },
+            sources={"node:A": "test.yaml", "node:B": "test.yaml"},
+        )
+
+    def test_non_string_lag_gives_error_not_crash(self):
+        """dep.lag as int should produce validation error, not TypeError crash."""
+        plan = self._make_plan_with_dep(lag=5)
+        result = validate(plan)
+        self.assertFalse(result.is_valid)
+        lag_errors = [e for e in result.errors if "lag" in e.message]
+        self.assertGreater(len(lag_errors), 0)
+        self.assertIn("string", lag_errors[0].message.lower())
+
+    def test_non_string_type_gives_error_not_crash(self):
+        """dep.type as int should produce validation error, not TypeError crash."""
+        plan = self._make_plan_with_dep(type=1)
+        result = validate(plan)
+        self.assertFalse(result.is_valid)
+        type_errors = [e for e in result.errors if "type" in e.message and "deps" in e.path]
+        self.assertGreater(len(type_errors), 0)
+        self.assertIn("string", type_errors[0].message.lower())
+
+    def test_non_bool_hard_gives_error(self):
+        """dep.hard as string should produce validation error."""
+        plan = self._make_plan_with_dep(hard="yes")
+        result = validate(plan)
+        self.assertFalse(result.is_valid)
+        hard_errors = [e for e in result.errors if "hard" in e.message]
+        self.assertGreater(len(hard_errors), 0)
+
+    def test_valid_dep_passes(self):
+        """Valid dep edge with correct types passes validation."""
+        plan = self._make_plan_with_dep(type="ss", lag="3d", hard=False)
+        result = validate(plan)
         self.assertTrue(result.is_valid)

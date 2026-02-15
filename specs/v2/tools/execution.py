@@ -25,7 +25,7 @@ def compute_execution_metrics(plan: MergedPlan) -> None:
     Algorithm:
     1. For leaf nodes with execution data: use execution.progress directly
     2. For parent nodes: weighted rollup by effort_effective
-       progress_rollup = sum(effort_effective_i * progress_i) / sum(effort_effective_i)
+       progress_rollup = sum(effort_effective_i * progress_i) / sum(covered effort_effective_i)
        progress_coverage = sum(effort_effective with data) / sum(all effort_effective)
     3. Bottom-up traversal (post-order)
 
@@ -95,7 +95,7 @@ def compute_execution_metrics(plan: MergedPlan) -> None:
                     covered_effort += effort
 
         if total_effort > 0 and covered_effort > 0:
-            node.progress_rollup = weighted_sum / total_effort
+            node.progress_rollup = weighted_sum / covered_effort
             node.progress_coverage = covered_effort / total_effort
         else:
             node.progress_rollup = None

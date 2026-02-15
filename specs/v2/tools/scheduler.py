@@ -121,7 +121,7 @@ def parse_lag(lag_str: str) -> Optional[int]:
     Returns:
         Number of working days or None if parsing fails
     """
-    if not lag_str:
+    if not isinstance(lag_str, str) or not lag_str:
         return None
 
     match = LAG_PATTERN.match(lag_str)
