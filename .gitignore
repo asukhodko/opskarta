@@ -23,10 +23,11 @@ dist/
 .coverage
 htmlcov/
 
-# Editors
+# Editors / AI tools
 .vscode/
 .idea/
 .kiro/specs/
+.claude/
 
 # OS
 .DS_Store
