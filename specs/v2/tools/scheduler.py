@@ -413,7 +413,12 @@ def compute_schedule(plan: MergedPlan) -> None:
                         candidate = next_workday(base, calendar)
                     else:
                         # ss with 0 lag or milestone: same day
-                        candidate = base
+                        # For non-milestones, ensure candidate is a workday
+                        # (predecessor may be a milestone on a non-working day)
+                        if not is_milestone and not is_workday(base, calendar):
+                            candidate = next_workday(base, calendar)
+                        else:
+                            candidate = base
 
                     candidate_starts.append(candidate)
 

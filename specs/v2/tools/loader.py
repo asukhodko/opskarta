@@ -345,7 +345,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
             version_source = source
         
         # 2. Merge meta (Requirement 1.6)
-        if "meta" in fragment and fragment["meta"]:
+        if "meta" in fragment and fragment["meta"] is not None:
             frag_meta = fragment["meta"]
             for key, value in frag_meta.items():
                 existing_value = getattr(result.meta, key, None)
@@ -361,7 +361,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 sources[f"meta:{key}"] = source
         
         # 3. Merge statuses (Requirement 1.5)
-        if "statuses" in fragment and fragment["statuses"]:
+        if "statuses" in fragment and fragment["statuses"] is not None:
             if not isinstance(fragment["statuses"], dict):
                 raise LoadError(
                     f"'statuses' must be an object, got {type(fragment['statuses']).__name__}",
@@ -382,7 +382,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 sources[f"status:{status_id}"] = source
         
         # 4. Merge nodes (Requirement 1.4)
-        if "nodes" in fragment and fragment["nodes"]:
+        if "nodes" in fragment and fragment["nodes"] is not None:
             if not isinstance(fragment["nodes"], dict):
                 raise LoadError(
                     f"'nodes' must be an object, got {type(fragment['nodes']).__name__}",
@@ -453,7 +453,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 sources[f"node:{node_id}"] = source
         
         # 5-7. Merge schedule (Requirements 1.7, 1.8)
-        if "schedule" in fragment and fragment["schedule"]:
+        if "schedule" in fragment and fragment["schedule"] is not None:
             frag_schedule = fragment["schedule"]
             if not isinstance(frag_schedule, dict):
                 raise LoadError(
@@ -466,7 +466,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 result.schedule = Schedule()
             
             # 5. Merge calendars (Requirement 1.7)
-            if "calendars" in frag_schedule and frag_schedule["calendars"]:
+            if "calendars" in frag_schedule and frag_schedule["calendars"] is not None:
                 if not isinstance(frag_schedule["calendars"], dict):
                     raise LoadError(
                         f"'schedule.calendars' must be an object, "
@@ -504,7 +504,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                     sources[f"calendar:{cal_id}"] = source
             
             # 6. Merge schedule.nodes (Requirement 1.7)
-            if "nodes" in frag_schedule and frag_schedule["nodes"]:
+            if "nodes" in frag_schedule and frag_schedule["nodes"] is not None:
                 if not isinstance(frag_schedule["nodes"], dict):
                     raise LoadError(
                         f"'schedule.nodes' must be an object, "
@@ -557,7 +557,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                     sources[f"schedule_node:{sn_id}"] = source
             
             # 7. Check default_calendar (Requirement 1.8)
-            if "default_calendar" in frag_schedule and frag_schedule["default_calendar"]:
+            if "default_calendar" in frag_schedule and frag_schedule["default_calendar"] is not None:
                 if default_calendar_source is not None:
                     raise MergeConflictError(
                         f"Multiple fragments define schedule.default_calendar",
@@ -569,7 +569,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 sources["schedule:default_calendar"] = source
         
         # 8. Merge views
-        if "views" in fragment and fragment["views"]:
+        if "views" in fragment and fragment["views"] is not None:
             if not isinstance(fragment["views"], dict):
                 raise LoadError(
                     f"'views' must be an object, got {type(fragment['views']).__name__}",
@@ -608,7 +608,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 sources[f"view:{view_id}"] = source
         
         # 9. Merge x (extensions)
-        if "x" in fragment and fragment["x"]:
+        if "x" in fragment and fragment["x"] is not None:
             if not isinstance(fragment["x"], dict):
                 raise LoadError(
                     f"'x' must be an object, got {type(fragment['x']).__name__}",
@@ -626,7 +626,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 sources[f"x:{x_key}"] = source
 
         # 10. Merge execution
-        if "execution" in fragment and fragment["execution"]:
+        if "execution" in fragment and fragment["execution"] is not None:
             frag_execution = fragment["execution"]
             if not isinstance(frag_execution, dict):
                 raise LoadError(
@@ -638,7 +638,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
             if result.execution is None:
                 result.execution = Execution()
 
-            if "nodes" in frag_execution and frag_execution["nodes"]:
+            if "nodes" in frag_execution and frag_execution["nodes"] is not None:
                 if not isinstance(frag_execution["nodes"], dict):
                     raise LoadError(
                         f"'execution.nodes' must be an object, "
@@ -658,7 +658,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                     sources[f"execution_node:{en_id}"] = source
 
         # 11. Merge profiles
-        if "profiles" in fragment and fragment["profiles"]:
+        if "profiles" in fragment and fragment["profiles"] is not None:
             frag_profiles = fragment["profiles"]
             if not isinstance(frag_profiles, list):
                 raise LoadError(

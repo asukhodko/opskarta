@@ -1803,3 +1803,82 @@ execution:
         result = load_plan_set([path])
         en = result.execution.nodes["task1"]
         self.assertAlmostEqual(en.progress, 0.5)
+
+
+class TestFalsyBlocksRejected(unittest.TestCase):
+    """Falsy but non-None values for blocks must be type-checked, not silently skipped."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_execution_empty_list_rejected(self):
+        """execution: [] must raise LoadError (falsy but not None)."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution: []
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("execution", str(ctx.exception).lower())
+
+    def test_execution_zero_rejected(self):
+        """execution: 0 must raise LoadError (falsy but not None)."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution: 0
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("execution", str(ctx.exception).lower())
+
+    def test_execution_empty_string_rejected(self):
+        """execution: '' must raise LoadError (falsy but not None)."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution: ""
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("execution", str(ctx.exception).lower())
+
+    def test_nodes_empty_list_rejected(self):
+        """nodes: [] must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes: []
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("nodes", str(ctx.exception).lower())
+
+    def test_statuses_empty_string_rejected(self):
+        """statuses: '' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+statuses: ""
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("statuses", str(ctx.exception).lower())

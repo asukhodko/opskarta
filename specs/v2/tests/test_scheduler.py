@@ -672,6 +672,33 @@ class TestComputeScheduleDepEdgeFeatures(unittest.TestCase):
         self.assertIsNone(plan.schedule.nodes["task2"].computed_start)
         self.assertIsNone(plan.schedule.nodes["task2"].computed_finish)
 
+    def test_ss_zero_lag_normalizes_weekend_start(self):
+        """Non-milestone with ss dep on milestone starting on weekend gets Monday start."""
+        plan = MergedPlan(
+            nodes={
+                # Milestone on Saturday
+                "m1": Node(title="M1", milestone=True),
+                # Regular task with ss dep on milestone
+                "task2": Node(title="Task 2", deps=[DepEdge(id="m1", type="ss")]),
+            },
+            schedule=Schedule(
+                calendars={"default": Calendar(excludes=["weekends"])},
+                default_calendar="default",
+                nodes={
+                    "m1": ScheduleNode(start="2024-03-16"),  # Saturday
+                    "task2": ScheduleNode(duration="2d"),
+                }
+            )
+        )
+
+        compute_schedule(plan)
+
+        # Milestone starts on Saturday as-is
+        self.assertEqual(plan.schedule.nodes["m1"].computed_start, "2024-03-16")
+        # Regular task must NOT start on weekend; next workday is Monday 3/18
+        self.assertEqual(plan.schedule.nodes["task2"].computed_start, "2024-03-18")
+        self.assertEqual(plan.schedule.nodes["task2"].computed_finish, "2024-03-19")
+
 
 class TestComputeScheduleMilestones(unittest.TestCase):
     """Tests for milestone handling."""
