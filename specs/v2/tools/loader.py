@@ -529,26 +529,31 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                             element_id=en_id,
                             files=[sources[f"execution_node:{en_id}"], source],
                         )
-                    result.execution.nodes[en_id] = _parse_execution_node(en_data)
+                    result.execution.nodes[en_id] = _parse_execution_node(en_data, en_id, source)
                     sources[f"execution_node:{en_id}"] = source
 
         # 11. Merge profiles
         if "profiles" in fragment and fragment["profiles"]:
             frag_profiles = fragment["profiles"]
-            if isinstance(frag_profiles, list):
-                for profile_data in frag_profiles:
-                    profile = _parse_profile(profile_data, source)
-                    # Check for duplicate profile id
-                    for existing in result.profiles:
-                        if existing.id == profile.id:
-                            raise MergeConflictError(
-                                f"Duplicate profile id '{profile.id}'",
-                                element_type="profile",
-                                element_id=profile.id,
-                                files=[sources[f"profile:{existing.id}"], source],
-                            )
-                    result.profiles.append(profile)
-                    sources[f"profile:{profile.id}"] = source
+            if not isinstance(frag_profiles, list):
+                raise LoadError(
+                    f"'profiles' must be a list, got {type(frag_profiles).__name__}",
+                    file_path=source,
+                    block_name="profiles",
+                )
+            for profile_data in frag_profiles:
+                profile = _parse_profile(profile_data, source)
+                # Check for duplicate profile id
+                for existing in result.profiles:
+                    if existing.id == profile.id:
+                        raise MergeConflictError(
+                            f"Duplicate profile id '{profile.id}'",
+                            element_type="profile",
+                            element_id=profile.id,
+                            files=[sources[f"profile:{existing.id}"], source],
+                        )
+                result.profiles.append(profile)
+                sources[f"profile:{profile.id}"] = source
 
     # Store sources in result (Requirement 1.10)
     result.sources = sources
@@ -598,10 +603,14 @@ def _parse_deps(
     return deps
 
 
-def _parse_execution_node(data: dict) -> ExecutionNode:
+def _parse_execution_node(data: dict, node_id: str = "", source: str = "") -> ExecutionNode:
     """Parse raw dict into ExecutionNode."""
     if not isinstance(data, dict):
-        return ExecutionNode()
+        raise LoadError(
+            f"Execution node '{node_id}' must be an object, got {type(data).__name__}",
+            file_path=source,
+            block_name=f"execution.nodes.{node_id}",
+        )
     return ExecutionNode(
         progress=data.get("progress"),
         actual_start=data.get("actual_start"),

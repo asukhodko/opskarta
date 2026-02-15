@@ -1421,10 +1421,132 @@ schedule:
       duration: "5d"
 """
         path = self._write_yaml("valid.yaml", yaml_content)
-        
+
         result = load_plan_set([path])
-        
+
         self.assertEqual(result.nodes["task1"].title, "Task 1")
         self.assertEqual(result.nodes["task1"].effort, 5)
         self.assertEqual(result.schedule.nodes["task1"].start, "2024-03-01")
         self.assertEqual(result.schedule.nodes["task1"].duration, "5d")
+
+
+class TestExecutionNodeNonDict(unittest.TestCase):
+    """Reject non-dict execution node entries (PR #2 review comment)."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_execution_node_string_rejected(self):
+        """execution.nodes.task1: 'done' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1: "done"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))
+        self.assertIn("task1", str(ctx.exception))
+
+    def test_execution_node_int_rejected(self):
+        """execution.nodes.task1: 42 must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1: 42
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))
+
+    def test_execution_node_valid_dict(self):
+        """execution.nodes.task1: {progress: 0.5} must be accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1:
+      progress: 0.5
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        self.assertEqual(result.execution.nodes["task1"].progress, 0.5)
+
+
+class TestProfilesNonList(unittest.TestCase):
+    """Reject non-list profiles block (PR #2 review comment)."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_profiles_dict_rejected(self):
+        """profiles: {id: ...} must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+profiles:
+  id: my-ext
+  version: 1
+  namespace: myext
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be a list", str(ctx.exception))
+
+    def test_profiles_string_rejected(self):
+        """profiles: 'something' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+profiles: "something"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be a list", str(ctx.exception))
+
+    def test_profiles_valid_list(self):
+        """profiles: [{id: ..., version: ..., namespace: ...}] must be accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+profiles:
+  - id: my-ext
+    version: 1
+    namespace: myext
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        self.assertEqual(len(result.profiles), 1)
+        self.assertEqual(result.profiles[0].id, "my-ext")
+        self.assertEqual(result.profiles[0].namespace, "myext")
