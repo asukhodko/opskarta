@@ -52,9 +52,9 @@ def parse_date(date_str: str) -> Optional[date]:
     Returns:
         date object or None if parsing fails
     """
-    if not date_str:
+    if not isinstance(date_str, str) or not date_str:
         return None
-    
+
     match = DATE_PATTERN.match(date_str)
     if not match:
         return None
@@ -91,9 +91,9 @@ def parse_duration(duration_str: str) -> Optional[int]:
     Returns:
         Number of days or None if parsing fails
     """
-    if not duration_str:
+    if not isinstance(duration_str, str) or not duration_str:
         return None
-    
+
     match = DURATION_PATTERN.match(duration_str)
     if not match:
         return None

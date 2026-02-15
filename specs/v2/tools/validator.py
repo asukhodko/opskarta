@@ -1261,7 +1261,16 @@ def _validate_profiles(
         file_source = plan.sources.get(source_key)
 
         # Validate namespace format
-        if not _NAMESPACE_PATTERN.match(profile.namespace):
+        if not isinstance(profile.namespace, str):
+            result.add_error(
+                message=f"Profile '{profile.id}' namespace must be a string, "
+                        f"got {type(profile.namespace).__name__}",
+                path=f"profiles.{profile.id}.namespace",
+                file_source=file_source,
+                expected="string matching ^[a-zA-Z_][a-zA-Z0-9_]*$",
+                actual=f"{type(profile.namespace).__name__}: {repr(profile.namespace)}",
+            )
+        elif not _NAMESPACE_PATTERN.match(profile.namespace):
             result.add_error(
                 message=f"Profile '{profile.id}' has invalid namespace '{profile.namespace}'",
                 path=f"profiles.{profile.id}.namespace",

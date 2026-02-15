@@ -13,7 +13,6 @@ Requires effort_metrics to be computed first.
 """
 
 from collections import defaultdict
-from typing import Optional
 
 from specs.v2.tools.models import MergedPlan
 
@@ -46,17 +45,10 @@ def compute_execution_metrics(plan: MergedPlan) -> None:
 
     visited: set[str] = set()
 
-    def compute(node_id: str) -> tuple[Optional[float], Optional[float]]:
-        """
-        Recursively compute execution metrics.
-
-        Returns (progress, coverage) for the node.
-        - progress: weighted progress value or None
-        - coverage: fraction of effort covered (0..1) or None
-        """
+    def compute(node_id: str) -> None:
+        """Recursively compute execution metrics (post-order traversal)."""
         if node_id in visited:
-            node = plan.nodes[node_id]
-            return node.progress_rollup, node.progress_coverage
+            return
 
         visited.add(node_id)
         node = plan.nodes[node_id]
@@ -68,31 +60,30 @@ def compute_execution_metrics(plan: MergedPlan) -> None:
             if en and en.progress is not None:
                 node.progress_rollup = en.progress
                 node.progress_coverage = 1.0
-                return en.progress, 1.0
             else:
                 node.progress_rollup = None
                 node.progress_coverage = None
-                return None, None
+            return
 
-        # Parent node — aggregate from children
+        # Parent node — aggregate from children.
+        # Per spec: only children with progress_rollup participate.
+        # covered_effort counts the full effort of such children (not
+        # scaled by child_coverage) so that the ratio stays in [0, 1].
         weighted_sum = 0.0
         total_effort = 0.0
         covered_effort = 0.0
 
         for child_id in child_ids:
-            child_progress, child_coverage = compute(child_id)
+            compute(child_id)
             child_node = plan.nodes[child_id]
             effort = child_node.effort_effective
             if effort is None or effort <= 0:
                 continue
 
             total_effort += effort
-            if child_progress is not None:
-                weighted_sum += effort * child_progress
-                if child_coverage is not None:
-                    covered_effort += effort * child_coverage
-                else:
-                    covered_effort += effort
+            if child_node.progress_rollup is not None:
+                covered_effort += effort
+                weighted_sum += effort * child_node.progress_rollup
 
         if total_effort > 0 and covered_effort > 0:
             node.progress_rollup = weighted_sum / covered_effort
@@ -100,8 +91,6 @@ def compute_execution_metrics(plan: MergedPlan) -> None:
         else:
             node.progress_rollup = None
             node.progress_coverage = None
-
-        return node.progress_rollup, node.progress_coverage
 
     # Find root nodes
     root_ids = [

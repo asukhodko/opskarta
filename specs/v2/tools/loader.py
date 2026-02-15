@@ -399,16 +399,34 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 if raw_deps is not None:
                     deps = _parse_deps(raw_deps, node_id, source)
 
+                node_effort = node_data.get("effort")
+                node_milestone = node_data.get("milestone", False)
+
+                if node_effort is not None and not isinstance(node_effort, (int, float)):
+                    raise LoadError(
+                        f"Node '{node_id}' effort must be a number, "
+                        f"got {type(node_effort).__name__}",
+                        file_path=source,
+                        block_name=f"nodes.{node_id}.effort",
+                    )
+                if not isinstance(node_milestone, bool):
+                    raise LoadError(
+                        f"Node '{node_id}' milestone must be a boolean, "
+                        f"got {type(node_milestone).__name__}",
+                        file_path=source,
+                        block_name=f"nodes.{node_id}.milestone",
+                    )
+
                 result.nodes[node_id] = Node(
                     title=node_data.get("title", ""),
                     kind=node_data.get("kind"),
                     status=node_data.get("status"),
                     parent=node_data.get("parent"),
                     deps=deps,
-                    milestone=node_data.get("milestone", False),
+                    milestone=node_milestone,
                     issue=node_data.get("issue"),
                     notes=node_data.get("notes"),
-                    effort=node_data.get("effort"),
+                    effort=node_effort,
                     x=node_data.get("x"),
                 )
                 sources[f"node:{node_id}"] = source
@@ -431,8 +449,24 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                             element_id=cal_id,
                             files=[sources[f"calendar:{cal_id}"], source],
                         )
+                    excludes = cal_data.get("excludes", [])
+                    if not isinstance(excludes, list):
+                        raise LoadError(
+                            f"Calendar '{cal_id}' excludes must be a list, "
+                            f"got {type(excludes).__name__}",
+                            file_path=source,
+                            block_name=f"schedule.calendars.{cal_id}.excludes",
+                        )
+                    for j, exc in enumerate(excludes):
+                        if not isinstance(exc, str):
+                            raise LoadError(
+                                f"Calendar '{cal_id}' excludes[{j}] must be a string, "
+                                f"got {type(exc).__name__}",
+                                file_path=source,
+                                block_name=f"schedule.calendars.{cal_id}.excludes[{j}]",
+                            )
                     result.schedule.calendars[cal_id] = Calendar(
-                        excludes=cal_data.get("excludes", []),
+                        excludes=excludes,
                     )
                     sources[f"calendar:{cal_id}"] = source
             
@@ -446,11 +480,24 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                             element_id=sn_id,
                             files=[sources[f"schedule_node:{sn_id}"], source],
                         )
+                    sn_start = sn_data.get("start")
+                    sn_finish = sn_data.get("finish")
+                    sn_duration = sn_data.get("duration")
+                    sn_calendar = sn_data.get("calendar")
+                    for fname, fval in [("start", sn_start), ("finish", sn_finish),
+                                        ("duration", sn_duration), ("calendar", sn_calendar)]:
+                        if fval is not None and not isinstance(fval, str):
+                            raise LoadError(
+                                f"Schedule node '{sn_id}' {fname} must be a string, "
+                                f"got {type(fval).__name__}",
+                                file_path=source,
+                                block_name=f"schedule.nodes.{sn_id}.{fname}",
+                            )
                     result.schedule.nodes[sn_id] = ScheduleNode(
-                        start=sn_data.get("start"),
-                        finish=sn_data.get("finish"),
-                        duration=sn_data.get("duration"),
-                        calendar=sn_data.get("calendar"),
+                        start=sn_start,
+                        finish=sn_finish,
+                        duration=sn_duration,
+                        calendar=sn_calendar,
                     )
                     sources[f"schedule_node:{sn_id}"] = source
             
@@ -647,13 +694,39 @@ def _parse_execution_node(data: dict, node_id: str = "", source: str = "") -> Ex
             file_path=source,
             block_name=f"execution.nodes.{node_id}",
         )
+    progress = data.get("progress")
+    actual_start = data.get("actual_start")
+    actual_finish = data.get("actual_finish")
+    updated_at = data.get("updated_at")
+    confidence = data.get("confidence")
+    note = data.get("note")
+    base = f"execution.nodes.{node_id}"
+
+    if progress is not None and not isinstance(progress, (int, float)):
+        raise LoadError(
+            f"Execution node '{node_id}' progress must be a number, got {type(progress).__name__}",
+            file_path=source, block_name=f"{base}.progress",
+        )
+    if confidence is not None and not isinstance(confidence, (int, float)):
+        raise LoadError(
+            f"Execution node '{node_id}' confidence must be a number, got {type(confidence).__name__}",
+            file_path=source, block_name=f"{base}.confidence",
+        )
+    for fname, fval in [("actual_start", actual_start), ("actual_finish", actual_finish),
+                         ("updated_at", updated_at), ("note", note)]:
+        if fval is not None and not isinstance(fval, str):
+            raise LoadError(
+                f"Execution node '{node_id}' {fname} must be a string, got {type(fval).__name__}",
+                file_path=source, block_name=f"{base}.{fname}",
+            )
+
     return ExecutionNode(
-        progress=data.get("progress"),
-        actual_start=data.get("actual_start"),
-        actual_finish=data.get("actual_finish"),
-        updated_at=data.get("updated_at"),
-        confidence=data.get("confidence"),
-        note=data.get("note"),
+        progress=progress,
+        actual_start=actual_start,
+        actual_finish=actual_finish,
+        updated_at=updated_at,
+        confidence=confidence,
+        note=note,
     )
 
 
@@ -672,8 +745,30 @@ def _parse_profile(data: dict, source: str) -> Profile:
                 file_path=source,
                 block_name="profiles",
             )
+    # Validate field types
+    pid = data["id"]
+    version = data["version"]
+    namespace = data["namespace"]
+    if not isinstance(pid, str):
+        raise LoadError(
+            f"Profile id must be a string, got {type(pid).__name__}",
+            file_path=source,
+            block_name="profiles",
+        )
+    if not isinstance(version, (int, float)):
+        raise LoadError(
+            f"Profile '{pid}' version must be a number, got {type(version).__name__}",
+            file_path=source,
+            block_name=f"profiles.{pid}.version",
+        )
+    if not isinstance(namespace, str):
+        raise LoadError(
+            f"Profile '{pid}' namespace must be a string, got {type(namespace).__name__}",
+            file_path=source,
+            block_name=f"profiles.{pid}.namespace",
+        )
     return Profile(
-        id=data["id"],
-        version=data["version"],
-        namespace=data["namespace"],
+        id=pid,
+        version=version,
+        namespace=namespace,
     )
