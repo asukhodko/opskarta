@@ -456,6 +456,13 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
             
             # 5. Merge calendars (Requirement 1.7)
             if "calendars" in frag_schedule and frag_schedule["calendars"]:
+                if not isinstance(frag_schedule["calendars"], dict):
+                    raise LoadError(
+                        f"'schedule.calendars' must be an object, "
+                        f"got {type(frag_schedule['calendars']).__name__}",
+                        file_path=source,
+                        block_name="schedule.calendars",
+                    )
                 for cal_id, cal_data in frag_schedule["calendars"].items():
                     if cal_id in result.schedule.calendars:
                         raise MergeConflictError(
@@ -487,6 +494,13 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
             
             # 6. Merge schedule.nodes (Requirement 1.7)
             if "nodes" in frag_schedule and frag_schedule["nodes"]:
+                if not isinstance(frag_schedule["nodes"], dict):
+                    raise LoadError(
+                        f"'schedule.nodes' must be an object, "
+                        f"got {type(frag_schedule['nodes']).__name__}",
+                        file_path=source,
+                        block_name="schedule.nodes",
+                    )
                 for sn_id, sn_data in frag_schedule["nodes"].items():
                     if sn_id in result.schedule.nodes:
                         raise MergeConflictError(
@@ -614,6 +628,13 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 result.execution = Execution()
 
             if "nodes" in frag_execution and frag_execution["nodes"]:
+                if not isinstance(frag_execution["nodes"], dict):
+                    raise LoadError(
+                        f"'execution.nodes' must be an object, "
+                        f"got {type(frag_execution['nodes']).__name__}",
+                        file_path=source,
+                        block_name="execution.nodes",
+                    )
                 for en_id, en_data in frag_execution["nodes"].items():
                     if en_id in result.execution.nodes:
                         raise MergeConflictError(

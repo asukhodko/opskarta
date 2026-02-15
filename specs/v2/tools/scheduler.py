@@ -401,8 +401,11 @@ def compute_schedule(plan: MergedPlan) -> None:
                     if base is None:
                         continue
 
-                    # Apply lag
-                    lag_days = parse_lag(dep.lag) or 0
+                    # Apply lag (parse_lag returns None for invalid strings;
+                    # validator catches this, but be defensive)
+                    lag_days = parse_lag(dep.lag)
+                    if lag_days is None:
+                        lag_days = 0
                     if lag_days > 0:
                         candidate = add_workdays(base, lag_days, calendar)
                     elif dep.type == "fs" and not is_milestone:
