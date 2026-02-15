@@ -589,11 +589,37 @@ class TestComputeScheduleDepEdgeFeatures(unittest.TestCase):
         self.assertEqual(plan.schedule.nodes["task1"].computed_start, "2024-03-11")
         self.assertEqual(plan.schedule.nodes["task1"].computed_finish, "2024-03-13")
 
-        # task2: 2 workdays after Wed 3/13 finish -> Thu 3/14, Fri 3/15 -> start Mon 3/18
-        # add_workdays(Wed 3/13, 2, cal) = Fri 3/15
-        # So task2 starts Fri 3/15
-        self.assertEqual(plan.schedule.nodes["task2"].computed_start, "2024-03-15")
-        self.assertEqual(plan.schedule.nodes["task2"].computed_finish, "2024-03-18")
+        # task2: fs+lag=2d → next workday after Wed 3/13 = Thu 3/14,
+        # then add 2 workdays → Mon 3/18. task2: Mon 3/18 - Tue 3/19
+        self.assertEqual(plan.schedule.nodes["task2"].computed_start, "2024-03-18")
+        self.assertEqual(plan.schedule.nodes["task2"].computed_finish, "2024-03-19")
+
+    def test_dep_fs_lag_0d_vs_1d(self):
+        """fs+lag=0d and fs+lag=1d must give different start dates."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "t0": Node(title="T0", deps=[DepEdge(id="task1", lag="0d")]),
+                "t1": Node(title="T1", deps=[DepEdge(id="task1", lag="1d")]),
+            },
+            schedule=Schedule(
+                calendars={"default": Calendar(excludes=["weekends"])},
+                default_calendar="default",
+                nodes={
+                    "task1": ScheduleNode(start="2024-03-11", duration="3d"),
+                    "t0": ScheduleNode(duration="1d"),
+                    "t1": ScheduleNode(duration="1d"),
+                }
+            )
+        )
+
+        compute_schedule(plan)
+
+        # task1: Mon 3/11 - Wed 3/13
+        # t0: fs+0d → next workday after Wed = Thu 3/14
+        self.assertEqual(plan.schedule.nodes["t0"].computed_start, "2024-03-14")
+        # t1: fs+1d → next workday after Wed = Thu 3/14, then +1 = Fri 3/15
+        self.assertEqual(plan.schedule.nodes["t1"].computed_start, "2024-03-15")
 
     def test_dep_ss_type(self):
         """Task with ss dep starts on the same day as predecessor starts."""

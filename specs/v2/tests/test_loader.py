@@ -1964,3 +1964,67 @@ nodes:
         path = self._write_yaml("plan.yaml", yaml_content)
         result = load_plan_set([path])
         self.assertEqual(result.nodes["B"].deps[0].note, "some info")
+
+
+class TestNodeNonDict(unittest.TestCase):
+    """Node value must be a dict object."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_node_string_rejected(self):
+        """nodes.task1: 'hello' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1: "hello"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))
+
+    def test_node_int_rejected(self):
+        """nodes.task1: 42 must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1: 42
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))
+
+
+class TestScheduleNodeNonDict(unittest.TestCase):
+    """Schedule node value must be a dict object."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_schedule_node_string_rejected(self):
+        """schedule.nodes.task1: '2024-01-01' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+schedule:
+  nodes:
+    task1: "2024-01-01"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))

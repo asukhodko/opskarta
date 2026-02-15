@@ -406,11 +406,14 @@ def compute_schedule(plan: MergedPlan) -> None:
                     lag_days = parse_lag(dep.lag)
                     if lag_days is None:
                         lag_days = 0
-                    if lag_days > 0:
-                        candidate = add_workdays(base, lag_days, calendar)
-                    elif dep.type == "fs" and not is_milestone:
-                        # fs with 0 lag: next workday after dep finish
+                    if dep.type == "fs" and not is_milestone:
+                        # fs: successor starts after predecessor finishes.
+                        # First move to the next workday, then add lag on top.
                         candidate = next_workday(base, calendar)
+                        if lag_days > 0:
+                            candidate = add_workdays(candidate, lag_days, calendar)
+                    elif lag_days > 0:
+                        candidate = add_workdays(base, lag_days, calendar)
                     else:
                         # ss with 0 lag or milestone: same day
                         # For non-milestones, ensure candidate is a workday
@@ -440,11 +443,15 @@ def compute_schedule(plan: MergedPlan) -> None:
                     finish = parsed_finish
                 else:
                     # Invalid finish date, compute from duration
-                    duration_days = parse_duration(sn.duration) if sn.duration else 1
+                    duration_days = parse_duration(sn.duration) if sn.duration else None
+                    if duration_days is None:
+                        duration_days = 1
                     finish = add_workdays(start, duration_days - 1, calendar)
             else:
                 # Compute finish from duration (default: 1 day for milestones)
-                duration_days = parse_duration(sn.duration) if sn.duration else 1
+                duration_days = parse_duration(sn.duration) if sn.duration else None
+                if duration_days is None:
+                    duration_days = 1
                 
                 if is_milestone:
                     # Milestones have zero duration (finish = start)

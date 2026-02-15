@@ -78,6 +78,11 @@ _ALLOWED_EXECUTION_KEYS: frozenset[str] = frozenset({
     "updated_at", "confidence", "note",
 })
 
+# Allowed keys in schedule node objects
+_ALLOWED_SCHEDULE_NODE_KEYS: frozenset[str] = frozenset({
+    "start", "finish", "duration", "calendar",
+})
+
 
 class LoadError(Exception):
     """
@@ -395,6 +400,13 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                     file_path=source, block_name="nodes",
                 )
             for node_id, node_data in fragment["nodes"].items():
+                if not isinstance(node_data, dict):
+                    raise LoadError(
+                        f"Node '{node_id}' must be an object, "
+                        f"got {type(node_data).__name__}",
+                        file_path=source,
+                        block_name=f"nodes.{node_id}",
+                    )
                 if node_id in result.nodes:
                     raise MergeConflictError(
                         f"Duplicate node_id '{node_id}'",
@@ -402,7 +414,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                         element_id=node_id,
                         files=[sources[f"node:{node_id}"], source],
                     )
-                
+
                 # Check for forbidden fields (Requirement 2.4)
                 for forbidden_field in FORBIDDEN_NODE_FIELDS:
                     if forbidden_field in node_data:
@@ -527,19 +539,24 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                             files=[sources[f"schedule_node:{sn_id}"], source],
                         )
                     # Check for misplaced/unknown keys in schedule node
-                    _ALLOWED_SCHEDULE_NODE_KEYS = {"start", "finish", "duration", "calendar"}
-                    if isinstance(sn_data, dict):
-                        unknown_keys = set(sn_data.keys()) - _ALLOWED_SCHEDULE_NODE_KEYS
-                        if unknown_keys:
-                            raise LoadError(
-                                f"Schedule node '{sn_id}' contains unknown keys: "
-                                f"{sorted(unknown_keys)}. "
-                                f"Only {sorted(_ALLOWED_SCHEDULE_NODE_KEYS)} are allowed. "
-                                f"(Did you mean to put '{', '.join(sorted(unknown_keys))}' "
-                                f"under nodes.{sn_id} instead?)",
-                                file_path=source,
-                                block_name=f"schedule.nodes.{sn_id}",
-                            )
+                    if not isinstance(sn_data, dict):
+                        raise LoadError(
+                            f"Schedule node '{sn_id}' must be an object, "
+                            f"got {type(sn_data).__name__}",
+                            file_path=source,
+                            block_name=f"schedule.nodes.{sn_id}",
+                        )
+                    unknown_keys = set(sn_data.keys()) - _ALLOWED_SCHEDULE_NODE_KEYS
+                    if unknown_keys:
+                        raise LoadError(
+                            f"Schedule node '{sn_id}' contains unknown keys: "
+                            f"{sorted(unknown_keys)}. "
+                            f"Only {sorted(_ALLOWED_SCHEDULE_NODE_KEYS)} are allowed. "
+                            f"(Did you mean to put '{', '.join(sorted(unknown_keys))}' "
+                            f"under nodes.{sn_id} instead?)",
+                            file_path=source,
+                            block_name=f"schedule.nodes.{sn_id}",
+                        )
 
                     sn_start = sn_data.get("start")
                     sn_finish = sn_data.get("finish")
