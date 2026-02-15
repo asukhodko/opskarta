@@ -402,7 +402,7 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                 node_effort = node_data.get("effort")
                 node_milestone = node_data.get("milestone", False)
 
-                if node_effort is not None and not isinstance(node_effort, (int, float)):
+                if node_effort is not None and (isinstance(node_effort, bool) or not isinstance(node_effort, (int, float))):
                     raise LoadError(
                         f"Node '{node_id}' effort must be a number, "
                         f"got {type(node_effort).__name__}",
@@ -702,12 +702,12 @@ def _parse_execution_node(data: dict, node_id: str = "", source: str = "") -> Ex
     note = data.get("note")
     base = f"execution.nodes.{node_id}"
 
-    if progress is not None and not isinstance(progress, (int, float)):
+    if progress is not None and (isinstance(progress, bool) or not isinstance(progress, (int, float))):
         raise LoadError(
             f"Execution node '{node_id}' progress must be a number, got {type(progress).__name__}",
             file_path=source, block_name=f"{base}.progress",
         )
-    if confidence is not None and not isinstance(confidence, (int, float)):
+    if confidence is not None and (isinstance(confidence, bool) or not isinstance(confidence, (int, float))):
         raise LoadError(
             f"Execution node '{node_id}' confidence must be a number, got {type(confidence).__name__}",
             file_path=source, block_name=f"{base}.confidence",
@@ -755,9 +755,9 @@ def _parse_profile(data: dict, source: str) -> Profile:
             file_path=source,
             block_name="profiles",
         )
-    if not isinstance(version, (int, float)):
+    if isinstance(version, bool) or not isinstance(version, int):
         raise LoadError(
-            f"Profile '{pid}' version must be a number, got {type(version).__name__}",
+            f"Profile '{pid}' version must be an integer, got {type(version).__name__}",
             file_path=source,
             block_name=f"profiles.{pid}.version",
         )

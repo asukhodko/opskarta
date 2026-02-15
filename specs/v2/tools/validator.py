@@ -26,6 +26,7 @@ Requirements covered:
 """
 
 from dataclasses import dataclass, field
+from datetime import date as _date
 from enum import Enum
 from typing import Optional
 
@@ -349,7 +350,7 @@ def _validate_effort(
     Requirement: 2.5
     """
     # Check if effort is a number
-    if not isinstance(effort, (int, float)):
+    if isinstance(effort, bool) or not isinstance(effort, (int, float)):
         result.add_error(
             message=f"Node '{node_id}' has invalid effort value: expected number, got {type(effort).__name__}",
             path=f"nodes.{node_id}.effort",
@@ -1112,6 +1113,20 @@ def _validate_dep_edges(plan: MergedPlan, result: ValidationResult) -> None:
 _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
+def _is_valid_date(value: object) -> bool:
+    """Check that value is a string representing a real YYYY-MM-DD date."""
+    if not isinstance(value, str):
+        return False
+    match = _DATE_PATTERN.match(value)
+    if not match:
+        return False
+    try:
+        _date(int(value[:4]), int(value[5:7]), int(value[8:10]))
+        return True
+    except ValueError:
+        return False
+
+
 def _validate_execution(
     plan: MergedPlan,
     result: ValidationResult,
@@ -1147,9 +1162,9 @@ def _validate_execution(
                 actual=en_id,
             )
 
-        # Validate progress range
+        # Validate progress range (reject bool — bool is subclass of int)
         if en.progress is not None:
-            if not isinstance(en.progress, (int, float)):
+            if isinstance(en.progress, bool) or not isinstance(en.progress, (int, float)):
                 result.add_error(
                     message=f"Execution node '{en_id}' has invalid progress type",
                     path=f"{base_path}.progress",
@@ -1166,9 +1181,9 @@ def _validate_execution(
                     actual=str(en.progress),
                 )
 
-        # Validate confidence range
+        # Validate confidence range (reject bool — bool is subclass of int)
         if en.confidence is not None:
-            if not isinstance(en.confidence, (int, float)):
+            if isinstance(en.confidence, bool) or not isinstance(en.confidence, (int, float)):
                 result.add_error(
                     message=f"Execution node '{en_id}' has invalid confidence type",
                     path=f"{base_path}.confidence",
@@ -1185,25 +1200,27 @@ def _validate_execution(
                     actual=str(en.confidence),
                 )
 
-        # Validate actual_start format
-        if en.actual_start is not None and not _DATE_PATTERN.match(str(en.actual_start)):
-            result.add_error(
-                message=f"Execution node '{en_id}' has invalid actual_start format",
-                path=f"{base_path}.actual_start",
-                file_source=file_source,
-                expected="YYYY-MM-DD",
-                actual=str(en.actual_start),
-            )
+        # Validate actual_start format (regex + real date check)
+        if en.actual_start is not None:
+            if not _is_valid_date(en.actual_start):
+                result.add_error(
+                    message=f"Execution node '{en_id}' has invalid actual_start",
+                    path=f"{base_path}.actual_start",
+                    file_source=file_source,
+                    expected="valid YYYY-MM-DD date",
+                    actual=str(en.actual_start),
+                )
 
-        # Validate actual_finish format
-        if en.actual_finish is not None and not _DATE_PATTERN.match(str(en.actual_finish)):
-            result.add_error(
-                message=f"Execution node '{en_id}' has invalid actual_finish format",
-                path=f"{base_path}.actual_finish",
-                file_source=file_source,
-                expected="YYYY-MM-DD",
-                actual=str(en.actual_finish),
-            )
+        # Validate actual_finish format (regex + real date check)
+        if en.actual_finish is not None:
+            if not _is_valid_date(en.actual_finish):
+                result.add_error(
+                    message=f"Execution node '{en_id}' has invalid actual_finish",
+                    path=f"{base_path}.actual_finish",
+                    file_source=file_source,
+                    expected="valid YYYY-MM-DD date",
+                    actual=str(en.actual_finish),
+                )
 
         # Consistency warnings
         if en.actual_finish is not None and en.actual_start is None:
