@@ -67,6 +67,17 @@ FORBIDDEN_NODE_FIELDS: frozenset[str] = frozenset({
     "after",
 })
 
+# Allowed keys in dependency edge objects
+_ALLOWED_DEP_KEYS: frozenset[str] = frozenset({
+    "id", "type", "lag", "hard", "note",
+})
+
+# Allowed keys in execution node objects
+_ALLOWED_EXECUTION_KEYS: frozenset[str] = frozenset({
+    "progress", "actual_start", "actual_finish",
+    "updated_at", "confidence", "note",
+})
+
 
 class LoadError(Exception):
     """
@@ -700,6 +711,15 @@ def _parse_deps(
                     file_path=source,
                     block_name=f"nodes.{node_id}.deps[{i}]",
                 )
+            unknown_dep_keys = set(dep_data.keys()) - _ALLOWED_DEP_KEYS
+            if unknown_dep_keys:
+                raise LoadError(
+                    f"Node '{node_id}' deps[{i}] contains unknown keys: "
+                    f"{sorted(unknown_dep_keys)}",
+                    file_path=source,
+                    block_name=f"nodes.{node_id}.deps[{i}]",
+                )
+
             dep_id = dep_data["id"]
             dep_type = dep_data.get("type", "fs")
             dep_lag = dep_data.get("lag", "0d")
@@ -761,6 +781,15 @@ def _parse_execution_node(data: dict, node_id: str = "", source: str = "") -> Ex
             file_path=source,
             block_name=f"execution.nodes.{node_id}",
         )
+    unknown_en_keys = set(data.keys()) - _ALLOWED_EXECUTION_KEYS
+    if unknown_en_keys:
+        raise LoadError(
+            f"Execution node '{node_id}' contains unknown keys: "
+            f"{sorted(unknown_en_keys)}",
+            file_path=source,
+            block_name=f"execution.nodes.{node_id}",
+        )
+
     progress = data.get("progress")
     actual_start = data.get("actual_start")
     actual_finish = data.get("actual_finish")

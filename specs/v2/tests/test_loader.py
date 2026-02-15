@@ -1662,3 +1662,144 @@ nodes:
         self.assertEqual(dep.lag, "3d")
         self.assertFalse(dep.hard)
         self.assertEqual(dep.note, "optional link")
+
+
+class TestDepUnknownKeys(unittest.TestCase):
+    """Unknown keys in dep edge objects must raise LoadError."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_typo_hardd_rejected(self):
+        """deps[].hardd (typo) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        hardd: false
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("unknown keys", str(ctx.exception).lower())
+        self.assertIn("hardd", str(ctx.exception))
+
+    def test_unknown_extra_key_rejected(self):
+        """deps[].colour (unknown) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        colour: red
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("unknown keys", str(ctx.exception).lower())
+        self.assertIn("colour", str(ctx.exception))
+
+    def test_valid_dep_keys_accepted(self):
+        """All known dep keys are accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        type: fs
+        lag: "2d"
+        hard: true
+        note: "a note"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        self.assertIn("B", result.nodes)
+
+
+class TestExecutionUnknownKeys(unittest.TestCase):
+    """Unknown keys in execution node objects must raise LoadError."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_typo_progess_rejected(self):
+        """execution.nodes.X.progess (typo) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1:
+      progess: 0.5
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("unknown keys", str(ctx.exception).lower())
+        self.assertIn("progess", str(ctx.exception))
+
+    def test_unknown_extra_key_rejected(self):
+        """execution.nodes.X.status (unknown) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1:
+      progress: 0.5
+      status: done
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("unknown keys", str(ctx.exception).lower())
+        self.assertIn("status", str(ctx.exception))
+
+    def test_valid_execution_keys_accepted(self):
+        """All known execution node keys are accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1:
+      progress: 0.5
+      actual_start: "2024-01-01"
+      actual_finish: "2024-01-05"
+      updated_at: "2024-01-05T10:00:00Z"
+      confidence: 0.9
+      note: "on track"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        en = result.execution.nodes["task1"]
+        self.assertAlmostEqual(en.progress, 0.5)
