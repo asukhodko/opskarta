@@ -351,6 +351,11 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
         
         # 3. Merge statuses (Requirement 1.5)
         if "statuses" in fragment and fragment["statuses"]:
+            if not isinstance(fragment["statuses"], dict):
+                raise LoadError(
+                    f"'statuses' must be an object, got {type(fragment['statuses']).__name__}",
+                    file_path=source, block_name="statuses",
+                )
             for status_id, status_data in fragment["statuses"].items():
                 if status_id in result.statuses:
                     raise MergeConflictError(
@@ -367,6 +372,11 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
         
         # 4. Merge nodes (Requirement 1.4)
         if "nodes" in fragment and fragment["nodes"]:
+            if not isinstance(fragment["nodes"], dict):
+                raise LoadError(
+                    f"'nodes' must be an object, got {type(fragment['nodes']).__name__}",
+                    file_path=source, block_name="nodes",
+                )
             for node_id, node_data in fragment["nodes"].items():
                 if node_id in result.nodes:
                     raise MergeConflictError(
@@ -434,7 +444,12 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
         # 5-7. Merge schedule (Requirements 1.7, 1.8)
         if "schedule" in fragment and fragment["schedule"]:
             frag_schedule = fragment["schedule"]
-            
+            if not isinstance(frag_schedule, dict):
+                raise LoadError(
+                    f"'schedule' must be an object, got {type(frag_schedule).__name__}",
+                    file_path=source, block_name="schedule",
+                )
+
             # Initialize schedule if not exists
             if result.schedule is None:
                 result.schedule = Schedule()
@@ -480,6 +495,21 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                             element_id=sn_id,
                             files=[sources[f"schedule_node:{sn_id}"], source],
                         )
+                    # Check for misplaced/unknown keys in schedule node
+                    _ALLOWED_SCHEDULE_NODE_KEYS = {"start", "finish", "duration", "calendar"}
+                    if isinstance(sn_data, dict):
+                        unknown_keys = set(sn_data.keys()) - _ALLOWED_SCHEDULE_NODE_KEYS
+                        if unknown_keys:
+                            raise LoadError(
+                                f"Schedule node '{sn_id}' contains unknown keys: "
+                                f"{sorted(unknown_keys)}. "
+                                f"Only {sorted(_ALLOWED_SCHEDULE_NODE_KEYS)} are allowed. "
+                                f"(Did you mean to put '{', '.join(sorted(unknown_keys))}' "
+                                f"under nodes.{sn_id} instead?)",
+                                file_path=source,
+                                block_name=f"schedule.nodes.{sn_id}",
+                            )
+
                     sn_start = sn_data.get("start")
                     sn_finish = sn_data.get("finish")
                     sn_duration = sn_data.get("duration")
@@ -515,6 +545,11 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
         
         # 8. Merge views
         if "views" in fragment and fragment["views"]:
+            if not isinstance(fragment["views"], dict):
+                raise LoadError(
+                    f"'views' must be an object, got {type(fragment['views']).__name__}",
+                    file_path=source, block_name="views",
+                )
             for view_id, view_data in fragment["views"].items():
                 if view_id in result.views:
                     raise MergeConflictError(
@@ -549,6 +584,11 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
         
         # 9. Merge x (extensions)
         if "x" in fragment and fragment["x"]:
+            if not isinstance(fragment["x"], dict):
+                raise LoadError(
+                    f"'x' must be an object, got {type(fragment['x']).__name__}",
+                    file_path=source, block_name="x",
+                )
             for x_key, x_value in fragment["x"].items():
                 if x_key in result.x:
                     raise MergeConflictError(
@@ -563,6 +603,12 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
         # 10. Merge execution
         if "execution" in fragment and fragment["execution"]:
             frag_execution = fragment["execution"]
+            if not isinstance(frag_execution, dict):
+                raise LoadError(
+                    f"'execution' must be an object, got {type(frag_execution).__name__}",
+                    file_path=source,
+                    block_name="execution",
+                )
 
             if result.execution is None:
                 result.execution = Execution()
