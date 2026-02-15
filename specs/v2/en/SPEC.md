@@ -6,8 +6,10 @@
 - [opskarta v2 Specification](#opskarta-v2-specification)
 - [Plan Set (Multi-file Structure)](#plan-set-multi-file-structure)
 - [Nodes (`nodes`)](#nodes-nodes)
+- [Execution (Progress Tracking)](#execution-progress-tracking)
 - [Schedule (Calendar Planning Layer)](#schedule-calendar-planning-layer)
 - [Views (Representations)](#views-representations)
+- [Profiles (Extension Namespaces)](#profiles-extension-namespaces)
 - [Validation](#validation)
 
 # opskarta v2 Specification
@@ -31,7 +33,7 @@ The main difference between v2 and v1 is **separating work structure from calend
 | Dates in nodes | `start`, `finish`, `duration` in `nodes` | Only in `schedule.nodes` |
 | Calendar | `excludes` in `views` | `excludes` in `schedule.calendars` |
 | Plan without dates | Not possible | Fully valid |
-| Dependencies | `after` in `nodes` | `after` in `nodes` (unchanged) |
+| Dependencies | `after` in `nodes` | `deps` in `nodes` (typed edges) |
 
 ### Plan Set (Multi-file Structure)
 
@@ -67,7 +69,9 @@ The unit of measure is set in `meta.effort_unit` for UI display.
 | `10-plan-set.md` | Plan Set: multi-file structure, fragment merging |
 | `20-nodes.md` | Nodes: work structure without calendar fields |
 | `30-schedule.md` | Schedule: calendar planning layer |
+| `25-execution.md` | Execution: progress tracking overlay |
 | `40-views.md` | Views: visualization representations |
+| `45-profiles.md` | Profiles: extension namespace management |
 | `50-validation.md` | Validation: rules and error messages |
 
 ## Allowed Top-Level Blocks
@@ -82,6 +86,8 @@ Each YAML file (fragment) can contain the following blocks:
 | `nodes` | Work node dictionary | Optional |
 | `schedule` | Calendar planning layer | Optional |
 | `views` | Visualization views | Optional |
+| `execution` | Execution tracking overlay | Optional |
+| `profiles` | Extension profile declarations | Optional |
 | `x` | Extensions (namespace for custom fields) | Optional |
 
 Any other top-level blocks are **errors**.
@@ -132,7 +138,7 @@ nodes:
     title: "Phase 2: Development"
     kind: phase
     parent: root
-    after: [phase1]
+    deps: [{id: phase1}]
     effort: 20
 
 schedule:
@@ -151,7 +157,7 @@ schedule:
     
     phase2:
       duration: "20d"
-      # start computed from after: [phase1] in nodes
+      # start computed from deps in nodes
 
 views:
   gantt:
@@ -453,7 +459,7 @@ A node is a unit of work in the plan structure. In v2, nodes describe **structur
 
 ## Node Identifiers (node_id)
 
-Each node is identified by a key in the `nodes` dictionary. This key (`node_id`) is used for references in `parent`, `after`, `schedule.nodes`, `views`.
+Each node is identified by a key in the `nodes` dictionary. This key (`node_id`) is used for references in `parent`, `deps`, `schedule.nodes`, `views`.
 
 ### Requirements
 
@@ -497,7 +503,7 @@ nodes:
 | `kind` | string | Node type (summary, phase, epic, task, etc.) |
 | `status` | string | Status key from `statuses` |
 | `parent` | string | Parent node ID (hierarchy) |
-| `after` | list[string] | Dependencies "after what" (graph) |
+| `deps` | list[string\|dep_edge] | Dependencies (typed edges) |
 | `milestone` | boolean | Whether the node is a milestone |
 | `effort` | number | Work estimate (≥ 0) |
 | `issue` | string | Link to issue tracker |
@@ -571,34 +577,78 @@ nodes:
 - The `parent` value MUST be an existing `node_id`.
 - Circular references through `parent` are **forbidden**.
 
-## `after` Field (Dependencies)
+## `deps` Field (Dependencies)
 
-List of nodes after whose completion this node can start.
+List of typed dependency edges to other nodes.
+
+### Shorthand Syntax
 
 ```yaml
 nodes:
   design:
     title: "Design"
-  
+
   implementation:
     title: "Implementation"
-    after: [design]
-  
-  testing:
-    title: "Testing"
-    after: [implementation]
+    deps: [design]  # shorthand for [{id: design}]
 ```
 
-### Semantics
+### Full Syntax (dep_edge)
 
-- A node can start after **all** nodes in `after` are completed.
-- Dependencies are defined in `nodes`, **not** in `schedule.nodes`.
-- When computing schedule, only **scheduled** dependencies are considered.
+```yaml
+nodes:
+  backend:
+    title: "Backend API"
+
+  frontend:
+    title: "Frontend"
+    deps:
+      - id: backend
+        type: fs       # finish-to-start (default)
+        lag: "2d"       # 2 working day lag
+        hard: true      # affects scheduling (default)
+      - id: design_review
+        type: ss        # start-to-start
+        hard: false     # visual-only, no scheduling impact
+        note: "Parallel work possible"
+```
+
+### dep_edge Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | string | *required* | Target node_id |
+| `type` | string | `"fs"` | Dependency type: `fs` (finish-to-start) or `ss` (start-to-start) |
+| `lag` | string | `"0d"` | Non-negative lag duration (e.g., `"0d"`, `"3d"`, `"1w"`) |
+| `hard` | boolean | `true` | Whether this dependency affects scheduling (`true`) or is visual-only (`false`) |
+| `note` | string | — | Optional human-readable annotation |
+
+### Dependency Types
+
+| Type | Description | Start computation |
+|------|-------------|-------------------|
+| `fs` | Finish-to-start | Node starts after dependency finishes |
+| `ss` | Start-to-start | Node starts when dependency starts |
+
+### Hard vs Soft Dependencies
+
+- **Hard** (`hard: true`, default): Affects date computation in the scheduler
+- **Soft** (`hard: false`): Shown in dependency graphs but ignored by the scheduler
+
+### Lag
+
+Non-negative duration added between dependency and node start:
+
+- Format: `^(0|[1-9][0-9]*)[dw]$` (e.g., `"0d"`, `"3d"`, `"1w"`)
+- `0d` means no lag (default)
+- Working days only (respects calendar exclusions)
 
 ### Rules
 
-- Each element in `after` MUST be an existing `node_id`.
-- Circular dependencies through `after` are **forbidden**.
+- `dep.id` MUST be an existing `node_id`.
+- `dep.type` MUST be `"fs"` or `"ss"`.
+- `dep.lag` MUST match format `^(0|[1-9][0-9]*)[dw]$`.
+- Circular dependencies through `deps` are **forbidden** (both hard and soft).
 
 ## `milestone` Field (Milestones)
 
@@ -609,13 +659,13 @@ nodes:
   release_v1:
     title: "Release v1.0"
     milestone: true
-    after: [testing]
+    deps: [testing]
 ```
 
 ### Behavior
 
 - A milestone is displayed as a point/diamond on the Gantt chart.
-- When computing `start` from `after` for a milestone, the next workday is **not added**:
+- When computing `start` from `deps` for a milestone, the next workday is **not added**:
   - Regular node: `start = next_workday(max_finish)`
   - Milestone: `start = max_finish`
 
@@ -779,11 +829,146 @@ nodes:
     title: "OAuth Login"
     kind: user_story
     parent: epic1
-    after: [story1]
+    deps: [story1]
     effort: 8
 ```
 
 Such a plan can be rendered as tree, list, deps, but not as Gantt (no dates).
+
+---
+
+# Execution (Progress Tracking)
+
+Execution is an **optional** overlay for tracking plan-vs-fact data: actual progress, dates, and confidence.
+
+## Concept
+
+The execution block mirrors the schedule overlay pattern:
+
+- **Nodes** describe work structure
+- **Schedule** adds calendar planning
+- **Execution** adds progress tracking on top
+
+A plan can exist without execution data. Execution data can be maintained in a separate fragment file.
+
+## Execution Block Structure
+
+```yaml
+execution:
+  nodes:
+    <node_id>:
+      progress: 0.75
+      actual_start: "2024-03-01"
+      actual_finish: "2024-03-15"
+      updated_at: "2024-03-15T10:30:00Z"
+      confidence: 0.9
+      note: "On track"
+```
+
+## execution.nodes Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `progress` | number | Completion from 0.0 to 1.0 |
+| `actual_start` | string | Actual start date (YYYY-MM-DD) |
+| `actual_finish` | string | Actual finish date (YYYY-MM-DD) |
+| `updated_at` | string | Timestamp of last update (ISO 8601) |
+| `confidence` | number | Confidence level from 0.0 to 1.0 |
+| `note` | string | Optional annotation |
+
+## Progress Rollup
+
+For parent nodes, progress is automatically computed using effort-weighted rollup:
+
+```
+progress_rollup = sum(effort_effective_i * progress_i) / sum(effort_effective_i)
+```
+
+Only children with execution data participate in the rollup.
+
+### Progress Coverage
+
+`progress_coverage` indicates what fraction of total effort has progress data:
+
+```
+progress_coverage = sum(effort_effective with data) / sum(total effort_effective)
+```
+
+### Computation Algorithm
+
+```python
+def compute_execution_metrics(node_id):
+    children = [n for n in nodes if nodes[n].parent == node_id]
+
+    if not children:
+        # Leaf node: use direct execution data
+        if execution.nodes.get(node_id):
+            node.progress_rollup = execution.nodes[node_id].progress
+        return
+
+    # Parent node: weighted rollup
+    total_effort = 0
+    covered_effort = 0
+    weighted_sum = 0
+
+    for child in children:
+        compute_execution_metrics(child)
+        effort = child.effort_effective or 0
+        total_effort += effort
+
+        if child.progress_rollup is not None:
+            covered_effort += effort
+            weighted_sum += effort * child.progress_rollup
+
+    if covered_effort > 0:
+        node.progress_rollup = weighted_sum / covered_effort
+        node.progress_coverage = covered_effort / total_effort if total_effort > 0 else None
+```
+
+## Rules
+
+- `node_id` in `execution.nodes` MUST exist in `nodes`.
+- `progress` MUST be in range [0.0, 1.0].
+- `confidence` MUST be in range [0.0, 1.0].
+- `actual_start` and `actual_finish` MUST be valid `YYYY-MM-DD` dates.
+
+## Example
+
+```yaml
+version: 2
+
+nodes:
+  epic:
+    title: "Authentication"
+    effort: 13
+  login:
+    title: "Email Login"
+    parent: epic
+    effort: 5
+  oauth:
+    title: "OAuth Login"
+    parent: epic
+    effort: 8
+
+execution:
+  nodes:
+    login:
+      progress: 1.0
+      actual_start: "2024-03-01"
+      actual_finish: "2024-03-05"
+      confidence: 1.0
+    oauth:
+      progress: 0.3
+      actual_start: "2024-03-06"
+      confidence: 0.7
+      note: "Provider API integration delayed"
+```
+
+In this example:
+- `login`: 100% complete, effort 5
+- `oauth`: 30% complete, effort 8
+- `epic` rollup: (5 × 1.0 + 8 × 0.3) / (5 + 8) = 7.4 / 13 ≈ 0.57 (57%)
+- `epic` coverage: (5 + 8) / 13 = 1.0 (100%)
 
 ---
 
@@ -893,10 +1078,10 @@ schedule:
     
     task2:
       duration: "3d"
-      # start computed from after in nodes
+      # start computed from deps in nodes
     
     milestone1:
-      # start computed from after in nodes
+      # start computed from deps in nodes
 ```
 
 ### schedule.nodes Fields
@@ -912,7 +1097,7 @@ schedule:
 
 - `node_id` in `schedule.nodes` MUST exist in `nodes`.
 - `calendar` MUST exist in `schedule.calendars`.
-- The `after` field is **forbidden** in `schedule.nodes` — dependencies only in `nodes`.
+- The `deps` field is **forbidden** in `schedule.nodes` — dependencies only in `nodes`.
 
 ## Node States
 
@@ -932,7 +1117,7 @@ nodes:
     title: "Task 2"
   task3:
     title: "Task 3"
-    after: [task2]
+    deps: [task2]
 
 schedule:
   nodes:
@@ -951,17 +1136,23 @@ schedule:
 
 1. **Explicit `start`**: use specified date
 2. **`finish` + `duration`**: compute `start` backward from `finish`
-3. **Dependencies `after`**: compute from dependency completion
+3. **Dependencies `deps`**: compute from dependency completion
 
-### Algorithm for after
+### Algorithm for deps
 
-When computing `start` from `after`:
+When computing `start` from `deps`:
 
-1. Get dependencies from `nodes.<id>.after` (not from schedule!)
-2. Filter only **scheduled** dependencies
-3. Compute `max(finish)` for all scheduled dependencies
-4. For regular node: `start = next_workday(max_finish)`
-5. For milestone: `start = max_finish`
+1. Get dependencies from `nodes.<id>.deps` (not from schedule!)
+2. Filter only **hard** dependencies (`hard: true`)
+3. Filter only **scheduled** hard dependencies
+4. For each scheduled hard dependency:
+   - **fs** (finish-to-start): base = dependency finish date
+   - **ss** (start-to-start): base = dependency start date
+   - Apply lag: `candidate = add_workdays(base, lag_days, calendar)`
+   - For fs with 0 lag (regular node): `candidate = next_workday(dep_finish)`
+   - For fs with 0 lag (milestone): `candidate = dep_finish`
+   - For ss with 0 lag: `candidate = dep_start`
+5. `start = max(all candidates)`
 
 ```yaml
 nodes:
@@ -969,10 +1160,10 @@ nodes:
     title: "Task 1"
   task2:
     title: "Task 2"
-    after: [task1]
+    deps: [task1]
   task3:
     title: "Task 3"
-    after: [task1, task2]
+    deps: [task1, task2]
 
 schedule:
   nodes:
@@ -980,12 +1171,12 @@ schedule:
       start: "2024-03-01"
       duration: "5d"
       # finish = 2024-03-05
-    
+
     # task2 — unscheduled
-    
+
     task3:
       duration: "3d"
-      # after = [task1, task2]
+      # deps = [task1, task2]
       # scheduled dependencies = [task1]
       # start = next_workday(2024-03-05) = 2024-03-06
 ```
@@ -996,7 +1187,7 @@ A node becomes **unschedulable** if:
 
 - No explicit `start`
 - No `finish` + `duration`
-- All `after` dependencies are either unscheduled or unschedulable
+- All hard `deps` dependencies are either unscheduled or unschedulable
 
 ```yaml
 nodes:
@@ -1004,7 +1195,7 @@ nodes:
     title: "Task 1"
   task2:
     title: "Task 2"
-    after: [task1]
+    deps: [task1]
 
 schedule:
   nodes:
@@ -1126,15 +1317,15 @@ nodes:
   milestone1:
     title: "MVP"
     milestone: true
-    after: [task2]
-  
+    deps: [task2]
+
   task1:
     title: "Backend API"
     effort: 3
-  
+
   task2:
     title: "Frontend"
-    after: [task1]
+    deps: [task1]
     effort: 5
   
   task3:
@@ -1155,10 +1346,10 @@ schedule:
     
     task2:
       duration: "5d"
-      # start from after: [task1]
-    
+      # start from deps: [task1]
+
     milestone1:
-      # start from after: [task2]
+      # start from deps: [task2]
       # milestone: true taken from nodes
 ```
 
@@ -1514,6 +1705,82 @@ views:
 
 ---
 
+# Profiles (Extension Namespaces)
+
+Profiles declare extension namespaces used in `x` fields throughout the plan.
+
+## Concept
+
+The `x` field on nodes and at the top level holds arbitrary extension data. Profiles provide a way to document and validate which namespaces are in use.
+
+## Profile Structure
+
+```yaml
+profiles:
+  - id: "opskarta.ai-dev"
+    version: 1
+    namespace: "ai"
+```
+
+## Profile Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Profile identifier (e.g., `"opskarta.ai-dev"`) |
+| `version` | integer | Profile schema version |
+| `namespace` | string | Key under `x` where profile data lives |
+
+## Namespace Convention
+
+The `namespace` value determines the key used in `x` fields:
+
+```yaml
+profiles:
+  - id: "opskarta.ai-dev"
+    version: 1
+    namespace: "ai"
+
+nodes:
+  task1:
+    title: "Implement feature"
+    x:
+      ai:
+        complexity: high
+        suggested_approach: "Use pattern X"
+```
+
+## Rules
+
+- `namespace` MUST match `^[a-zA-Z_][a-zA-Z0-9_]*$`.
+- Two profiles with the same `namespace` — **error**.
+- `id`, `version`, and `namespace` are all **required** fields.
+
+## Example
+
+```yaml
+version: 2
+
+profiles:
+  - id: "opskarta.ai-dev"
+    version: 1
+    namespace: "ai"
+  - id: "mycompany.pm"
+    version: 2
+    namespace: "pm"
+
+nodes:
+  task1:
+    title: "Backend API"
+    x:
+      ai:
+        complexity: medium
+      pm:
+        assignee: "john"
+        sprint: 5
+```
+
+---
+
 # Validation
 
 This section describes validation rules for v2 plan files.
@@ -1544,6 +1811,8 @@ A fragment can only contain:
 - `nodes`
 - `schedule`
 - `views`
+- `execution`
+- `profiles`
 - `x`
 
 ```yaml
@@ -1639,26 +1908,29 @@ nodes:
     parent: a  # ERROR: circular parent reference
 ```
 
-### Dependencies (`after`)
+### Dependencies (`deps`)
 
-- Each element in `after` MUST be an existing `node_id`.
-- Circular dependencies through `after` are **forbidden**.
+- Each `dep.id` MUST be an existing `node_id`.
+- `dep.type` MUST be `"fs"` or `"ss"`.
+- `dep.lag` MUST match format `^(0|[1-9][0-9]*)[dw]$`.
+- Circular dependencies through `deps` are **forbidden** (both hard and soft edges are checked).
 
 ```yaml
 # ERROR: non-existent dependency
 nodes:
   task:
     title: "Task"
-    after: [missing]  # ERROR: after reference 'missing' does not exist
+    deps:
+      - id: missing  # ERROR: dep reference 'missing' does not exist
 
 # ERROR: circular dependency
 nodes:
   a:
     title: "A"
-    after: [b]
+    deps: [b]
   b:
     title: "B"
-    after: [a]  # ERROR: circular dependency
+    deps: [a]  # ERROR: circular dependency
 ```
 
 ### Statuses (`status`)
@@ -1758,14 +2030,14 @@ schedule:
 
 ### Forbidden Fields in schedule.nodes
 
-The `after` field is **forbidden** in `schedule.nodes`:
+The `deps` field is **forbidden** in `schedule.nodes`:
 
 ```yaml
 schedule:
   nodes:
     task:
       start: "2024-03-01"
-      after: [other]  # ERROR: 'after' is not allowed in schedule.nodes
+      deps: [other]  # ERROR: 'deps' is not allowed in schedule.nodes
 ```
 
 ## Views Validation
@@ -1832,6 +2104,47 @@ Error: Merge conflict - schedule.default_calendar defined in multiple files
   File 2: schedule2.plan.yaml
 ```
 
+## Execution Validation
+
+### Node References
+
+- `node_id` in `execution.nodes` MUST exist in `nodes`.
+
+### Progress
+
+- `progress` MUST be a number in range [0.0, 1.0].
+
+### Confidence
+
+- `confidence` MUST be a number in range [0.0, 1.0].
+
+### Date Format
+
+- `actual_start` and `actual_finish` MUST match `YYYY-MM-DD`.
+
+### Consistency Warnings
+
+| Condition | Level |
+|-----------|-------|
+| `actual_finish` set but `actual_start` missing | warn |
+| `progress == 1.0` but no `actual_finish` | warn |
+| `actual_finish` set but `progress != 1.0` | warn |
+| `progress > 0` but no `actual_start` | warn |
+
+## Profiles Validation
+
+### Required Fields
+
+- Each profile MUST have `id`, `version`, and `namespace`.
+
+### Namespace Format
+
+- `namespace` MUST match `^[a-zA-Z_][a-zA-Z0-9_]*$`.
+
+### Duplicate Namespaces
+
+- Two profiles with the same `namespace` — **error**.
+
 ## Error Classification
 
 | Error | Level | Phase |
@@ -1846,14 +2159,20 @@ Error: Merge conflict - schedule.default_calendar defined in multiple files
 | Node contains start/finish/duration | error | Validation |
 | Invalid effort format | error | Validation |
 | Non-existent parent | error | Validation |
-| Non-existent after | error | Validation |
+| Non-existent dep reference | error | Validation |
 | Non-existent status | error | Validation |
 | Non-existent node in schedule.nodes | error | Validation |
 | Non-existent calendar | error | Validation |
 | View contains excludes | error | Validation |
 | Circular dependencies | error | Validation |
+| Non-existent node in execution.nodes | error | Validation |
+| Invalid progress value | error | Validation |
+| Invalid confidence value | error | Validation |
+| Missing profile required field | error | Validation |
+| Invalid namespace format | error | Validation |
+| Duplicate profile namespace | error | Validation |
 | Inconsistent start/finish/duration | error | Scheduling |
-| after chain without anchor | warn | Scheduling |
+| deps chain without anchor | warn | Scheduling |
 | start before dependency finish | warn | Scheduling |
 | start on excluded day | warn | Scheduling |
 

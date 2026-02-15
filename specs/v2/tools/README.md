@@ -130,8 +130,8 @@ The validator checks:
 - Required fields: `title` in every node
 - Forbidden fields in nodes: `start`, `finish`, `duration`, `excludes`
 - Effort format: must be a non-negative number (≥ 0)
-- Reference integrity: `parent`, `after`, `status` must reference existing IDs
-- Cyclic dependency detection in both `parent` hierarchy and `after` graph (DFS)
+- Reference integrity: `parent`, `deps`, `status` must reference existing IDs
+- Cyclic dependency detection in both `parent` hierarchy and `deps` graph (DFS)
 - Schedule references: every `schedule.nodes` key must exist in `nodes`; calendar references must exist
 - `default_calendar` must reference an existing calendar
 - Views: no `excludes` field; `where` filter type validation (`kind`, `status` as `list[str]`, `has_schedule` as `bool`, `parent` as existing node_id)
@@ -186,7 +186,7 @@ if plan.schedule:
 
 Scheduler features:
 - Only nodes present in `schedule.nodes` participate in calculation
-- Dependencies (`after`) come from `nodes`, not `schedule.nodes`
+- Dependencies (`deps`) come from `nodes`, not `schedule.nodes`
 - Only scheduled dependencies are considered for date propagation
 - Calendar support: `weekends` exclusion and specific date exclusions (`YYYY-MM-DD`)
 - Duration parsing: `Nd` (days), `Nw` (weeks = 5 working days)
@@ -254,12 +254,12 @@ Generates a flat list:
 
 Generates Mermaid flowcharts in two modes:
 
-**Simple mode** (default): flat graph with `-->` edges for `after` dependencies.
+**Simple mode** (default): flat graph with `-->` edges for `deps` dependencies.
 
 **Hierarchical mode**: rich structured graph with:
 - `subgraph` blocks for parent nodes that have visible children
 - Dashed arrows (`-.->`) for parent decomposition
-- Solid arrows (`-->`) for `after` dependencies
+- Solid arrows (`-->`) for `deps` dependencies
 - Status-based `classDef` styling with colors from `statuses` or defaults
 - Emoji prefixes for status (✅ done, 🔄 in_progress, ⛔ blocked)
 - Issue reference in labels (shown below title)
@@ -332,8 +332,8 @@ What it does:
 - **Plan file**:
   - `version: 1` → `2`
   - Moves `start`, `finish`, `duration` from `nodes.*` to `schedule.nodes.*`
-  - Keeps `after` in nodes (dependencies stay in nodes in v2)
-  - Creates `schedule.nodes` entry for any node that had `start`/`finish`/`duration`/`after`
+  - Keeps `deps` in nodes (dependencies stay in nodes in v2)
+  - Creates `schedule.nodes` entry for any node that had `start`/`finish`/`duration`/`deps`
   - Fail-fast on deprecated field `end` (v2 uses `finish`)
 - **Views file**:
   - `version: 1` → `2`
@@ -374,7 +374,7 @@ nodes:
     effort: 5
   task2:
     title: "Task 2"
-    after: [task1]  # Dependencies in nodes
+    deps: [task1]  # Dependencies in nodes
     effort: 3
 ```
 
@@ -391,7 +391,7 @@ schedule:
       start: "2024-03-01"
       duration: "5d"
     task2:
-      duration: "3d"  # start computed from after
+      duration: "3d"  # start computed from deps
 ```
 
 ### Effort Metrics
@@ -440,7 +440,7 @@ views:
 |----------------|----------------------------------------------------------------|
 | `Meta`         | Plan metadata: `id`, `title`, `effort_unit`                    |
 | `Status`       | Status definition: `label`, `color`                            |
-| `Node`         | Work item: `title`, `kind`, `status`, `parent`, `after`, `milestone`, `issue`, `notes`, `effort`, `x` + computed effort fields |
+| `Node`         | Work item: `title`, `kind`, `status`, `parent`, `deps`, `milestone`, `issue`, `notes`, `effort`, `x` + computed effort fields |
 | `ScheduleNode` | Scheduling info: `start`, `finish`, `duration`, `calendar` + computed dates |
 | `Calendar`     | Calendar definition: `excludes` (weekends, specific dates)     |
 | `Schedule`     | Schedule layer: `calendars`, `default_calendar`, `nodes`, `warnings` |

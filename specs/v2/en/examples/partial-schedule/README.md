@@ -10,7 +10,7 @@ In v2, only nodes explicitly listed in `schedule.nodes` participate in calendar 
 
 - ✅ Exist in the plan structure
 - ✅ Have effort estimates
-- ✅ Have dependencies (after)
+- ✅ Have dependencies (deps)
 - ✅ Appear in tree/list/deps views
 - ❌ Have no calendar dates
 - ❌ Don't appear on Gantt (unless filtered)
@@ -99,10 +99,10 @@ This allows:
 ```yaml
 nodes:
   profile-edit:
-    after: [profile-view]  # scheduled → scheduled ✓
-  
+    deps: [profile-view]  # scheduled → scheduled ✓
+
   profile-privacy:
-    after: [profile-edit]  # unscheduled → scheduled
+    deps: [profile-edit]  # unscheduled → scheduled
     # profile-privacy is in backlog but depends on scheduled task
 ```
 
@@ -113,7 +113,7 @@ When `profile-privacy` is added to schedule, its start will be computed from `pr
 ```yaml
 nodes:
   mvp-release:
-    after: [auth, profile]
+    deps: [auth, profile]
     milestone: true
 
 schedule:

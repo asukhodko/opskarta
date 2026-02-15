@@ -24,7 +24,7 @@ Example output:
 from typing import Optional
 
 from specs.v2.tools.models import MergedPlan, Node, View, ViewFilter
-from specs.v2.tools.render.tree import apply_view_filter, _sort_nodes
+from specs.v2.tools.render.common import apply_view_filter, sort_nodes
 
 
 def _format_list_item(
@@ -60,7 +60,23 @@ def _format_list_item(
         if plan.meta and plan.meta.effort_unit:
             unit = f" {plan.meta.effort_unit}"
         parts.append(f" ({effort}{unit})")
-    
+
+    # Add progress if present
+    progress = node.progress_rollup
+    if progress is not None:
+        pct = round(progress * 100)
+        coverage = node.progress_coverage
+        if coverage is not None and coverage < 1.0:
+            cov_pct = round(coverage * 100)
+            parts.append(f" {{{pct}% cov:{cov_pct}%}}")
+        else:
+            parts.append(f" {{{pct}%}}")
+    elif plan.execution and node_id in plan.execution.nodes:
+        en = plan.execution.nodes[node_id]
+        if en.progress is not None:
+            pct = round(en.progress * 100)
+            parts.append(f" {{{pct}%}}")
+
     return "".join(parts)
 
 
@@ -117,7 +133,7 @@ def render_list(plan: MergedPlan, view_id: Optional[str] = None) -> str:
     order_by = view.order_by if view else None
     
     # Sort nodes
-    sorted_ids = _sort_nodes(plan, filtered_ids, order_by)
+    sorted_ids = sort_nodes(plan, filtered_ids, order_by)
     
     # Format each node as a list item
     for node_id in sorted_ids:

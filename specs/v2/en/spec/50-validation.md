@@ -28,6 +28,8 @@ A fragment can only contain:
 - `nodes`
 - `schedule`
 - `views`
+- `execution`
+- `profiles`
 - `x`
 
 ```yaml
@@ -123,26 +125,29 @@ nodes:
     parent: a  # ERROR: circular parent reference
 ```
 
-### Dependencies (`after`)
+### Dependencies (`deps`)
 
-- Each element in `after` MUST be an existing `node_id`.
-- Circular dependencies through `after` are **forbidden**.
+- Each `dep.id` MUST be an existing `node_id`.
+- `dep.type` MUST be `"fs"` or `"ss"`.
+- `dep.lag` MUST match format `^(0|[1-9][0-9]*)[dw]$`.
+- Circular dependencies through `deps` are **forbidden** (both hard and soft edges are checked).
 
 ```yaml
 # ERROR: non-existent dependency
 nodes:
   task:
     title: "Task"
-    after: [missing]  # ERROR: after reference 'missing' does not exist
+    deps:
+      - id: missing  # ERROR: dep reference 'missing' does not exist
 
 # ERROR: circular dependency
 nodes:
   a:
     title: "A"
-    after: [b]
+    deps: [b]
   b:
     title: "B"
-    after: [a]  # ERROR: circular dependency
+    deps: [a]  # ERROR: circular dependency
 ```
 
 ### Statuses (`status`)
@@ -242,14 +247,14 @@ schedule:
 
 ### Forbidden Fields in schedule.nodes
 
-The `after` field is **forbidden** in `schedule.nodes`:
+The `deps` field is **forbidden** in `schedule.nodes`:
 
 ```yaml
 schedule:
   nodes:
     task:
       start: "2024-03-01"
-      after: [other]  # ERROR: 'after' is not allowed in schedule.nodes
+      deps: [other]  # ERROR: 'deps' is not allowed in schedule.nodes
 ```
 
 ## Views Validation
@@ -316,6 +321,47 @@ Error: Merge conflict - schedule.default_calendar defined in multiple files
   File 2: schedule2.plan.yaml
 ```
 
+## Execution Validation
+
+### Node References
+
+- `node_id` in `execution.nodes` MUST exist in `nodes`.
+
+### Progress
+
+- `progress` MUST be a number in range [0.0, 1.0].
+
+### Confidence
+
+- `confidence` MUST be a number in range [0.0, 1.0].
+
+### Date Format
+
+- `actual_start` and `actual_finish` MUST match `YYYY-MM-DD`.
+
+### Consistency Warnings
+
+| Condition | Level |
+|-----------|-------|
+| `actual_finish` set but `actual_start` missing | warn |
+| `progress == 1.0` but no `actual_finish` | warn |
+| `actual_finish` set but `progress != 1.0` | warn |
+| `progress > 0` but no `actual_start` | warn |
+
+## Profiles Validation
+
+### Required Fields
+
+- Each profile MUST have `id`, `version`, and `namespace`.
+
+### Namespace Format
+
+- `namespace` MUST match `^[a-zA-Z_][a-zA-Z0-9_]*$`.
+
+### Duplicate Namespaces
+
+- Two profiles with the same `namespace` — **error**.
+
 ## Error Classification
 
 | Error | Level | Phase |
@@ -330,14 +376,20 @@ Error: Merge conflict - schedule.default_calendar defined in multiple files
 | Node contains start/finish/duration | error | Validation |
 | Invalid effort format | error | Validation |
 | Non-existent parent | error | Validation |
-| Non-existent after | error | Validation |
+| Non-existent dep reference | error | Validation |
 | Non-existent status | error | Validation |
 | Non-existent node in schedule.nodes | error | Validation |
 | Non-existent calendar | error | Validation |
 | View contains excludes | error | Validation |
 | Circular dependencies | error | Validation |
+| Non-existent node in execution.nodes | error | Validation |
+| Invalid progress value | error | Validation |
+| Invalid confidence value | error | Validation |
+| Missing profile required field | error | Validation |
+| Invalid namespace format | error | Validation |
+| Duplicate profile namespace | error | Validation |
 | Inconsistent start/finish/duration | error | Scheduling |
-| after chain without anchor | warn | Scheduling |
+| deps chain without anchor | warn | Scheduling |
 | start before dependency finish | warn | Scheduling |
 | start on excluded day | warn | Scheduling |
 

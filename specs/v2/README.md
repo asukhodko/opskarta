@@ -47,7 +47,7 @@ specs/v2/
 ## What's New in v2
 
 ### Overlay Schedule
-- Nodes define work structure and dependencies (`after`)
+- Nodes define work structure and dependencies (`deps`)
 - Schedule is an optional layer with calendar dates
 - Only nodes explicitly included in `schedule.nodes` are scheduled
 

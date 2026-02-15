@@ -7,9 +7,9 @@ Scope:
 - Converts plan file:
   - version: 1 -> 2
   - move start/finish/duration from nodes.* to schedule.nodes.*
-  - keep dependencies (after) in nodes
+  - convert after: [A, B] → deps: [{id: A}, {id: B}]
   - create schedule.nodes entry for any node that had at least one of:
-    start|finish|duration|after
+    start|finish|duration|after(now deps)
   - fail-fast on deprecated/ambiguous node field "end"
 - Converts views file:
   - version: 1 -> 2
@@ -210,6 +210,26 @@ def migrate_plan_v1_to_v2(
             if field in node:
                 schedule_node[field] = node.pop(field)
                 moved_fields += 1
+
+        # Convert after: [A, B] → deps: [{id: A}, {id: B}]
+        if "after" in node:
+            after_list = node.pop("after")
+            if after_list is not None:
+                if not isinstance(after_list, list):
+                    raise MigrationError(
+                        f"nodes.{node_id}.after must be a list, got: {type(after_list).__name__}"
+                    )
+                deps = []
+                for dep_id in after_list:
+                    if not isinstance(dep_id, str):
+                        raise MigrationError(
+                            f"nodes.{node_id}.after[] items must be strings, got: {type(dep_id).__name__}"
+                        )
+                    dep_edge = _new_map()
+                    dep_edge["id"] = dep_id
+                    deps.append(dep_edge)
+                if deps:
+                    node["deps"] = deps
 
         if should_include:
             schedule_nodes[str(node_id)] = schedule_node

@@ -45,7 +45,7 @@ nodes:
     title: "Task CRUD Operations"
     kind: task
     parent: api
-    after: [api-auth]
+    deps: [api-auth]
     status: in_progress
     effort: 5
 
@@ -53,7 +53,7 @@ nodes:
     title: "Project Management"
     kind: task
     parent: api
-    after: [api-auth]
+    deps: [api-auth]
     status: ready
     effort: 5
 
@@ -75,7 +75,7 @@ nodes:
     title: "Migrations"
     kind: task
     parent: database
-    after: [db-schema]
+    deps: [db-schema]
     status: done
     effort: 2
 
@@ -83,7 +83,7 @@ nodes:
     title: "Index Optimization"
     kind: task
     parent: database
-    after: [db-migrations]
+    deps: [db-migrations]
     status: done
     effort: 5
 
@@ -94,7 +94,7 @@ nodes:
     title: "Frontend"
     kind: phase
     parent: project
-    after: [api]
+    deps: [api]
     status: ready
     effort: 20
 
@@ -116,7 +116,7 @@ nodes:
     title: "Forms and Validation"
     kind: task
     parent: ui-components
-    after: [ui-design-system]
+    deps: [ui-design-system]
     status: backlog
     effort: 3
 
@@ -124,7 +124,7 @@ nodes:
     title: "Tables and Lists"
     kind: task
     parent: ui-components
-    after: [ui-design-system]
+    deps: [ui-design-system]
     status: backlog
     effort: 2
 
@@ -132,7 +132,7 @@ nodes:
     title: "Application Pages"
     kind: epic
     parent: frontend
-    after: [ui-components]
+    deps: [ui-components]
     status: backlog
     effort: 12
 
@@ -147,7 +147,7 @@ nodes:
     title: "Task List"
     kind: task
     parent: pages
-    after: [page-dashboard]
+    deps: [page-dashboard]
     status: backlog
     effort: 4
 
@@ -155,7 +155,7 @@ nodes:
     title: "Settings"
     kind: task
     parent: pages
-    after: [page-dashboard]
+    deps: [page-dashboard]
     status: backlog
     effort: 3
 
@@ -166,7 +166,7 @@ nodes:
     title: "Testing"
     kind: phase
     parent: project
-    after: [backend, frontend]
+    deps: [backend, frontend]
     status: backlog
     effort: 5
 
@@ -181,7 +181,7 @@ nodes:
     title: "Performance Testing"
     kind: task
     parent: testing
-    after: [e2e-tests]
+    deps: [e2e-tests]
     status: backlog
     effort: 2
 
@@ -189,7 +189,7 @@ nodes:
     title: "Release v1.0"
     kind: task
     parent: project
-    after: [testing]
+    deps: [testing]
     status: backlog
     milestone: true
     notes: |

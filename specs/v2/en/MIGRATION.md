@@ -30,7 +30,7 @@ opskarta v2 implements the **overlay schedule** concept — separating work stru
 | Dates in nodes | `start`, `finish`, `duration` in `nodes` | Only in `schedule.nodes` |
 | Calendar | `excludes` in `views` (gantt_views) | `excludes` in `schedule.calendars` |
 | Plan without dates | Not possible for Gantt | Fully valid |
-| Dependencies | `after` in `nodes` | `after` in `nodes` (unchanged) |
+| Dependencies | `after` in `nodes` | `deps` in `nodes` (typed edges with fs/ss, lag, hard/soft) |
 | Multi-file support | Separate plan/views files | Unified Plan Set with fragments |
 | Effort estimation | Not supported | `effort` field (number) |
 
@@ -117,18 +117,18 @@ schedule:
       duration: "5d"  # For date calculation
 ```
 
-### 4. Dependencies remain in nodes
+### 4. Dependencies: `after` → `deps`
 
-The `after` field is still defined in `nodes`, **not** in `schedule.nodes`. This is important: dependency structure is separated from calendar planning.
+In v2, the `after` field is replaced by `deps` — typed dependency edges. The `deps` field is defined in `nodes`, **not** in `schedule.nodes`. This is important: dependency structure is separated from calendar planning.
 
 ```yaml
-# v2 — correct
+# v2 — correct (shorthand, equivalent to v1 after)
 nodes:
   task1:
     title: "Task 1"
   task2:
     title: "Task 2"
-    after: [task1]  # Dependencies in nodes
+    deps: [task1]  # Dependencies in nodes
 
 schedule:
   nodes:
@@ -136,7 +136,39 @@ schedule:
       start: "2024-03-01"
       duration: "3d"
     task2:
-      duration: "5d"  # start computed from after in nodes
+      duration: "5d"  # start computed from deps in nodes
+```
+
+### 5. Field `after` replaced with `deps`
+
+**v1:** Simple list of node IDs.
+
+```yaml
+# v1
+nodes:
+  task2:
+    title: "Task 2"
+    after: [task1]
+```
+
+**v2:** Typed dependency edges with optional lag, type (fs/ss), and hard/soft distinction.
+
+```yaml
+# v2 — shorthand (equivalent to v1 after)
+nodes:
+  task2:
+    title: "Task 2"
+    deps: [task1]  # shorthand for [{id: task1}]
+
+# v2 — full syntax
+nodes:
+  task2:
+    title: "Task 2"
+    deps:
+      - id: task1
+        type: fs
+        lag: "2d"
+        hard: true
 ```
 
 ---
@@ -219,7 +251,7 @@ nodes:
     title: "Task 1"
   task2:
     title: "Task 2"
-    after: [task1]  # Dependencies remain in nodes
+    deps: [task1]  # Dependencies remain in nodes (after → deps)
 
 schedule:
   nodes:
@@ -264,7 +296,38 @@ nodes:
     effort: 5  # Story points, days, or other units
 ```
 
-### Step 7: Merge files (optional)
+### Step 7: Convert `after` to `deps`
+
+Replace all `after` fields in nodes with `deps`. The simplest migration is a direct rename (shorthand syntax is equivalent to v1 `after`):
+
+```yaml
+# Before (v1)
+nodes:
+  task2:
+    title: "Task 2"
+    after: [task1]
+
+# After (v2)
+nodes:
+  task2:
+    title: "Task 2"
+    deps: [task1]
+```
+
+If you need typed dependencies (lag, start-to-start, soft deps), use the full syntax:
+
+```yaml
+nodes:
+  task2:
+    title: "Task 2"
+    deps:
+      - id: task1
+        type: fs    # finish-to-start (default)
+        lag: "2d"   # 2 workday lag
+        hard: true  # hard dependency (default)
+```
+
+### Step 8: Merge files (optional)
 
 In v2, you can merge `*.plan.yaml` and `*.views.yaml` into one file or split into multiple fragments by logic.
 
@@ -306,37 +369,37 @@ nodes:
 nodes:
   design:
     title: "Design"
-  
+
   implementation:
     title: "Implementation"
-    after: [design]  # Dependencies remain here
-  
+    deps: [design]  # Dependencies remain here (after → deps)
+
   release:
     title: "Release"
     milestone: true  # Milestone flag remains here
-    after: [implementation]
+    deps: [implementation]
 
 schedule:
   calendars:
     default:
       excludes: [weekends]
   default_calendar: default
-  
+
   nodes:
     design:
       start: "2024-03-01"
       duration: "5d"
     implementation:
       duration: "10d"
-      # start computed from after: [design]
+      # start computed from deps: [design]
     release:
-      # start computed from after: [implementation]
+      # start computed from deps: [implementation]
       # milestone: true is taken from nodes
 ```
 
 ### Important Notes
 
-1. **`after` field remains in nodes** — don't move it to schedule.nodes
+1. **`deps` field remains in nodes** — don't move it to schedule.nodes
 2. **`milestone` field remains in nodes** — it's a node characteristic, not schedule
 3. **Nodes without dates** — if a node didn't have `start`/`duration` in v1, you don't need to add it to schedule.nodes
 
@@ -531,19 +594,19 @@ nodes:
   
   task2:
     title: "Development"
-    after: [task1]
-  
+    deps: [task1]
+
   task3:
     title: "Testing"
-    after: [task2]
+    deps: [task2]
 
 schedule:
   calendars:
     default:
       excludes: [weekends]
-  
+
   default_calendar: default
-  
+
   nodes:
     task1:
       start: "2024-03-01"
@@ -613,12 +676,12 @@ nodes:
   
   review:
     title: "Review"
-    after: [prep]
-  
+    deps: [prep]
+
   release:
     title: "Release"
     milestone: true
-    after: [review]
+    deps: [review]
 
 schedule:
   calendars:
@@ -626,9 +689,9 @@ schedule:
       excludes:
         - weekends
         - "2024-03-08"
-  
+
   default_calendar: default
-  
+
   nodes:
     prep:
       finish: "2024-03-15"
@@ -636,7 +699,7 @@ schedule:
     review:
       duration: "2d"
     release:
-      # start computed from after
+      # start computed from deps
 
 views:
   timeline:
@@ -664,7 +727,7 @@ nodes:
   
   sprint_task2:
     title: "Sprint Task 2"
-    after: [sprint_task1]
+    deps: [sprint_task1]
     effort: 5
   
   # Unscheduled tasks (backlog)
@@ -835,7 +898,7 @@ schedule:
 
 ### Problem 6: Dates are computed incorrectly
 
-**Cause:** Dependencies `after` are specified in `schedule.nodes` instead of `nodes`.
+**Cause:** Dependencies `deps` are specified in `schedule.nodes` instead of `nodes`.
 
 **Solution:** Dependencies must be in `nodes`:
 
@@ -853,7 +916,7 @@ schedule:
       start: "2024-03-01"
       duration: "3d"
     task2:
-      after: [task1]  # Error: after is forbidden in schedule.nodes!
+      deps: [task1]  # Error: deps is forbidden in schedule.nodes!
       duration: "5d"
 
 # Correct
@@ -862,7 +925,7 @@ nodes:
     title: "Task 1"
   task2:
     title: "Task 2"
-    after: [task1]  # Dependencies in nodes
+    deps: [task1]  # Dependencies in nodes
 
 schedule:
   nodes:
@@ -870,7 +933,7 @@ schedule:
       start: "2024-03-01"
       duration: "3d"
     task2:
-      duration: "5d"  # start computed from after in nodes
+      duration: "5d"  # start computed from deps in nodes
 ```
 
 ---
@@ -911,7 +974,7 @@ python -m specs.v2.tools.cli render deps plan.yaml
 - [ ] Fields `start`, `finish`, `duration` moved from `nodes` to `schedule.nodes`
 - [ ] Field `excludes` moved from `views` to `schedule.calendars`
 - [ ] Created `default_calendar` (if using schedule)
-- [ ] Dependencies `after` remain in `nodes`
+- [ ] Dependencies converted from `after` to `deps`
 - [ ] Flag `milestone` remains in `nodes`
 - [ ] All `excludes` removed from `views`
 - [ ] Plan passes validation
@@ -945,7 +1008,7 @@ Migration from v1 to v2 requires:
 
 1. **Moving calendar fields** (`start`, `finish`, `duration`) from `nodes` to `schedule.nodes`
 2. **Moving exclusions** (`excludes`) from `views` to `schedule.calendars`
-3. **Keeping dependencies** (`after`) and flags (`milestone`) in `nodes`
+3. **Converting dependencies** from `after` to `deps` (with optional typed edges) and keeping flags (`milestone`) in `nodes`
 
 The key advantage of v2 is the ability to work with plans without calendar planning. Work structure and dependencies exist independently of dates, simplifying early planning and backlog management.
 

@@ -75,7 +75,7 @@ nodes:
     title: "Регистрация"
     kind: user_story
     parent: onboarding
-    after: [welcome-screens]  # зависимость есть
+    deps: [welcome-screens]  # зависимость есть
     status: ready
     effort: 8                 # оценка есть
     # start, finish, duration — НЕТ (это в schedule)
@@ -98,15 +98,15 @@ nodes:
 
 ### Зависимости без дат
 
-Зависимости (`after`) определяют **логический порядок**, даже без календарного планирования:
+Зависимости (`deps`) определяют **логический порядок**, даже без календарного планирования:
 
 ```yaml
 nodes:
   registration:
-    after: [welcome-screens]  # сначала приветствие, потом регистрация
-  
+    deps: [welcome-screens]  # сначала приветствие, потом регистрация
+
   profile-setup:
-    after: [registration]     # сначала регистрация, потом профиль
+    deps: [registration]     # сначала регистрация, потом профиль
 ```
 
 Это полезно для:
@@ -187,12 +187,12 @@ schedule:
     
     registration:
       duration: "8d"
-      # start вычислится из after: [welcome-screens]
+      # start вычислится из deps: [welcome-screens]
 ```
 
 При этом:
 - Структура узлов остаётся неизменной
-- Зависимости уже определены в `nodes.after`
+- Зависимости уже определены в `nodes.deps`
 - Effort-оценки сохраняются
 - Незапланированные узлы остаются в бэклоге
 

@@ -86,7 +86,7 @@ nodes:
     title: "Регистрация"
     kind: user_story
     parent: onboarding
-    after: [welcome-screens]
+    deps: [welcome-screens]
     status: ready
     effort: 8
     notes: |
@@ -97,7 +97,7 @@ nodes:
     title: "Настройка профиля"
     kind: user_story
     parent: onboarding
-    after: [registration]
+    deps: [registration]
     status: refined
     effort: 5
     notes: |
@@ -108,7 +108,7 @@ nodes:
     title: "Интерактивный туториал"
     kind: user_story
     parent: onboarding
-    after: [profile-setup]
+    deps: [profile-setup]
     status: idea
     effort: 3
     notes: |
@@ -122,7 +122,7 @@ nodes:
     title: "Основной функционал"
     kind: epic
     parent: backlog
-    after: [onboarding]
+    deps: [onboarding]
     status: refined
     effort: 34
     notes: |
@@ -154,7 +154,7 @@ nodes:
     title: "Уведомления"
     kind: user_story
     parent: core-features
-    after: [dashboard]
+    deps: [dashboard]
     status: refined
     effort: 8
     notes: |
@@ -175,7 +175,7 @@ nodes:
     title: "Офлайн-режим"
     kind: user_story
     parent: core-features
-    after: [dashboard, search]
+    deps: [dashboard, search]
     status: idea
     effort: 8
     notes: |
@@ -189,7 +189,7 @@ nodes:
     title: "Социальные функции"
     kind: epic
     parent: backlog
-    after: [core-features]
+    deps: [core-features]
     status: idea
     effort: 21
     notes: |
@@ -211,7 +211,7 @@ nodes:
     title: "Друзья и подписки"
     kind: user_story
     parent: social
-    after: [user-profiles]
+    deps: [user-profiles]
     status: idea
     effort: 8
     notes: |
@@ -222,7 +222,7 @@ nodes:
     title: "Шаринг контента"
     kind: user_story
     parent: social
-    after: [user-profiles]
+    deps: [user-profiles]
     status: idea
     effort: 5
     notes: |
@@ -233,7 +233,7 @@ nodes:
     title: "Комментарии"
     kind: user_story
     parent: social
-    after: [friends]
+    deps: [friends]
     status: idea
     effort: 3
     notes: |
@@ -247,7 +247,7 @@ nodes:
     title: "Монетизация"
     kind: epic
     parent: backlog
-    after: [social]
+    deps: [social]
     status: idea
     effort: 13
     notes: |
@@ -269,7 +269,7 @@ nodes:
     title: "Внутренние покупки"
     kind: user_story
     parent: monetization
-    after: [premium-subscription]
+    deps: [premium-subscription]
     status: idea
     effort: 5
     notes: |

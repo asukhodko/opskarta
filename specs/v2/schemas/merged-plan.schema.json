@@ -31,11 +31,21 @@
     "schedule": {
       "$ref": "fragment.schema.json#/$defs/schedule"
     },
+    "execution": {
+      "$ref": "fragment.schema.json#/$defs/execution"
+    },
     "views": {
       "type": "object",
       "description": "Dictionary of view_id -> view definition (merged from all fragments)",
       "additionalProperties": {
         "$ref": "fragment.schema.json#/$defs/view"
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "description": "List of extension profile declarations (merged from all fragments)",
+      "items": {
+        "$ref": "fragment.schema.json#/$defs/profile"
       }
     },
     "x": {

@@ -84,7 +84,7 @@ nodes:
     title: "Вход через OAuth"
     kind: user_story
     parent: epic1
-    after: [story1]
+    deps: [story1]
     effort: 8
 ```
 
@@ -119,7 +119,7 @@ nodes:
   phase2:
     title: "Фаза 2: Разработка"
     kind: phase
-    after: [phase1]
+    deps: [phase1]
     effort: 20
 ```
 
@@ -141,5 +141,5 @@ schedule:
 
     phase2:
       duration: "20d"
-      # start вычисляется из after: [phase1]
+      # start вычисляется из deps: [phase1]
 ```

@@ -4,7 +4,7 @@ A node is a unit of work in the plan structure. In v2, nodes describe **structur
 
 ## Node Identifiers (node_id)
 
-Each node is identified by a key in the `nodes` dictionary. This key (`node_id`) is used for references in `parent`, `after`, `schedule.nodes`, `views`.
+Each node is identified by a key in the `nodes` dictionary. This key (`node_id`) is used for references in `parent`, `deps`, `schedule.nodes`, `views`.
 
 ### Requirements
 
@@ -48,7 +48,7 @@ nodes:
 | `kind` | string | Node type (summary, phase, epic, task, etc.) |
 | `status` | string | Status key from `statuses` |
 | `parent` | string | Parent node ID (hierarchy) |
-| `after` | list[string] | Dependencies "after what" (graph) |
+| `deps` | list[string\|dep_edge] | Dependencies (typed edges) |
 | `milestone` | boolean | Whether the node is a milestone |
 | `effort` | number | Work estimate (≥ 0) |
 | `issue` | string | Link to issue tracker |
@@ -122,34 +122,78 @@ nodes:
 - The `parent` value MUST be an existing `node_id`.
 - Circular references through `parent` are **forbidden**.
 
-## `after` Field (Dependencies)
+## `deps` Field (Dependencies)
 
-List of nodes after whose completion this node can start.
+List of typed dependency edges to other nodes.
+
+### Shorthand Syntax
 
 ```yaml
 nodes:
   design:
     title: "Design"
-  
+
   implementation:
     title: "Implementation"
-    after: [design]
-  
-  testing:
-    title: "Testing"
-    after: [implementation]
+    deps: [design]  # shorthand for [{id: design}]
 ```
 
-### Semantics
+### Full Syntax (dep_edge)
 
-- A node can start after **all** nodes in `after` are completed.
-- Dependencies are defined in `nodes`, **not** in `schedule.nodes`.
-- When computing schedule, only **scheduled** dependencies are considered.
+```yaml
+nodes:
+  backend:
+    title: "Backend API"
+
+  frontend:
+    title: "Frontend"
+    deps:
+      - id: backend
+        type: fs       # finish-to-start (default)
+        lag: "2d"       # 2 working day lag
+        hard: true      # affects scheduling (default)
+      - id: design_review
+        type: ss        # start-to-start
+        hard: false     # visual-only, no scheduling impact
+        note: "Parallel work possible"
+```
+
+### dep_edge Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | string | *required* | Target node_id |
+| `type` | string | `"fs"` | Dependency type: `fs` (finish-to-start) or `ss` (start-to-start) |
+| `lag` | string | `"0d"` | Non-negative lag duration (e.g., `"0d"`, `"3d"`, `"1w"`) |
+| `hard` | boolean | `true` | Whether this dependency affects scheduling (`true`) or is visual-only (`false`) |
+| `note` | string | — | Optional human-readable annotation |
+
+### Dependency Types
+
+| Type | Description | Start computation |
+|------|-------------|-------------------|
+| `fs` | Finish-to-start | Node starts after dependency finishes |
+| `ss` | Start-to-start | Node starts when dependency starts |
+
+### Hard vs Soft Dependencies
+
+- **Hard** (`hard: true`, default): Affects date computation in the scheduler
+- **Soft** (`hard: false`): Shown in dependency graphs but ignored by the scheduler
+
+### Lag
+
+Non-negative duration added between dependency and node start:
+
+- Format: `^(0|[1-9][0-9]*)[dw]$` (e.g., `"0d"`, `"3d"`, `"1w"`)
+- `0d` means no lag (default)
+- Working days only (respects calendar exclusions)
 
 ### Rules
 
-- Each element in `after` MUST be an existing `node_id`.
-- Circular dependencies through `after` are **forbidden**.
+- `dep.id` MUST be an existing `node_id`.
+- `dep.type` MUST be `"fs"` or `"ss"`.
+- `dep.lag` MUST match format `^(0|[1-9][0-9]*)[dw]$`.
+- Circular dependencies through `deps` are **forbidden** (both hard and soft).
 
 ## `milestone` Field (Milestones)
 
@@ -160,13 +204,13 @@ nodes:
   release_v1:
     title: "Release v1.0"
     milestone: true
-    after: [testing]
+    deps: [testing]
 ```
 
 ### Behavior
 
 - A milestone is displayed as a point/diamond on the Gantt chart.
-- When computing `start` from `after` for a milestone, the next workday is **not added**:
+- When computing `start` from `deps` for a milestone, the next workday is **not added**:
   - Regular node: `start = next_workday(max_finish)`
   - Milestone: `start = max_finish`
 
@@ -330,7 +374,7 @@ nodes:
     title: "OAuth Login"
     kind: user_story
     parent: epic1
-    after: [story1]
+    deps: [story1]
     effort: 8
 ```
 

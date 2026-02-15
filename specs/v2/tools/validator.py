@@ -26,6 +26,7 @@ Requirements covered:
 """
 
 from dataclasses import dataclass, field
+from datetime import date as _date
 from enum import Enum
 from typing import Optional
 
@@ -214,49 +215,62 @@ def _validate_version(plan: MergedPlan, result: ValidationResult) -> None:
         )
 
 
-def validate(plan: MergedPlan) -> ValidationResult:
+def validate(plan: MergedPlan, strict: bool = False) -> ValidationResult:
     """
     Validate a merged plan.
-    
+
     Performs the following validations:
     - Version: must be 2 for v2 tools
     - Required fields: title in all nodes (Requirement 2.1)
     - Forbidden fields: start, finish, duration, excludes in nodes (Requirement 2.4)
     - Effort format: non-negative number >= 0 (Requirement 2.5)
-    - Reference integrity: parent, after, status references exist (Requirement 2.2)
-    - Cyclic dependencies: parent hierarchy and after dependencies (Requirement 2.2)
+    - Reference integrity: parent, deps, status references exist (Requirement 2.2)
+    - Dep edges: type, lag, hard format validation
+    - Cyclic dependencies: parent hierarchy and deps dependencies (Requirement 2.2)
     - Schedule reference integrity: node_id and calendar references (Requirements 3.7, 3.9)
     - Views validation: no excludes field, valid where structure (Requirements 4.2, 4.3)
-    
+    - Execution validation: progress range, date consistency
+    - Profiles validation: namespace format, uniqueness
+
     Args:
         plan: The merged plan to validate
-        
+        strict: If True, promote certain warnings to errors
+
     Returns:
         ValidationResult: Contains errors and warnings found during validation
-    
+
     Requirements: 2.1, 2.2, 2.4, 2.5, 3.7, 3.9, 4.2, 4.3, 5.2, 5.3
     """
     result = ValidationResult()
-    
+
     # Validate version (must be 2 for v2 tools)
     _validate_version(plan, result)
-    
+
     # Validate nodes
     _validate_nodes(plan, result)
-    
-    # Validate node references (parent, after, status)
+
+    # Validate node references (parent, deps, status)
     _validate_node_references(plan, result)
-    
+
+    # Validate dep edges (type, lag, hard format)
+    _validate_dep_edges(plan, result)
+
     # Detect cyclic dependencies
     _detect_parent_cycles(plan, result)
-    _detect_after_cycles(plan, result)
-    
+    _detect_dep_cycles(plan, result)
+
     # Validate schedule references (node_id and calendar)
     _validate_schedule_references(plan, result)
-    
+
     # Validate views (no excludes, valid where structure)
     _validate_views(plan, result)
-    
+
+    # Validate execution overlay
+    _validate_execution(plan, result, strict)
+
+    # Validate profiles
+    _validate_profiles(plan, result, strict)
+
     return result
 
 
@@ -336,7 +350,7 @@ def _validate_effort(
     Requirement: 2.5
     """
     # Check if effort is a number
-    if not isinstance(effort, (int, float)):
+    if isinstance(effort, bool) or not isinstance(effort, (int, float)):
         result.add_error(
             message=f"Node '{node_id}' has invalid effort value: expected number, got {type(effort).__name__}",
             path=f"nodes.{node_id}.effort",
@@ -421,21 +435,21 @@ def validate_node_dict(
 def _validate_node_references(plan: MergedPlan, result: ValidationResult) -> None:
     """
     Validate reference integrity for all nodes.
-    
+
     Checks:
     - parent references an existing node_id
-    - all after references exist as node_ids
+    - all deps[].id references exist as node_ids
     - status references an existing status_id in statuses
-    
+
     Requirements: 2.1, 2.2
     """
     node_ids = set(plan.nodes.keys())
     status_ids = set(plan.statuses.keys())
-    
+
     for node_id, node in plan.nodes.items():
         source_key = f"node:{node_id}"
         file_source = plan.sources.get(source_key)
-        
+
         # Check parent reference
         if node.parent is not None:
             if node.parent not in node_ids:
@@ -446,19 +460,19 @@ def _validate_node_references(plan: MergedPlan, result: ValidationResult) -> Non
                     expected="existing node_id",
                     actual=node.parent,
                 )
-        
-        # Check after references
-        if node.after is not None:
-            for after_id in node.after:
-                if after_id not in node_ids:
+
+        # Check deps references
+        if node.deps is not None:
+            for i, dep in enumerate(node.deps):
+                if dep.id not in node_ids:
                     result.add_error(
-                        message=f"Node '{node_id}' references non-existent dependency '{after_id}' in after",
-                        path=f"nodes.{node_id}.after",
+                        message=f"Node '{node_id}' deps[{i}] references non-existent node '{dep.id}'",
+                        path=f"nodes.{node_id}.deps[{i}].id",
                         file_source=file_source,
                         expected="existing node_id",
-                        actual=after_id,
+                        actual=dep.id,
                     )
-        
+
         # Check status reference
         if node.status is not None:
             if node.status not in status_ids:
@@ -533,66 +547,65 @@ def _detect_parent_cycles(plan: MergedPlan, result: ValidationResult) -> None:
                     visited.add(cid)
 
 
-def _detect_after_cycles(plan: MergedPlan, result: ValidationResult) -> None:
+def _detect_dep_cycles(plan: MergedPlan, result: ValidationResult) -> None:
     """
-    Detect cyclic dependencies in after relationships.
-    
-    Uses DFS to detect cycles in the dependency graph formed by after references.
-    A cycle exists if following after references leads back to the starting node.
-    
-    Requirements: 2.2 (after field validation)
+    Detect cyclic dependencies in deps relationships.
+
+    Uses DFS to detect cycles in the dependency graph formed by deps references.
+    A cycle exists if following deps references leads back to the starting node.
+    Both hard and soft deps are checked (cycles forbidden everywhere).
+
+    Requirements: 2.2 (deps field validation)
     """
     node_ids = set(plan.nodes.keys())
-    
+
     # Track visited nodes and nodes in current path
     visited: set[str] = set()
     in_path: set[str] = set()
-    reported_cycles: set[frozenset[str]] = set()  # Track reported cycles to avoid duplicates
-    
+    reported_cycles: set[frozenset[str]] = set()
+
     def find_cycle(node_id: str, path: list[str]) -> Optional[list[str]]:
         """
-        Check if there's a cycle starting from node_id in after dependencies.
+        Check if there's a cycle starting from node_id in deps.
         Returns the cycle path if found, None otherwise.
         """
         if node_id in in_path:
-            # Found a cycle - return the cycle path
             cycle_start = path.index(node_id)
             return path[cycle_start:] + [node_id]
-        
+
         if node_id in visited:
             return None
-        
+
         visited.add(node_id)
         in_path.add(node_id)
         path.append(node_id)
-        
+
         node = plan.nodes.get(node_id)
-        if node and node.after:
-            for after_id in node.after:
-                if after_id in node_ids:
-                    cycle = find_cycle(after_id, path)
+        if node and node.deps:
+            for dep in node.deps:
+                if dep.id in node_ids:
+                    cycle = find_cycle(dep.id, path)
                     if cycle:
                         return cycle
-        
+
         path.pop()
         in_path.remove(node_id)
         return None
-    
+
     # Check each node for cycles
     for node_id in plan.nodes:
         if node_id not in visited:
             cycle = find_cycle(node_id, [])
             if cycle:
-                # Create a frozenset of cycle nodes to check for duplicates
-                cycle_set = frozenset(cycle[:-1])  # Exclude repeated last element
+                cycle_set = frozenset(cycle[:-1])
                 if cycle_set not in reported_cycles:
                     reported_cycles.add(cycle_set)
                     source_key = f"node:{cycle[0]}"
                     file_source = plan.sources.get(source_key)
                     cycle_str = " -> ".join(cycle)
                     result.add_error(
-                        message=f"Cyclic after dependency detected: {cycle_str}",
-                        path=f"nodes.{cycle[0]}.after",
+                        message=f"Cyclic dependency detected: {cycle_str}",
+                        path=f"nodes.{cycle[0]}.deps",
                         file_source=file_source,
                     )
 
@@ -1019,3 +1032,299 @@ def validate_view_dict(
     # Validate lanes structure and references
     if "lanes" in view_data and view_data["lanes"] is not None:
         _validate_view_lanes(view_id, view_data["lanes"], node_ids, file_source, result)
+
+
+import re
+
+# Lag pattern: non-negative integer followed by d or w
+_LAG_PATTERN = re.compile(r"^(0|[1-9][0-9]*)[dw]$")
+
+# Valid dep types
+_VALID_DEP_TYPES = frozenset({"fs", "ss"})
+
+
+def _validate_dep_edges(plan: MergedPlan, result: ValidationResult) -> None:
+    """
+    Validate dep edge fields: type, lag, hard format.
+
+    Checks:
+    - dep.type in ("fs", "ss")
+    - dep.lag matches ^(0|[1-9][0-9]*)[dw]$
+    - dep.hard is bool
+    """
+    for node_id, node in plan.nodes.items():
+        if not node.deps:
+            continue
+
+        source_key = f"node:{node_id}"
+        file_source = plan.sources.get(source_key)
+
+        for i, dep in enumerate(node.deps):
+            dep_path = f"nodes.{node_id}.deps[{i}]"
+
+            # Validate type
+            if not isinstance(dep.type, str):
+                result.add_error(
+                    message=f"Node '{node_id}' deps[{i}] type must be a string, got {type(dep.type).__name__}",
+                    path=f"{dep_path}.type",
+                    file_source=file_source,
+                    expected="'fs' or 'ss'",
+                    actual=f"{type(dep.type).__name__}: {repr(dep.type)}",
+                )
+            elif dep.type not in _VALID_DEP_TYPES:
+                result.add_error(
+                    message=f"Node '{node_id}' deps[{i}] has invalid type '{dep.type}'",
+                    path=f"{dep_path}.type",
+                    file_source=file_source,
+                    expected="'fs' or 'ss'",
+                    actual=dep.type,
+                )
+
+            # Validate lag format
+            if not isinstance(dep.lag, str):
+                result.add_error(
+                    message=f"Node '{node_id}' deps[{i}] lag must be a string, got {type(dep.lag).__name__}",
+                    path=f"{dep_path}.lag",
+                    file_source=file_source,
+                    expected="non-negative duration like '0d', '3d', '1w'",
+                    actual=f"{type(dep.lag).__name__}: {repr(dep.lag)}",
+                )
+            elif not _LAG_PATTERN.match(dep.lag):
+                result.add_error(
+                    message=f"Node '{node_id}' deps[{i}] has invalid lag '{dep.lag}'",
+                    path=f"{dep_path}.lag",
+                    file_source=file_source,
+                    expected="non-negative duration like '0d', '3d', '1w'",
+                    actual=dep.lag,
+                )
+
+            # Validate hard is bool
+            if not isinstance(dep.hard, bool):
+                result.add_error(
+                    message=f"Node '{node_id}' deps[{i}] has invalid hard value",
+                    path=f"{dep_path}.hard",
+                    file_source=file_source,
+                    expected="boolean",
+                    actual=f"{type(dep.hard).__name__}: {repr(dep.hard)}",
+                )
+
+
+# Date pattern for execution validation
+_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _is_valid_date(value: object) -> bool:
+    """Check that value is a string representing a real YYYY-MM-DD date."""
+    if not isinstance(value, str):
+        return False
+    match = _DATE_PATTERN.match(value)
+    if not match:
+        return False
+    try:
+        _date(int(value[:4]), int(value[5:7]), int(value[8:10]))
+        return True
+    except ValueError:
+        return False
+
+
+def _validate_execution(
+    plan: MergedPlan,
+    result: ValidationResult,
+    strict: bool,
+) -> None:
+    """
+    Validate execution overlay data.
+
+    Checks:
+    - node_id references existing node
+    - progress in [0, 1]
+    - confidence in [0, 1]
+    - actual_start / actual_finish are valid YYYY-MM-DD
+    - Consistency warnings (actual_finish without actual_start, etc.)
+    """
+    if plan.execution is None:
+        return
+
+    node_ids = set(plan.nodes.keys())
+
+    for en_id, en in plan.execution.nodes.items():
+        source_key = f"execution_node:{en_id}"
+        file_source = plan.sources.get(source_key)
+        base_path = f"execution.nodes.{en_id}"
+
+        # Check node reference
+        if en_id not in node_ids:
+            result.add_error(
+                message=f"Execution node '{en_id}' references non-existent node",
+                path=base_path,
+                file_source=file_source,
+                expected="existing node_id",
+                actual=en_id,
+            )
+
+        # Validate progress range (reject bool — bool is subclass of int)
+        if en.progress is not None:
+            if isinstance(en.progress, bool) or not isinstance(en.progress, (int, float)):
+                result.add_error(
+                    message=f"Execution node '{en_id}' has invalid progress type",
+                    path=f"{base_path}.progress",
+                    file_source=file_source,
+                    expected="number in [0, 1]",
+                    actual=f"{type(en.progress).__name__}: {repr(en.progress)}",
+                )
+            elif en.progress < 0 or en.progress > 1:
+                result.add_error(
+                    message=f"Execution node '{en_id}' progress {en.progress} is out of range [0, 1]",
+                    path=f"{base_path}.progress",
+                    file_source=file_source,
+                    expected="number in [0, 1]",
+                    actual=str(en.progress),
+                )
+
+        # Validate confidence range (reject bool — bool is subclass of int)
+        if en.confidence is not None:
+            if isinstance(en.confidence, bool) or not isinstance(en.confidence, (int, float)):
+                result.add_error(
+                    message=f"Execution node '{en_id}' has invalid confidence type",
+                    path=f"{base_path}.confidence",
+                    file_source=file_source,
+                    expected="number in [0, 1]",
+                    actual=f"{type(en.confidence).__name__}: {repr(en.confidence)}",
+                )
+            elif en.confidence < 0 or en.confidence > 1:
+                result.add_error(
+                    message=f"Execution node '{en_id}' confidence {en.confidence} is out of range [0, 1]",
+                    path=f"{base_path}.confidence",
+                    file_source=file_source,
+                    expected="number in [0, 1]",
+                    actual=str(en.confidence),
+                )
+
+        # Validate actual_start format (regex + real date check)
+        if en.actual_start is not None:
+            if not _is_valid_date(en.actual_start):
+                result.add_error(
+                    message=f"Execution node '{en_id}' has invalid actual_start",
+                    path=f"{base_path}.actual_start",
+                    file_source=file_source,
+                    expected="valid YYYY-MM-DD date",
+                    actual=str(en.actual_start),
+                )
+
+        # Validate actual_finish format (regex + real date check)
+        if en.actual_finish is not None:
+            if not _is_valid_date(en.actual_finish):
+                result.add_error(
+                    message=f"Execution node '{en_id}' has invalid actual_finish",
+                    path=f"{base_path}.actual_finish",
+                    file_source=file_source,
+                    expected="valid YYYY-MM-DD date",
+                    actual=str(en.actual_finish),
+                )
+
+        # Consistency warnings
+        if en.actual_finish is not None and en.actual_start is None:
+            result.add_warning(
+                message=f"Execution node '{en_id}' has actual_finish but no actual_start",
+                path=base_path,
+                file_source=file_source,
+            )
+
+        if en.progress is not None and isinstance(en.progress, (int, float)):
+            if en.progress == 1.0 and en.actual_finish is None:
+                result.add_warning(
+                    message=f"Execution node '{en_id}' has progress=1.0 but no actual_finish",
+                    path=base_path,
+                    file_source=file_source,
+                )
+            if en.actual_finish is not None and en.progress != 1.0:
+                result.add_warning(
+                    message=f"Execution node '{en_id}' has actual_finish but progress is not 1.0",
+                    path=base_path,
+                    file_source=file_source,
+                )
+            if en.progress > 0 and en.actual_start is None:
+                result.add_warning(
+                    message=f"Execution node '{en_id}' has progress > 0 but no actual_start",
+                    path=base_path,
+                    file_source=file_source,
+                )
+
+
+# Profile namespace pattern
+_NAMESPACE_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+def _validate_profiles(
+    plan: MergedPlan,
+    result: ValidationResult,
+    strict: bool,
+) -> None:
+    """
+    Validate profiles declarations.
+
+    Checks:
+    - namespace format: ^[a-zA-Z_][a-zA-Z0-9_]*$
+    - No duplicate namespaces between profiles
+    - Undeclared x namespaces → warn (strict: error)
+    """
+    if not plan.profiles:
+        return
+
+    seen_namespaces: dict[str, str] = {}  # namespace -> profile_id
+
+    for profile in plan.profiles:
+        source_key = f"profile:{profile.id}"
+        file_source = plan.sources.get(source_key)
+
+        # Validate namespace format
+        if not isinstance(profile.namespace, str):
+            result.add_error(
+                message=f"Profile '{profile.id}' namespace must be a string, "
+                        f"got {type(profile.namespace).__name__}",
+                path=f"profiles.{profile.id}.namespace",
+                file_source=file_source,
+                expected="string matching ^[a-zA-Z_][a-zA-Z0-9_]*$",
+                actual=f"{type(profile.namespace).__name__}: {repr(profile.namespace)}",
+            )
+        elif not _NAMESPACE_PATTERN.match(profile.namespace):
+            result.add_error(
+                message=f"Profile '{profile.id}' has invalid namespace '{profile.namespace}'",
+                path=f"profiles.{profile.id}.namespace",
+                file_source=file_source,
+                expected="^[a-zA-Z_][a-zA-Z0-9_]*$",
+                actual=profile.namespace,
+            )
+
+        # Check duplicate namespaces
+        if profile.namespace in seen_namespaces:
+            result.add_error(
+                message=f"Profile '{profile.id}' duplicates namespace '{profile.namespace}' "
+                        f"(already declared by '{seen_namespaces[profile.namespace]}')",
+                path=f"profiles.{profile.id}.namespace",
+                file_source=file_source,
+            )
+        seen_namespaces[profile.namespace] = profile.id
+
+    # Check undeclared x namespaces
+    declared_ns = set(seen_namespaces.keys())
+
+    # Check plan-level x
+    for x_key in plan.x:
+        if x_key not in declared_ns:
+            msg = f"Extension key 'x.{x_key}' is not declared by any profile"
+            if strict:
+                result.add_error(message=msg, path=f"x.{x_key}")
+            else:
+                result.add_warning(message=msg, path=f"x.{x_key}")
+
+    # Check node-level x
+    for node_id, node in plan.nodes.items():
+        if node.x:
+            for x_key in node.x:
+                if x_key not in declared_ns:
+                    msg = f"Extension key 'nodes.{node_id}.x.{x_key}' is not declared by any profile"
+                    if strict:
+                        result.add_error(message=msg, path=f"nodes.{node_id}.x.{x_key}")
+                    else:
+                        result.add_warning(message=msg, path=f"nodes.{node_id}.x.{x_key}")

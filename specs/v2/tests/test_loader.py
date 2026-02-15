@@ -26,7 +26,13 @@ from specs.v2.tools.loader import (
     load_plan_set,
     merge_fragments,
 )
-from specs.v2.tools.models import MergedPlan
+from specs.v2.tools.models import (
+    DepEdge,
+    Execution,
+    ExecutionNode,
+    MergedPlan,
+    Profile,
+)
 
 
 class TestAllowedBlocks(unittest.TestCase):
@@ -34,7 +40,7 @@ class TestAllowedBlocks(unittest.TestCase):
     
     def test_allowed_blocks_contains_required(self):
         """All required blocks are in ALLOWED_TOP_LEVEL_BLOCKS."""
-        required = {"version", "meta", "statuses", "nodes", "schedule", "views", "x"}
+        required = {"version", "meta", "statuses", "nodes", "schedule", "execution", "views", "profiles", "x"}
         self.assertEqual(ALLOWED_TOP_LEVEL_BLOCKS, required)
     
     def test_allowed_blocks_is_frozenset(self):
@@ -890,7 +896,7 @@ class TestMergeFragmentsNodeFields(unittest.TestCase):
                     "kind": "task",
                     "status": "in_progress",
                     "parent": "root",
-                    "after": ["task0"],
+                    "deps": ["task0"],
                     "milestone": True,
                     "issue": "PROJ-123",
                     "notes": "Some notes",
@@ -899,15 +905,18 @@ class TestMergeFragmentsNodeFields(unittest.TestCase):
                 },
             },
         }
-        
+
         result = merge_fragments([fragment])
         node = result.nodes["task1"]
-        
+
         self.assertEqual(node.title, "Task 1")
         self.assertEqual(node.kind, "task")
         self.assertEqual(node.status, "in_progress")
         self.assertEqual(node.parent, "root")
-        self.assertEqual(node.after, ["task0"])
+        self.assertIsNotNone(node.deps)
+        self.assertEqual(len(node.deps), 1)
+        self.assertEqual(node.deps[0].id, "task0")
+        self.assertEqual(node.deps[0].type, "fs")
         self.assertTrue(node.milestone)
         self.assertEqual(node.issue, "PROJ-123")
         self.assertEqual(node.notes, "Some notes")
@@ -929,7 +938,7 @@ class TestMergeFragmentsNodeFields(unittest.TestCase):
         self.assertIsNone(node.kind)
         self.assertIsNone(node.status)
         self.assertIsNone(node.parent)
-        self.assertIsNone(node.after)
+        self.assertIsNone(node.deps)
         self.assertFalse(node.milestone)
         self.assertIsNone(node.issue)
         self.assertIsNone(node.notes)
@@ -990,7 +999,7 @@ nodes:
     title: Task 1
   task2:
     title: Task 2
-    after: [task1]
+    deps: [task1]
 """
         schedule_yaml = """
 version: 2
@@ -1178,7 +1187,7 @@ class TestForbiddenNodeFields(unittest.TestCase):
         """FORBIDDEN_NODE_FIELDS contains all forbidden fields."""
         from specs.v2.tools.loader import FORBIDDEN_NODE_FIELDS
         
-        expected = {"start", "finish", "duration", "excludes"}
+        expected = {"start", "finish", "duration", "excludes", "after"}
         self.assertEqual(FORBIDDEN_NODE_FIELDS, expected)
     
     def test_node_with_start_raises_error(self):
@@ -1329,14 +1338,14 @@ class TestForbiddenNodeFields(unittest.TestCase):
                     "kind": "task",
                     "status": "in_progress",
                     "parent": "root",
-                    "after": ["task0"],
+                    "deps": ["task0"],
                     "effort": 5,
                 },
             },
         }
-        
+
         result = merge_fragments([fragment])
-        
+
         self.assertEqual(len(result.nodes), 1)
         self.assertEqual(result.nodes["task1"].title, "Task 1")
     
@@ -1412,10 +1421,610 @@ schedule:
       duration: "5d"
 """
         path = self._write_yaml("valid.yaml", yaml_content)
-        
+
         result = load_plan_set([path])
-        
+
         self.assertEqual(result.nodes["task1"].title, "Task 1")
         self.assertEqual(result.nodes["task1"].effort, 5)
         self.assertEqual(result.schedule.nodes["task1"].start, "2024-03-01")
         self.assertEqual(result.schedule.nodes["task1"].duration, "5d")
+
+
+class TestExecutionNodeNonDict(unittest.TestCase):
+    """Reject non-dict execution node entries (PR #2 review comment)."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_execution_node_string_rejected(self):
+        """execution.nodes.task1: 'done' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1: "done"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))
+        self.assertIn("task1", str(ctx.exception))
+
+    def test_execution_node_int_rejected(self):
+        """execution.nodes.task1: 42 must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1: 42
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))
+
+    def test_execution_node_valid_dict(self):
+        """execution.nodes.task1: {progress: 0.5} must be accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1:
+      progress: 0.5
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        self.assertEqual(result.execution.nodes["task1"].progress, 0.5)
+
+
+class TestProfilesNonList(unittest.TestCase):
+    """Reject non-list profiles block (PR #2 review comment)."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_profiles_dict_rejected(self):
+        """profiles: {id: ...} must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+profiles:
+  id: my-ext
+  version: 1
+  namespace: myext
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be a list", str(ctx.exception))
+
+    def test_profiles_string_rejected(self):
+        """profiles: 'something' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+profiles: "something"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be a list", str(ctx.exception))
+
+    def test_profiles_valid_list(self):
+        """profiles: [{id: ..., version: ..., namespace: ...}] must be accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+profiles:
+  - id: my-ext
+    version: 1
+    namespace: myext
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        self.assertEqual(len(result.profiles), 1)
+        self.assertEqual(result.profiles[0].id, "my-ext")
+        self.assertEqual(result.profiles[0].namespace, "myext")
+
+
+class TestDepFieldTypes(unittest.TestCase):
+    """Reject invalid types for dep edge fields (preemptive hardening)."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_dep_lag_integer_rejected(self):
+        """deps[].lag: 5 (integer) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        lag: 5
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("lag", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_type_integer_rejected(self):
+        """deps[].type: 1 (integer) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        type: 1
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("type", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_hard_string_rejected(self):
+        """deps[].hard: 'yes' must raise LoadError (YAML true is bool, but quoted 'yes' is string)."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        hard: "yes"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("hard", str(ctx.exception))
+        self.assertIn("boolean", str(ctx.exception).lower())
+
+    def test_dep_id_integer_rejected(self):
+        """deps[].id: 123 (integer) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: 123
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("id", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_valid_types_accepted(self):
+        """Valid dep with all correct types is accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        type: ss
+        lag: "3d"
+        hard: false
+        note: "optional link"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        dep = result.nodes["B"].deps[0]
+        self.assertEqual(dep.id, "A")
+        self.assertEqual(dep.type, "ss")
+        self.assertEqual(dep.lag, "3d")
+        self.assertFalse(dep.hard)
+        self.assertEqual(dep.note, "optional link")
+
+
+class TestDepUnknownKeys(unittest.TestCase):
+    """Unknown keys in dep edge objects must raise LoadError."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_typo_hardd_rejected(self):
+        """deps[].hardd (typo) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        hardd: false
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("unknown keys", str(ctx.exception).lower())
+        self.assertIn("hardd", str(ctx.exception))
+
+    def test_unknown_extra_key_rejected(self):
+        """deps[].colour (unknown) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        colour: red
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("unknown keys", str(ctx.exception).lower())
+        self.assertIn("colour", str(ctx.exception))
+
+    def test_valid_dep_keys_accepted(self):
+        """All known dep keys are accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        type: fs
+        lag: "2d"
+        hard: true
+        note: "a note"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        self.assertIn("B", result.nodes)
+
+
+class TestExecutionUnknownKeys(unittest.TestCase):
+    """Unknown keys in execution node objects must raise LoadError."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_typo_progess_rejected(self):
+        """execution.nodes.X.progess (typo) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1:
+      progess: 0.5
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("unknown keys", str(ctx.exception).lower())
+        self.assertIn("progess", str(ctx.exception))
+
+    def test_unknown_extra_key_rejected(self):
+        """execution.nodes.X.status (unknown) must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1:
+      progress: 0.5
+      status: done
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("unknown keys", str(ctx.exception).lower())
+        self.assertIn("status", str(ctx.exception))
+
+    def test_valid_execution_keys_accepted(self):
+        """All known execution node keys are accepted."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution:
+  nodes:
+    task1:
+      progress: 0.5
+      actual_start: "2024-01-01"
+      actual_finish: "2024-01-05"
+      updated_at: "2024-01-05T10:00:00Z"
+      confidence: 0.9
+      note: "on track"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        en = result.execution.nodes["task1"]
+        self.assertAlmostEqual(en.progress, 0.5)
+
+
+class TestFalsyBlocksRejected(unittest.TestCase):
+    """Falsy but non-None values for blocks must be type-checked, not silently skipped."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_execution_empty_list_rejected(self):
+        """execution: [] must raise LoadError (falsy but not None)."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution: []
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("execution", str(ctx.exception).lower())
+
+    def test_execution_zero_rejected(self):
+        """execution: 0 must raise LoadError (falsy but not None)."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution: 0
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("execution", str(ctx.exception).lower())
+
+    def test_execution_empty_string_rejected(self):
+        """execution: '' must raise LoadError (falsy but not None)."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+execution: ""
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("execution", str(ctx.exception).lower())
+
+    def test_nodes_empty_list_rejected(self):
+        """nodes: [] must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes: []
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("nodes", str(ctx.exception).lower())
+
+    def test_statuses_empty_string_rejected(self):
+        """statuses: '' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+statuses: ""
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("statuses", str(ctx.exception).lower())
+
+    def test_meta_list_rejected(self):
+        """meta: [] must raise LoadError (non-dict)."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+meta: []
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("meta", str(ctx.exception).lower())
+
+
+class TestDepNoteType(unittest.TestCase):
+    """dep.note must be a string if present."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_dep_note_dict_rejected(self):
+        """deps[].note: {k: v} must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        note:
+          key: value
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("note", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_note_int_rejected(self):
+        """deps[].note: 42 must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        note: 42
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("note", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_note_string_accepted(self):
+        """deps[].note: 'info' is valid."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        note: "some info"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        self.assertEqual(result.nodes["B"].deps[0].note, "some info")
+
+
+class TestNodeNonDict(unittest.TestCase):
+    """Node value must be a dict object."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_node_string_rejected(self):
+        """nodes.task1: 'hello' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1: "hello"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))
+
+    def test_node_int_rejected(self):
+        """nodes.task1: 42 must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1: 42
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))
+
+
+class TestScheduleNodeNonDict(unittest.TestCase):
+    """Schedule node value must be a dict object."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_schedule_node_string_rejected(self):
+        """schedule.nodes.task1: '2024-01-01' must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+schedule:
+  nodes:
+    task1: "2024-01-01"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("must be an object", str(ctx.exception))

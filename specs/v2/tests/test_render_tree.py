@@ -12,6 +12,7 @@ import unittest
 
 from specs.v2.tools.models import (
     Calendar,
+    DepEdge,
     MergedPlan,
     Meta,
     Node,
@@ -687,7 +688,7 @@ class TestRenderTreeDesignExamples(unittest.TestCase):
             nodes={
                 "epic1": Node(title="Авторизация", kind="epic", effort=13),
                 "story1": Node(title="Вход по email", kind="user_story", parent="epic1", effort=5),
-                "story2": Node(title="Вход через OAuth", kind="user_story", parent="epic1", after=["story1"], effort=8),
+                "story2": Node(title="Вход через OAuth", kind="user_story", parent="epic1", deps=[DepEdge(id="story1")], effort=8),
             }
         )
         
@@ -712,9 +713,9 @@ class TestRenderTreeDesignExamples(unittest.TestCase):
         """
         plan = MergedPlan(
             nodes={
-                "milestone1": Node(title="MVP", milestone=True, after=["task2"]),
+                "milestone1": Node(title="MVP", milestone=True, deps=[DepEdge(id="task2")]),
                 "task1": Node(title="Backend API", effort=3),
-                "task2": Node(title="Frontend", after=["task1"], effort=5),
+                "task2": Node(title="Frontend", deps=[DepEdge(id="task1")], effort=5),
                 "task3": Node(title="Documentation", effort=2),  # Not scheduled
             },
             schedule=Schedule(

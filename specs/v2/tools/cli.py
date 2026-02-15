@@ -32,6 +32,7 @@ from specs.v2.tools.loader import load_plan_set, LoadError, MergeConflictError
 from specs.v2.tools.validator import validate as validate_plan, format_error
 from specs.v2.tools.scheduler import compute_schedule
 from specs.v2.tools.effort import compute_effort_metrics
+from specs.v2.tools.execution import compute_execution_metrics
 from specs.v2.tools.render import render_gantt, render_tree, render_list, render_deps
 
 
@@ -65,6 +66,12 @@ def create_parser() -> argparse.ArgumentParser:
         nargs="+",
         metavar="FILE",
         help="YAML plan file(s) to validate",
+    )
+    validate_parser.add_argument(
+        "--strict",
+        action="store_true",
+        default=False,
+        help="Promote certain warnings to errors",
     )
     
     # Render command with subcommands
@@ -187,19 +194,20 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def cmd_validate(files: list[str]) -> int:
+def cmd_validate(files: list[str], strict: bool = False) -> int:
     """
     Execute the validate command.
-    
+
     Loads and validates the specified plan files, printing any
     validation errors found.
-    
+
     Args:
         files: List of YAML file paths to validate
-        
+        strict: If True, promote certain warnings to errors
+
     Returns:
         Exit code: 0 if valid, 1 if errors found
-        
+
     Requirements:
         - 5.11: Accept list of files as arguments
         - 5.12: Pass multiple files to Loader as Plan_Set
@@ -207,9 +215,9 @@ def cmd_validate(files: list[str]) -> int:
     try:
         # Load and merge plan files
         plan = load_plan_set(files)
-        
+
         # Validate the merged plan
-        result = validate_plan(plan)
+        result = validate_plan(plan, strict=strict)
         
         if result.is_valid:
             print("OK")
@@ -265,10 +273,13 @@ def cmd_render_gantt(files: list[str], view_id: str, style: str) -> int:
         
         # Compute effort metrics
         compute_effort_metrics(plan)
-        
+
+        # Compute execution metrics
+        compute_execution_metrics(plan)
+
         # Compute schedule
         compute_schedule(plan)
-        
+
         # Render gantt
         output = render_gantt(plan, view_id=view_id, style=style)
         print(output)
@@ -312,7 +323,10 @@ def cmd_render_tree(files: list[str], view_id: Optional[str]) -> int:
         
         # Compute effort metrics
         compute_effort_metrics(plan)
-        
+
+        # Compute execution metrics
+        compute_execution_metrics(plan)
+
         # Render tree
         output = render_tree(plan, view_id)
         print(output)
@@ -356,7 +370,10 @@ def cmd_render_list(files: list[str], view_id: Optional[str]) -> int:
         
         # Compute effort metrics
         compute_effort_metrics(plan)
-        
+
+        # Compute execution metrics
+        compute_execution_metrics(plan)
+
         # Render list
         output = render_list(plan, view_id)
         print(output)
@@ -411,7 +428,10 @@ def cmd_render_deps(
         
         # Compute effort metrics
         compute_effort_metrics(plan)
-        
+
+        # Compute execution metrics
+        compute_execution_metrics(plan)
+
         # Render deps
         output = render_deps(
             plan,
@@ -450,7 +470,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
     
     if args.command == "validate":
-        return cmd_validate(args.files)
+        return cmd_validate(args.files, strict=args.strict)
     
     elif args.command == "render":
         if args.format == "gantt":

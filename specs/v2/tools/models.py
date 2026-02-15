@@ -6,9 +6,12 @@ implementing the "overlay schedule" concept where work structure (nodes) is
 separated from calendar scheduling (schedule).
 
 Key concepts:
+- DepEdge: Typed dependency edge (fs/ss, lag, hard/soft)
 - Node: Work item without calendar fields (dates moved to Schedule)
 - Schedule: Optional layer for calendar planning
+- Execution: Optional layer for progress tracking (plan vs fact)
 - View: Pure visualization configuration (no effect on scheduling)
+- Profile: Extension namespace declaration
 - MergedPlan: Result of merging multiple plan fragments
 
 Requirements covered:
@@ -58,33 +61,55 @@ class Status:
 
 
 @dataclass
+class DepEdge:
+    """
+    Typed dependency edge between nodes.
+
+    Attributes:
+        id: Target node_id (required)
+        type: Dependency type - "fs" (finish-to-start) or "ss" (start-to-start)
+        lag: Duration string for lag, non-negative (default "0d")
+        hard: Whether this dep affects scheduling and blocked status (default True).
+              Soft deps (hard=False) are visual-only informational links.
+        note: Optional human-readable annotation for the edge
+    """
+    id: str
+    type: str = "fs"
+    lag: str = "0d"
+    hard: bool = True
+    note: Optional[str] = None
+
+
+@dataclass
 class Node:
     """
     Work item in the plan structure (v2).
-    
+
     Represents a unit of work without calendar fields. In v2, scheduling
     information (start, finish, duration) is moved to Schedule.nodes.
-    
+
     Attributes:
         title: Required. Human-readable title of the node
         kind: Optional type/category (e.g., "summary", "phase", "epic", "task")
         status: Optional reference to a status_id defined in statuses
         parent: Optional reference to parent node_id for hierarchy
-        after: Optional list of node_ids this node depends on
+        deps: Optional list of dependency edges (DepEdge) to other nodes
         milestone: Whether this node is a milestone (default: False)
         issue: Optional issue tracker reference
         notes: Optional notes/description
         effort: Optional effort estimate in abstract units (number >= 0)
         x: Optional extension data (arbitrary key-value pairs)
-        
-        # Computed fields (not stored in YAML, calculated by validator):
+
+        # Computed fields (not stored in YAML, calculated by tools):
         effort_rollup: Sum of effort_effective of all direct children
         effort_effective: effort if set, otherwise effort_rollup
         effort_gap: max(0, effort - effort_rollup) - shows incomplete decomposition
-    
+        progress_rollup: Weighted progress aggregated from children
+        progress_coverage: Fraction of effort covered by progress data
+
     Requirements:
         - 2.1: title is required
-        - 2.2: optional fields (kind, status, parent, after, milestone, issue, notes, x)
+        - 2.2: optional fields (kind, status, parent, deps, milestone, issue, notes, x)
         - 2.3: effort field for abstract effort estimation
         - 2.4: NO start, finish, duration, excludes (moved to Schedule)
     """
@@ -92,17 +117,19 @@ class Node:
     kind: Optional[str] = None
     status: Optional[str] = None
     parent: Optional[str] = None
-    after: Optional[list[str]] = None
+    deps: Optional[list[DepEdge]] = None
     milestone: bool = False
     issue: Optional[str] = None
     notes: Optional[str] = None
     effort: Optional[float] = None
     x: Optional[dict[str, Any]] = None
-    
+
     # Computed fields (not stored in YAML)
     effort_rollup: Optional[float] = None
     effort_effective: Optional[float] = None
     effort_gap: Optional[float] = None
+    progress_rollup: Optional[float] = None
+    progress_coverage: Optional[float] = None
 
 
 @dataclass
@@ -130,7 +157,7 @@ class ScheduleNode:
     Contains calendar-related fields for a specific node. Only nodes
     present in Schedule.nodes participate in schedule calculation.
     
-    Note: Dependencies (after) are defined in Node, not here.
+    Note: Dependencies (deps) are defined in Node, not here.
     
     Attributes:
         start: Optional start date (YYYY-MM-DD format)
@@ -252,6 +279,60 @@ class View:
 
 
 @dataclass
+class ExecutionNode:
+    """
+    Per-node execution tracking data.
+
+    Attributes:
+        progress: Completion progress from 0.0 to 1.0
+        actual_start: Actual start date (YYYY-MM-DD)
+        actual_finish: Actual finish date (YYYY-MM-DD)
+        updated_at: Timestamp of last update (ISO 8601 datetime)
+        confidence: Confidence level from 0.0 to 1.0 (useful for AI estimates)
+        note: Optional annotation
+    """
+    progress: Optional[float] = None
+    actual_start: Optional[str] = None
+    actual_finish: Optional[str] = None
+    updated_at: Optional[str] = None
+    confidence: Optional[float] = None
+    note: Optional[str] = None
+
+
+@dataclass
+class Execution:
+    """
+    Top-level execution overlay block.
+
+    Optional block for tracking plan-vs-fact progress. Analogous to
+    Schedule overlay: lives separately from nodes, can be in its own
+    fragment file (recommended due to high update frequency).
+
+    Attributes:
+        nodes: Dictionary of node_id -> ExecutionNode tracking data
+    """
+    nodes: dict[str, ExecutionNode] = field(default_factory=dict)
+
+
+@dataclass
+class Profile:
+    """
+    Extension profile declaration.
+
+    Declares a named extension namespace with optional schema validation.
+    Profile data lives under x.<namespace> in plan-level and node-level x.
+
+    Attributes:
+        id: Profile identifier (e.g., "opskarta.ai-dev")
+        version: Profile schema version
+        namespace: Key under x where profile data lives (e.g., "ai_dev")
+    """
+    id: str
+    version: int
+    namespace: str
+
+
+@dataclass
 class MergedPlan:
     """
     Result of merging multiple plan fragments.
@@ -265,14 +346,16 @@ class MergedPlan:
         statuses: Dictionary of status_id -> Status definitions
         nodes: Dictionary of node_id -> Node definitions
         schedule: Optional scheduling layer
+        execution: Optional execution tracking layer
         views: Dictionary of view_id -> View definitions
+        profiles: List of extension profile declarations
         x: Extension data (arbitrary key-value pairs)
-        
+
         # Merge metadata:
         sources: Dictionary mapping element_id to source file path
                  Format: "type:id" -> "file_path"
                  Example: "node:task1" -> "nodes.plan.yaml"
-    
+
     Requirements:
         - 1.9: Merged plan with all data from fragments
         - 1.10: Source tracking for each element
@@ -282,8 +365,10 @@ class MergedPlan:
     statuses: dict[str, Status] = field(default_factory=dict)
     nodes: dict[str, Node] = field(default_factory=dict)
     schedule: Optional[Schedule] = None
+    execution: Optional[Execution] = None
     views: dict[str, View] = field(default_factory=dict)
+    profiles: list[Profile] = field(default_factory=list)
     x: dict[str, Any] = field(default_factory=dict)
-    
+
     # Merge metadata
     sources: dict[str, str] = field(default_factory=dict)

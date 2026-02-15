@@ -80,7 +80,7 @@ nodes:
     title: "API авторизации"
     kind: task
     parent: auth
-    after: [auth-ui]
+    deps: [auth-ui]
     status: in_progress
     effort: 5
     notes: "JWT токены, refresh, logout"
@@ -89,7 +89,7 @@ nodes:
     title: "OAuth интеграция"
     kind: task
     parent: auth
-    after: [auth-api]
+    deps: [auth-api]
     status: ready
     effort: 8
     notes: "Google, Apple, VK"
@@ -98,7 +98,7 @@ nodes:
     title: "Двухфакторная аутентификация"
     kind: task
     parent: auth
-    after: [auth-oauth]
+    deps: [auth-oauth]
     status: ready
     effort: 5
     notes: "SMS и TOTP"
@@ -110,7 +110,7 @@ nodes:
     title: "Профиль пользователя"
     kind: epic
     parent: project
-    after: [auth]
+    deps: [auth]
     status: in_progress
     effort: 13
     notes: |
@@ -129,7 +129,7 @@ nodes:
     title: "Редактирование профиля"
     kind: task
     parent: profile
-    after: [profile-view]
+    deps: [profile-view]
     status: ready
     effort: 5
     notes: "Изменение имени, аватара, контактов"
@@ -139,7 +139,7 @@ nodes:
     title: "Настройки приватности"
     kind: task
     parent: profile
-    after: [profile-edit]
+    deps: [profile-edit]
     status: backlog
     effort: 3
     notes: "Кто видит профиль, блокировка пользователей"
@@ -148,7 +148,7 @@ nodes:
     title: "Экспорт данных"
     kind: task
     parent: profile
-    after: [profile-privacy]
+    deps: [profile-privacy]
     status: backlog
     effort: 2
     notes: "GDPR compliance — выгрузка данных пользователя"
@@ -160,7 +160,7 @@ nodes:
     title: "Уведомления"
     kind: epic
     parent: project
-    after: [profile]
+    deps: [profile]
     status: backlog
     effort: 21
     notes: |
@@ -179,7 +179,7 @@ nodes:
     title: "Email-уведомления"
     kind: task
     parent: notifications
-    after: [notif-push]
+    deps: [notif-push]
     status: backlog
     effort: 5
     notes: "Транзакционные письма"
@@ -188,7 +188,7 @@ nodes:
     title: "Настройки уведомлений"
     kind: task
     parent: notifications
-    after: [notif-push]
+    deps: [notif-push]
     status: backlog
     effort: 3
     notes: "Управление подписками"
@@ -197,7 +197,7 @@ nodes:
     title: "История уведомлений"
     kind: task
     parent: notifications
-    after: [notif-settings]
+    deps: [notif-settings]
     status: backlog
     effort: 5
     notes: "Лента уведомлений в приложении"
@@ -209,7 +209,7 @@ nodes:
     title: "Социальные функции"
     kind: epic
     parent: project
-    after: [notifications]
+    deps: [notifications]
     status: backlog
     effort: 34
     notes: |
@@ -227,7 +227,7 @@ nodes:
     title: "Лента активности"
     kind: task
     parent: social
-    after: [social-friends]
+    deps: [social-friends]
     status: backlog
     effort: 13
 
@@ -235,7 +235,7 @@ nodes:
     title: "Шаринг контента"
     kind: task
     parent: social
-    after: [social-feed]
+    deps: [social-feed]
     status: backlog
     effort: 8
 
@@ -243,7 +243,7 @@ nodes:
     title: "Комментарии"
     kind: task
     parent: social
-    after: [social-sharing]
+    deps: [social-sharing]
     status: backlog
     effort: 5
 
@@ -254,7 +254,7 @@ nodes:
     title: "Релиз MVP"
     kind: task
     parent: project
-    after: [auth, profile]
+    deps: [auth, profile]
     status: ready
     milestone: true
     notes: |
@@ -282,15 +282,15 @@ schedule:
       duration: "3d"
 
     auth-api:
-      # start вычисляется из after: [auth-ui]
+      # start вычисляется из deps: [auth-ui]
       duration: "5d"
 
     auth-oauth:
-      # start вычисляется из after: [auth-api]
+      # start вычисляется из deps: [auth-api]
       duration: "6d"  # 8 sp ≈ 6 рабочих дней
 
     auth-2fa:
-      # start вычисляется из after: [auth-oauth]
+      # start вычисляется из deps: [auth-oauth]
       duration: "4d"  # 5 sp ≈ 4 рабочих дня
 
     # --- Профиль (только часть в спринте) ---
@@ -299,14 +299,14 @@ schedule:
       duration: "3d"
 
     profile-edit:
-      # start вычисляется из after: [profile-view]
+      # start вычисляется из deps: [profile-view]
       duration: "4d"
 
     # profile-privacy и profile-export — НЕ в schedule (бэклог)
 
     # --- Веха MVP ---
     mvp-release: {}
-      # start вычисляется из after: [auth, profile]
+      # start вычисляется из deps: [auth, profile]
       # Веха — без duration
 
 # ============================================================

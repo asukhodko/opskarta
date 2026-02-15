@@ -132,10 +132,10 @@ validate-v2: ## Validate v2 examples and schemas
 		$(PYTHON) -c "import json; json.load(open('$$schema'))" || exit 1; \
 	done
 	@cd specs/v2 && for dir in en/examples/*/; do \
-		$(CURDIR)/$(PYTHON) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
+		PYTHONPATH=$(CURDIR) $(CURDIR)/$(PYTHON) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
 	done
 	@cd specs/v2 && for dir in ru/examples/*/; do \
-		$(CURDIR)/$(PYTHON) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
+		PYTHONPATH=$(CURDIR) $(CURDIR)/$(PYTHON) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
 	done
 	@echo "$(G)v2 valid$(N)"
 

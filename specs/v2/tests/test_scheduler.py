@@ -5,8 +5,8 @@ Tests cover:
 - 3.10: Use default_calendar when Schedule_Node doesn't have calendar
 - 3.11: Include nodes in schedule.nodes in calculation
 - 3.12: Exclude nodes not in schedule.nodes from calculation
-- 3.13: Consider only scheduled dependencies for date calculation
-- 3.14: Use explicit start or mark as unschedulable when all deps unscheduled
+- 3.13: Consider only scheduled hard deps for date calculation
+- 3.14: Use explicit start or mark as unschedulable when all hard deps unscheduled
 """
 
 import unittest
@@ -14,6 +14,7 @@ from datetime import date
 
 from specs.v2.tools.models import (
     Calendar,
+    DepEdge,
     MergedPlan,
     Node,
     Schedule,
@@ -27,6 +28,7 @@ from specs.v2.tools.scheduler import (
     normalize_start,
     parse_date,
     parse_duration,
+    parse_lag,
     sub_workdays,
 )
 
@@ -81,6 +83,27 @@ class TestParseDurationFunction(unittest.TestCase):
     def test_empty_string(self):
         """Empty string returns None."""
         self.assertIsNone(parse_duration(""))
+
+
+class TestParseLag(unittest.TestCase):
+    """Tests for parse_lag helper function."""
+
+    def test_parse_lag_zero_d(self):
+        """parse_lag('0d') returns 0 (zero lag is valid)."""
+        self.assertEqual(parse_lag("0d"), 0)
+
+    def test_parse_lag_days(self):
+        """parse_lag('3d') returns 3."""
+        self.assertEqual(parse_lag("3d"), 3)
+
+    def test_parse_lag_weeks(self):
+        """parse_lag('2w') returns 10 working days."""
+        self.assertEqual(parse_lag("2w"), 10)
+
+    def test_parse_lag_invalid(self):
+        """Invalid lag strings return None."""
+        self.assertIsNone(parse_lag("abc"))
+        self.assertIsNone(parse_lag("-1d"))
 
 
 class TestIsWorkdayFunction(unittest.TestCase):
@@ -412,14 +435,14 @@ class TestComputeScheduleIncludedExcluded(unittest.TestCase):
 
 
 class TestComputeScheduleDependencies(unittest.TestCase):
-    """Tests for dependency handling (Requirements 3.13, 3.14)."""
+    """Tests for deps handling (Requirements 3.13, 3.14)."""
 
-    def test_after_scheduled_dependency(self):
+    def test_dep_scheduled_dependency(self):
         """Node starts after scheduled dependency finishes (Req 3.13)."""
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             },
             schedule=Schedule(
                 calendars={"default": Calendar(excludes=["weekends"])},
@@ -441,12 +464,12 @@ class TestComputeScheduleDependencies(unittest.TestCase):
         self.assertEqual(plan.schedule.nodes["task2"].computed_start, "2024-03-14")
         self.assertEqual(plan.schedule.nodes["task2"].computed_finish, "2024-03-15")
 
-    def test_after_unscheduled_dependency_ignored(self):
+    def test_dep_unscheduled_dependency_ignored(self):
         """Unscheduled dependencies are ignored (Req 3.13)."""
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),  # Not scheduled
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             },
             schedule=Schedule(
                 calendars={"default": Calendar(excludes=["weekends"])},
@@ -471,7 +494,7 @@ class TestComputeScheduleDependencies(unittest.TestCase):
             nodes={
                 "task1": Node(title="Task 1"),  # Not scheduled
                 "task2": Node(title="Task 2"),  # Scheduled
-                "task3": Node(title="Task 3", after=["task1", "task2"]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task1"), DepEdge(id="task2")]),
             },
             schedule=Schedule(
                 calendars={"default": Calendar(excludes=["weekends"])},
@@ -483,9 +506,9 @@ class TestComputeScheduleDependencies(unittest.TestCase):
                 }
             )
         )
-        
+
         compute_schedule(plan)
-        
+
         # task3 only considers task2 (scheduled), ignores task1 (unscheduled)
         self.assertEqual(plan.schedule.nodes["task3"].computed_start, "2024-03-14")
         self.assertEqual(plan.schedule.nodes["task3"].computed_finish, "2024-03-15")
@@ -496,7 +519,7 @@ class TestComputeScheduleDependencies(unittest.TestCase):
             nodes={
                 "task1": Node(title="Task 1"),
                 "task2": Node(title="Task 2"),
-                "task3": Node(title="Task 3", after=["task1", "task2"]),
+                "task3": Node(title="Task 3", deps=[DepEdge(id="task1"), DepEdge(id="task2")]),
             },
             schedule=Schedule(
                 calendars={"default": Calendar(excludes=["weekends"])},
@@ -522,7 +545,7 @@ class TestComputeScheduleDependencies(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),  # Not scheduled
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             },
             schedule=Schedule(
                 calendars={"default": Calendar(excludes=["weekends"])},
@@ -532,12 +555,175 @@ class TestComputeScheduleDependencies(unittest.TestCase):
                 }
             )
         )
-        
+
         compute_schedule(plan)
-        
+
         # task2 is unschedulable (no scheduled deps, no explicit start)
         self.assertIsNone(plan.schedule.nodes["task2"].computed_start)
         self.assertTrue(any("task2" in w for w in plan.schedule.warnings))
+
+
+class TestComputeScheduleDepEdgeFeatures(unittest.TestCase):
+    """Tests for DepEdge scheduling features (lag, type, hard/soft)."""
+
+    def test_dep_with_lag_fs(self):
+        """Task with fs dep and lag='2d' starts 2 workdays after predecessor finishes."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", lag="2d")]),
+            },
+            schedule=Schedule(
+                calendars={"default": Calendar(excludes=["weekends"])},
+                default_calendar="default",
+                nodes={
+                    "task1": ScheduleNode(start="2024-03-11", duration="3d"),
+                    "task2": ScheduleNode(duration="2d"),
+                }
+            )
+        )
+
+        compute_schedule(plan)
+
+        # task1: Mon 3/11 - Wed 3/13
+        self.assertEqual(plan.schedule.nodes["task1"].computed_start, "2024-03-11")
+        self.assertEqual(plan.schedule.nodes["task1"].computed_finish, "2024-03-13")
+
+        # task2: fs+lag=2d → next workday after Wed 3/13 = Thu 3/14,
+        # then add 2 workdays → Mon 3/18. task2: Mon 3/18 - Tue 3/19
+        self.assertEqual(plan.schedule.nodes["task2"].computed_start, "2024-03-18")
+        self.assertEqual(plan.schedule.nodes["task2"].computed_finish, "2024-03-19")
+
+    def test_dep_fs_lag_0d_vs_1d(self):
+        """fs+lag=0d and fs+lag=1d must give different start dates."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "t0": Node(title="T0", deps=[DepEdge(id="task1", lag="0d")]),
+                "t1": Node(title="T1", deps=[DepEdge(id="task1", lag="1d")]),
+            },
+            schedule=Schedule(
+                calendars={"default": Calendar(excludes=["weekends"])},
+                default_calendar="default",
+                nodes={
+                    "task1": ScheduleNode(start="2024-03-11", duration="3d"),
+                    "t0": ScheduleNode(duration="1d"),
+                    "t1": ScheduleNode(duration="1d"),
+                }
+            )
+        )
+
+        compute_schedule(plan)
+
+        # task1: Mon 3/11 - Wed 3/13
+        # t0: fs+0d → next workday after Wed = Thu 3/14
+        self.assertEqual(plan.schedule.nodes["t0"].computed_start, "2024-03-14")
+        # t1: fs+1d → next workday after Wed = Thu 3/14, then +1 = Fri 3/15
+        self.assertEqual(plan.schedule.nodes["t1"].computed_start, "2024-03-15")
+
+    def test_dep_ss_type(self):
+        """Task with ss dep starts on the same day as predecessor starts."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", type="ss")]),
+            },
+            schedule=Schedule(
+                calendars={"default": Calendar(excludes=["weekends"])},
+                default_calendar="default",
+                nodes={
+                    "task1": ScheduleNode(start="2024-03-11", duration="5d"),
+                    "task2": ScheduleNode(duration="2d"),
+                }
+            )
+        )
+
+        compute_schedule(plan)
+
+        # task1 starts Mon 3/11
+        self.assertEqual(plan.schedule.nodes["task1"].computed_start, "2024-03-11")
+        # task2 ss dep with 0 lag -> same day as task1 start
+        self.assertEqual(plan.schedule.nodes["task2"].computed_start, "2024-03-11")
+        self.assertEqual(plan.schedule.nodes["task2"].computed_finish, "2024-03-12")
+
+    def test_dep_ss_with_lag(self):
+        """Task with ss dep and lag='1d' starts 1 workday after predecessor starts."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", type="ss", lag="1d")]),
+            },
+            schedule=Schedule(
+                calendars={"default": Calendar(excludes=["weekends"])},
+                default_calendar="default",
+                nodes={
+                    "task1": ScheduleNode(start="2024-03-11", duration="5d"),
+                    "task2": ScheduleNode(duration="2d"),
+                }
+            )
+        )
+
+        compute_schedule(plan)
+
+        # task1 starts Mon 3/11
+        self.assertEqual(plan.schedule.nodes["task1"].computed_start, "2024-03-11")
+        # task2 ss dep with 1d lag -> add_workdays(Mon 3/11, 1) = Tue 3/12
+        self.assertEqual(plan.schedule.nodes["task2"].computed_start, "2024-03-12")
+        self.assertEqual(plan.schedule.nodes["task2"].computed_finish, "2024-03-13")
+
+    def test_soft_dep_ignored(self):
+        """Task with only soft dep (hard=False) is unschedulable (no hard deps)."""
+        plan = MergedPlan(
+            nodes={
+                "task1": Node(title="Task 1"),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1", hard=False)]),
+            },
+            schedule=Schedule(
+                calendars={"default": Calendar(excludes=["weekends"])},
+                default_calendar="default",
+                nodes={
+                    "task1": ScheduleNode(start="2024-03-11", duration="3d"),
+                    "task2": ScheduleNode(duration="2d"),
+                }
+            )
+        )
+
+        compute_schedule(plan)
+
+        # task1 computes normally
+        self.assertEqual(plan.schedule.nodes["task1"].computed_start, "2024-03-11")
+        self.assertEqual(plan.schedule.nodes["task1"].computed_finish, "2024-03-13")
+
+        # task2 has only a soft dep -> no hard deps -> unschedulable
+        self.assertIsNone(plan.schedule.nodes["task2"].computed_start)
+        self.assertIsNone(plan.schedule.nodes["task2"].computed_finish)
+
+    def test_ss_zero_lag_normalizes_weekend_start(self):
+        """Non-milestone with ss dep on milestone starting on weekend gets Monday start."""
+        plan = MergedPlan(
+            nodes={
+                # Milestone on Saturday
+                "m1": Node(title="M1", milestone=True),
+                # Regular task with ss dep on milestone
+                "task2": Node(title="Task 2", deps=[DepEdge(id="m1", type="ss")]),
+            },
+            schedule=Schedule(
+                calendars={"default": Calendar(excludes=["weekends"])},
+                default_calendar="default",
+                nodes={
+                    "m1": ScheduleNode(start="2024-03-16"),  # Saturday
+                    "task2": ScheduleNode(duration="2d"),
+                }
+            )
+        )
+
+        compute_schedule(plan)
+
+        # Milestone starts on Saturday as-is
+        self.assertEqual(plan.schedule.nodes["m1"].computed_start, "2024-03-16")
+        # Regular task must NOT start on weekend; next workday is Monday 3/18
+        self.assertEqual(plan.schedule.nodes["task2"].computed_start, "2024-03-18")
+        self.assertEqual(plan.schedule.nodes["task2"].computed_finish, "2024-03-19")
 
 
 class TestComputeScheduleMilestones(unittest.TestCase):
@@ -567,7 +753,7 @@ class TestComputeScheduleMilestones(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "m1": Node(title="Milestone 1", milestone=True, after=["task1"]),
+                "m1": Node(title="Milestone 1", milestone=True, deps=[DepEdge(id="task1")]),
             },
             schedule=Schedule(
                 calendars={"default": Calendar(excludes=["weekends"])},
@@ -638,9 +824,9 @@ class TestComputeScheduleMemoization(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "start": Node(title="Start"),
-                "branch1": Node(title="Branch 1", after=["start"]),
-                "branch2": Node(title="Branch 2", after=["start"]),
-                "end": Node(title="End", after=["branch1", "branch2"]),
+                "branch1": Node(title="Branch 1", deps=[DepEdge(id="start")]),
+                "branch2": Node(title="Branch 2", deps=[DepEdge(id="start")]),
+                "end": Node(title="End", deps=[DepEdge(id="branch1"), DepEdge(id="branch2")]),
             },
             schedule=Schedule(
                 calendars={"default": Calendar(excludes=["weekends"])},
@@ -680,9 +866,9 @@ class TestComputeScheduleDesignExamples(unittest.TestCase):
         """
         plan = MergedPlan(
             nodes={
-                "milestone1": Node(title="MVP", milestone=True, after=["task2"]),
+                "milestone1": Node(title="MVP", milestone=True, deps=[DepEdge(id="task2")]),
                 "task1": Node(title="Backend API"),
-                "task2": Node(title="Frontend", after=["task1"]),
+                "task2": Node(title="Frontend", deps=[DepEdge(id="task1")]),
                 "task3": Node(title="Documentation"),  # Not scheduled
             },
             schedule=Schedule(

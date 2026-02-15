@@ -10,7 +10,7 @@
 
 - ✅ Существуют в структуре плана
 - ✅ Имеют оценки effort
-- ✅ Имеют зависимости (after)
+- ✅ Имеют зависимости (deps)
 - ✅ Отображаются в tree/list/deps
 - ❌ Не имеют календарных дат
 - ❌ Не появляются на Gantt (если не отфильтрованы)
@@ -99,10 +99,10 @@ views:
 ```yaml
 nodes:
   profile-edit:
-    after: [profile-view]  # scheduled → scheduled ✓
-  
+    deps: [profile-view]  # scheduled → scheduled ✓
+
   profile-privacy:
-    after: [profile-edit]  # unscheduled → scheduled
+    deps: [profile-edit]  # unscheduled → scheduled
     # profile-privacy в бэклоге, но зависит от scheduled задачи
 ```
 
@@ -113,7 +113,7 @@ nodes:
 ```yaml
 nodes:
   mvp-release:
-    after: [auth, profile]
+    deps: [auth, profile]
     milestone: true
 
 schedule:

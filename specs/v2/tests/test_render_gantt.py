@@ -12,6 +12,7 @@ import unittest
 
 from specs.v2.tools.models import (
     Calendar,
+    DepEdge,
     MergedPlan,
     Meta,
     Node,
@@ -21,29 +22,31 @@ from specs.v2.tools.models import (
     ViewFilter,
 )
 from specs.v2.tools.render.gantt import (
-    apply_view_filter,
     render_gantt,
-    _escape_mermaid_title,
     _get_descendants,
     _sanitize_task_id,
+)
+from specs.v2.tools.render.common import (
+    apply_view_filter,
+    sanitize_mermaid_text,
 )
 from specs.v2.tools.scheduler import compute_schedule
 
 
-class TestEscapeMermaidTitle(unittest.TestCase):
-    """Tests for _escape_mermaid_title helper function."""
+class TestSanitizeMermaidText(unittest.TestCase):
+    """Tests for sanitize_mermaid_text helper function."""
 
     def test_no_special_chars(self):
         """Title without special characters is unchanged."""
-        self.assertEqual(_escape_mermaid_title("Simple Task"), "Simple Task")
+        self.assertEqual(sanitize_mermaid_text("Simple Task"), "Simple Task")
 
     def test_colon_replaced(self):
         """Colon is replaced with space."""
-        self.assertEqual(_escape_mermaid_title("Phase 1: Analysis"), "Phase 1 Analysis")
+        self.assertEqual(sanitize_mermaid_text("Phase 1: Analysis"), "Phase 1 Analysis")
 
-    def test_hash_escaped(self):
-        """Hash is escaped using entity codes."""
-        self.assertEqual(_escape_mermaid_title("Issue #123"), "Issue #35;123")
+    def test_hash_preserved(self):
+        """Hash is preserved in sanitize_mermaid_text (escaped by escape_mermaid_string instead)."""
+        self.assertEqual(sanitize_mermaid_text("Issue #123"), "Issue #123")
 
 
 class TestSanitizeTaskId(unittest.TestCase):
@@ -222,10 +225,11 @@ class TestRenderGanttBasic(unittest.TestCase):
     def test_empty_schedule(self):
         """Plan without schedule returns minimal Gantt."""
         plan = MergedPlan(
-            nodes={"task1": Node(title="Task 1")}
+            nodes={"task1": Node(title="Task 1")},
+            views={"default": View()}
         )
         
-        result = render_gantt(plan, "")
+        result = render_gantt(plan, "default")
         
         self.assertIn("gantt", result)
         self.assertIn("dateFormat YYYY-MM-DD", result)
@@ -236,10 +240,11 @@ class TestRenderGanttBasic(unittest.TestCase):
             nodes={"task1": Node(title="Task 1")},
             schedule=Schedule(
                 nodes={"task1": ScheduleNode()}  # No computed dates
-            )
+            ),
+            views={"default": View()}
         )
         
-        result = render_gantt(plan, "")
+        result = render_gantt(plan, "default")
         
         self.assertIn("gantt", result)
         # No task lines since no computed dates
@@ -253,13 +258,14 @@ class TestRenderGanttBasic(unittest.TestCase):
                 calendars={"default": Calendar(excludes=["weekends"])},
                 default_calendar="default",
                 nodes={"task1": ScheduleNode(start="2024-03-11", duration="3d")}
-            )
+            ),
+            views={"default": View()}
         )
         
         # Compute schedule to get dates
         compute_schedule(plan)
         
-        result = render_gantt(plan, "")
+        result = render_gantt(plan, "default")
         
         self.assertIn("gantt", result)
         self.assertIn("Task 1", result)
@@ -271,7 +277,7 @@ class TestRenderGanttBasic(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             },
             schedule=Schedule(
                 calendars={"default": Calendar(excludes=["weekends"])},
@@ -280,13 +286,14 @@ class TestRenderGanttBasic(unittest.TestCase):
                     "task1": ScheduleNode(start="2024-03-11", duration="3d"),
                     "task2": ScheduleNode(duration="2d"),
                 }
-            )
+            ),
+            views={"default": View()}
         )
-        
+
         compute_schedule(plan)
-        
-        result = render_gantt(plan, "")
-        
+
+        result = render_gantt(plan, "default")
+
         self.assertIn("Task 1", result)
         self.assertIn("Task 2", result)
         self.assertIn("2024-03-11", result)
@@ -300,12 +307,13 @@ class TestRenderGanttBasic(unittest.TestCase):
                 calendars={"default": Calendar(excludes=["weekends"])},
                 default_calendar="default",
                 nodes={"m1": ScheduleNode(start="2024-03-15")}
-            )
+            ),
+            views={"default": View()}
         )
         
         compute_schedule(plan)
         
-        result = render_gantt(plan, "")
+        result = render_gantt(plan, "default")
         
         self.assertIn("Milestone 1", result)
         self.assertIn("milestone", result)
@@ -515,7 +523,7 @@ class TestRenderGanttUsesScheduleCalendar(unittest.TestCase):
         plan = MergedPlan(
             nodes={
                 "task1": Node(title="Task 1"),
-                "task2": Node(title="Task 2", after=["task1"]),
+                "task2": Node(title="Task 2", deps=[DepEdge(id="task1")]),
             },
             schedule=Schedule(
                 calendars={"work": Calendar(excludes=["weekends"])},
@@ -525,12 +533,13 @@ class TestRenderGanttUsesScheduleCalendar(unittest.TestCase):
                     "task1": ScheduleNode(start="2024-03-15", duration="3d"),
                     "task2": ScheduleNode(duration="2d"),
                 }
-            )
+            ),
+            views={"default": View()}
         )
         
         compute_schedule(plan)
         
-        result = render_gantt(plan, "")
+        result = render_gantt(plan, "default")
         
         # task1: Fri-Tue (skips weekend)
         self.assertIn("2024-03-15", result)  # task1 start
@@ -554,12 +563,13 @@ class TestRenderGanttUsesScheduleCalendar(unittest.TestCase):
                     # Monday start, 3 days duration, but Tue is holiday
                     "task1": ScheduleNode(start="2024-03-11", duration="3d"),
                 }
-            )
+            ),
+            views={"default": View()}
         )
         
         compute_schedule(plan)
         
-        result = render_gantt(plan, "")
+        result = render_gantt(plan, "default")
         
         # task1: Mon, (skip Tue holiday), Wed, Thu
         self.assertIn("2024-03-11", result)  # start
@@ -617,9 +627,9 @@ class TestRenderGanttDesignExamples(unittest.TestCase):
         """
         plan = MergedPlan(
             nodes={
-                "milestone1": Node(title="MVP", milestone=True, after=["task2"]),
+                "milestone1": Node(title="MVP", milestone=True, deps=[DepEdge(id="task2")]),
                 "task1": Node(title="Backend API"),
-                "task2": Node(title="Frontend", after=["task1"]),
+                "task2": Node(title="Frontend", deps=[DepEdge(id="task1")]),
                 "task3": Node(title="Documentation"),  # Not scheduled
             },
             schedule=Schedule(
@@ -630,12 +640,13 @@ class TestRenderGanttDesignExamples(unittest.TestCase):
                     "task2": ScheduleNode(duration="5d"),
                     "milestone1": ScheduleNode(),
                 }
-            )
+            ),
+            views={"default": View()}
         )
         
         compute_schedule(plan)
         
-        result = render_gantt(plan, "")
+        result = render_gantt(plan, "default")
         
         # Scheduled tasks appear
         self.assertIn("Backend API", result)
