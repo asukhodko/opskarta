@@ -1882,3 +1882,85 @@ statuses: ""
         with self.assertRaises(LoadError) as ctx:
             load_plan_set([path])
         self.assertIn("statuses", str(ctx.exception).lower())
+
+    def test_meta_list_rejected(self):
+        """meta: [] must raise LoadError (non-dict)."""
+        yaml_content = """
+version: 2
+nodes:
+  task1:
+    title: Task 1
+meta: []
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("meta", str(ctx.exception).lower())
+
+
+class TestDepNoteType(unittest.TestCase):
+    """dep.note must be a string if present."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_yaml(self, name, content):
+        path = Path(self.tmpdir) / name
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_dep_note_dict_rejected(self):
+        """deps[].note: {k: v} must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        note:
+          key: value
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("note", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_note_int_rejected(self):
+        """deps[].note: 42 must raise LoadError."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        note: 42
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        with self.assertRaises(LoadError) as ctx:
+            load_plan_set([path])
+        self.assertIn("note", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception).lower())
+
+    def test_dep_note_string_accepted(self):
+        """deps[].note: 'info' is valid."""
+        yaml_content = """
+version: 2
+nodes:
+  A:
+    title: A
+  B:
+    title: B
+    deps:
+      - id: A
+        note: "some info"
+"""
+        path = self._write_yaml("plan.yaml", yaml_content)
+        result = load_plan_set([path])
+        self.assertEqual(result.nodes["B"].deps[0].note, "some info")

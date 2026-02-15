@@ -347,6 +347,12 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
         # 2. Merge meta (Requirement 1.6)
         if "meta" in fragment and fragment["meta"] is not None:
             frag_meta = fragment["meta"]
+            if not isinstance(frag_meta, dict):
+                raise LoadError(
+                    f"'meta' must be an object, got {type(frag_meta).__name__}",
+                    file_path=source,
+                    block_name="meta",
+                )
             for key, value in frag_meta.items():
                 existing_value = getattr(result.meta, key, None)
                 if key in meta_sources and existing_value != value:
@@ -754,6 +760,13 @@ def _parse_deps(
                     f"got {type(dep_hard).__name__}",
                     file_path=source,
                     block_name=f"nodes.{node_id}.deps[{i}].hard",
+                )
+            if dep_note is not None and not isinstance(dep_note, str):
+                raise LoadError(
+                    f"Node '{node_id}' deps[{i}].note must be a string, "
+                    f"got {type(dep_note).__name__}",
+                    file_path=source,
+                    block_name=f"nodes.{node_id}.deps[{i}].note",
                 )
 
             deps.append(DepEdge(
