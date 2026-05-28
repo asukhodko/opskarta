@@ -384,6 +384,7 @@
           "description": "Lane configuration for Gantt views",
           "additionalProperties": {
             "type": "object",
+            "required": ["nodes"],
             "properties": {
               "title": {
                 "type": "string"

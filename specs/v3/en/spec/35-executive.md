@@ -111,7 +111,11 @@ Supported fields:
 
 ```bash
 python -m specs.v3.tools.cli render executive plan.yaml exec.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section tracks
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section signals
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status --lang en
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section tracks --view exec-active-tracks --lang en
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section signals --view exec-active-tracks --lang en
 ```
+
+By default, `executive-report status` uses the `exec-top` view, while
+`tracks` and `signals` use `exec-active-tracks`. Pass `--view` when a document
+section should be generated from a different executive view.

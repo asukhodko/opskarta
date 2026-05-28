@@ -325,10 +325,22 @@ class TestParser:
     def test_render_executive_report_parsing(self):
         """Render executive-report command should parse correctly."""
         parser = create_parser()
-        args = parser.parse_args(["render", "executive-report", "plan.yaml", "--section", "status"])
+        args = parser.parse_args([
+            "render",
+            "executive-report",
+            "plan.yaml",
+            "--section",
+            "status",
+            "--view",
+            "exec-custom",
+            "--lang",
+            "en",
+        ])
         assert args.command == "render"
         assert args.format == "executive-report"
         assert args.section == "status"
+        assert args.view == "exec-custom"
+        assert args.lang == "en"
 
     def test_update_markdown_parsing(self):
         """update-markdown command should parse correctly."""
@@ -520,7 +532,20 @@ class TestRenderExecutiveCommand:
 
         captured = capsys.readouterr()
         assert "Текущий прогноз" in captured.out
+        assert "02.06.2026" in captured.out
         assert "Finish the release." in captured.out
+
+    def test_render_executive_report_status_in_english(self, plan_with_executive: Path, capsys):
+        """Executive-report can render built-in labels in English."""
+        result = cmd_render_executive_report([str(plan_with_executive)], "status", lang="en")
+        assert result == 0
+
+        captured = capsys.readouterr()
+        assert "Current forecast" in captured.out
+        assert "Nearest goal" in captured.out
+        assert "2026-06-02" in captured.out
+        assert "02.06.2026" not in captured.out
+        assert "Текущий прогноз" not in captured.out
 
     def test_render_executive_via_main(self, plan_with_executive: Path, capsys):
         """Render executive via main() should work."""

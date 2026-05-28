@@ -24,6 +24,32 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 
+VIEW_FILTER_FIELDS: frozenset[str] = frozenset({
+    "kind",
+    "status",
+    "has_schedule",
+    "parent",
+    "x_ops_attention_class",
+})
+
+VIEW_STRING_FIELDS: frozenset[str] = frozenset({
+    "title",
+    "order_by",
+    "group_by",
+    "date_format",
+    "axis_format",
+    "tick_interval",
+})
+
+VIEW_FIELDS: frozenset[str] = frozenset({
+    "where",
+    "lanes",
+    "window_start",
+    "window_finish",
+    *VIEW_STRING_FIELDS,
+})
+
+
 @dataclass
 class Meta:
     """

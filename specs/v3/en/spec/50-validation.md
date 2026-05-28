@@ -278,6 +278,7 @@ Fields in `where` must be from the allowed list:
 - `status`
 - `has_schedule`
 - `parent`
+- `x_ops_attention_class`
 
 ```yaml
 views:
@@ -286,6 +287,20 @@ views:
       kind: [task]        # OK
       custom_field: value # ERROR: unknown filter field 'custom_field'
 ```
+
+### View Field Types
+
+Scalar view fields must be strings when present:
+
+- `title`
+- `order_by`
+- `group_by`
+- `date_format`
+- `axis_format`
+- `tick_interval`
+
+`window_start` and `window_finish` must be real `YYYY-MM-DD` dates, and
+`window_start` cannot be later than `window_finish`.
 
 ## Merge Validation
 

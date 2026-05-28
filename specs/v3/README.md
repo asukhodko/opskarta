@@ -2,6 +2,8 @@
 
 v3 keeps the v2 base model: nodes describe work, `schedule` describes dates, `execution` describes factual progress. The new part is the operational layer around real rollouts: short executive maps, Markdown sections for sync documents, clipped Gantt windows, and reusable Markdown refresh tooling.
 
+The `SPEC.min.md` files are compact full-spec summaries intended to fit entirely into an LLM context when a model needs the format rules without reading the full specification.
+
 ## Key Additions
 
 | Area | What changed |
@@ -29,10 +31,15 @@ specs/v3/
 ```bash
 python -m specs.v3.tools.cli validate specs/v3/ru/examples/executive/release.plan.yaml
 python -m specs.v3.tools.cli render executive specs/v3/ru/examples/executive/release.plan.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report specs/v3/ru/examples/executive/release.plan.yaml --section status
+python -m specs.v3.tools.cli render executive-report specs/v3/ru/examples/executive/release.plan.yaml --section status --lang ru
 python -m specs.v3.tools.cli render gantt specs/v3/ru/examples/executive/release.plan.yaml --view release-window --style status
 ```
 
 ## Migration
 
-See [ru/MIGRATION.md](ru/MIGRATION.md) or [en/MIGRATION.md](en/MIGRATION.md). For most v2 users the minimum migration is changing `version: 2` to `version: 3`; the new fields are opt-in.
+For the practical benefits and format changes compared with v2, see
+[ru/V3_VS_V2.md](ru/V3_VS_V2.md) or [en/V3_VS_V2.md](en/V3_VS_V2.md).
+
+For mechanical migration steps, see [ru/MIGRATION.md](ru/MIGRATION.md) or
+[en/MIGRATION.md](en/MIGRATION.md). For most v2 users the minimum migration is
+changing `version: 2` to `version: 3`; the new fields are opt-in.

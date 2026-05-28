@@ -20,7 +20,7 @@ Usage examples:
     python -m specs.v3.tools.cli render list plan.yaml --view tasks_only
     python -m specs.v3.tools.cli render deps plan.yaml
     python -m specs.v3.tools.cli render executive plan.yaml exec.yaml --view exec-top
-    python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status
+    python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status --lang en
 
 Requirements covered:
 - 5.11: CLI SHALL accept list of files as command line arguments
@@ -220,7 +220,7 @@ def create_parser() -> argparse.ArgumentParser:
     executive_parser = render_subparsers.add_parser(
         "executive",
         help="Render as executive flowchart",
-        description="Generate a Mermaid flowchart for top-level migration blocks.",
+        description="Generate a Mermaid flowchart for top-level executive blocks.",
     )
     executive_parser.add_argument(
         "files",
@@ -262,6 +262,20 @@ def create_parser() -> argparse.ArgumentParser:
         required=True,
         choices=["status", "tracks", "signals"],
         help="Executive markdown section to render",
+    )
+    executive_report_parser.add_argument(
+        "--view",
+        metavar="VIEW_ID",
+        help=(
+            "Executive view ID to use for the report section. Defaults to "
+            "exec-top for status and exec-active-tracks for tracks/signals."
+        ),
+    )
+    executive_report_parser.add_argument(
+        "--lang",
+        choices=["ru", "en"],
+        default="ru",
+        help="Output language for built-in report labels (default: ru)",
     )
     
     return parser
@@ -588,7 +602,12 @@ def cmd_render_executive(
         return 1
 
 
-def cmd_render_executive_report(files: list[str], section: str) -> int:
+def cmd_render_executive_report(
+    files: list[str],
+    section: str,
+    view_id: Optional[str] = None,
+    lang: str = "ru",
+) -> int:
     """
     Execute the render executive-report command.
 
@@ -608,7 +627,7 @@ def cmd_render_executive_report(files: list[str], section: str) -> int:
         compute_execution_metrics(plan)
         compute_schedule(plan)
 
-        output = render_executive_report(plan, section=section)
+        output = render_executive_report(plan, section=section, view_id=view_id, lang=lang)
         print(output)
         return 0
 
@@ -666,7 +685,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 args.hide_progress,
             )
         elif args.format == "executive-report":
-            return cmd_render_executive_report(args.files, args.section)
+            return cmd_render_executive_report(args.files, args.section, args.view, args.lang)
     
     # Should not reach here due to required subparsers
     return 1

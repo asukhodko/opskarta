@@ -181,7 +181,7 @@ validate-v3: ## Validate v3 examples and schemas
 	@echo "$(G)v3 valid$(N)"
 
 test-v3: ## Run v3 tests
-	@PYTHONPATH=$(CURDIR) $(PYTHON) -m pytest specs/v3/tests/ -v --tb=short
+	@PYTHONPATH=$(CURDIR) $(PYTHON) -m pytest specs/v3/tests/ -v --tb=short -s
 
 check-spec-min-v3: ## Check v3 SPEC.min.md exists
 	@test -f specs/v3/en/SPEC.min.md || (echo "Error: specs/v3/en/SPEC.min.md not found" && exit 1)

@@ -44,7 +44,7 @@ Render it:
 
 ```bash
 python -m specs.v3.tools.cli render executive plan.yaml exec.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status --lang en
 ```
 
 ### Gantt Windows
@@ -111,7 +111,8 @@ old
 ```
 ````
 
-and replaces the next Mermaid block or content between `<!-- GENERATED:START -->` and `<!-- GENERATED:END -->`.
+and replaces the immediately following Mermaid block or content between
+`<!-- GENERATED:START -->` and `<!-- GENERATED:END -->`.
 
 ## When Staying on v2 Is Fine
 

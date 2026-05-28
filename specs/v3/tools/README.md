@@ -19,7 +19,7 @@ python -m specs.v3.tools.cli render list plan.yaml
 python -m specs.v3.tools.cli render deps plan.yaml --mode hierarchical
 python -m specs.v3.tools.cli render gantt plan.yaml --view release-window --style status
 python -m specs.v3.tools.cli render executive plan.yaml exec.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status --lang en
 python -m specs.v3.tools.cli update-markdown plan.md exec.md
 ```
 
@@ -41,7 +41,7 @@ python -m specs.v3.tools.cli update-markdown plan.md exec.md
 
 ```bash
 python -m specs.v3.tools.cli render executive release.plan.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report release.plan.yaml --section tracks
+python -m specs.v3.tools.cli render executive-report release.plan.yaml --section tracks --view exec-active-tracks --lang en
 ```
 
 `render executive` emits Mermaid flowchart syntax. `render executive-report` emits Markdown sections:
@@ -49,6 +49,10 @@ python -m specs.v3.tools.cli render executive-report release.plan.yaml --section
 - `status`
 - `tracks`
 - `signals`
+
+By default, `status` uses `exec-top`; `tracks` and `signals` use
+`exec-active-tracks`. Pass `--view` to render a different executive view and
+`--lang ru|en` to choose built-in report labels.
 
 ## Markdown Refresh
 
@@ -65,4 +69,5 @@ old
 ```
 ````
 
-It runs validation commands once per document directory, runs the render command, and replaces the next Mermaid block or `GENERATED` block.
+It runs validation commands once per document directory, runs the render command,
+and replaces the immediately following Mermaid block or `GENERATED` block.

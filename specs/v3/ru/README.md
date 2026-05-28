@@ -21,13 +21,14 @@ v3 оставляет рабочую основу v2: структура раб�
 ```bash
 python -m specs.v3.tools.cli validate specs/v3/ru/examples/executive/release.plan.yaml
 python -m specs.v3.tools.cli render executive specs/v3/ru/examples/executive/release.plan.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report specs/v3/ru/examples/executive/release.plan.yaml --section status
+python -m specs.v3.tools.cli render executive-report specs/v3/ru/examples/executive/release.plan.yaml --section status --lang ru
 python -m specs.v3.tools.cli render gantt specs/v3/ru/examples/executive/release.plan.yaml --view release-window --style status
 ```
 
 ## Файлы
 
 - [SPEC.md](SPEC.md) — полная спецификация.
-- [SPEC.min.md](SPEC.min.md) — короткая памятка.
+- [SPEC.min.md](SPEC.min.md) — компактный пересказ всей спецификации для помещения в контекст LLM.
+- [V3_VS_V2.md](V3_VS_V2.md) — практические преимущества и изменения относительно v2.
 - [MIGRATION.md](MIGRATION.md) — переход с v2 на v3.
 - [examples/executive/](examples/executive/) — пример `x.exec` и оконного Gantt.

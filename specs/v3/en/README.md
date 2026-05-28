@@ -21,13 +21,14 @@ v3 keeps the v2 foundation: work structure in `nodes`, calendar planning in `sch
 ```bash
 python -m specs.v3.tools.cli validate specs/v3/en/examples/executive/release.plan.yaml
 python -m specs.v3.tools.cli render executive specs/v3/en/examples/executive/release.plan.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report specs/v3/en/examples/executive/release.plan.yaml --section status
+python -m specs.v3.tools.cli render executive-report specs/v3/en/examples/executive/release.plan.yaml --section status --lang en
 python -m specs.v3.tools.cli render gantt specs/v3/en/examples/executive/release.plan.yaml --view release-window --style status
 ```
 
 ## Files
 
 - [SPEC.md](SPEC.md) — full specification.
-- [SPEC.min.md](SPEC.min.md) — compact reference.
+- [SPEC.min.md](SPEC.min.md) — compact full-spec summary designed to fit into an LLM context.
+- [V3_VS_V2.md](V3_VS_V2.md) — practical benefits and changes compared with v2.
 - [MIGRATION.md](MIGRATION.md) — v2 to v3 migration guide.
 - [examples/executive/](examples/executive/) — `x.exec` and Gantt window example.

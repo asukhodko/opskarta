@@ -219,6 +219,53 @@ class UpdateMarkdownDiagramsTests(unittest.TestCase):
             self.assertIn("Новая подпись из YAML.", text)
             self.assertNotIn("Старая подпись.", text)
 
+    def test_does_not_cross_sections_to_find_generated_block(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
+            plan_path = tmp / "plan.yaml"
+            plan_path.write_text(
+                textwrap.dedent(
+                    """
+                    version: 3
+                    nodes:
+                      root:
+                        title: Root
+                    """
+                ).strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            md = tmp / "report.md"
+            md.write_text(
+                textwrap.dedent(
+                    f"""
+                    ## Section A
+                    <!--
+                    Перегенерить:
+                    env PYTHONPATH={BASE_DIR} python3 -m specs.v3.tools.cli validate plan.yaml
+                    env PYTHONPATH={BASE_DIR} python3 -m specs.v3.tools.cli render tree plan.yaml
+                    -->
+
+                    Text without a generated block in this section.
+
+                    ## Section B
+                    <!-- GENERATED:START -->
+                    old section b
+                    <!-- GENERATED:END -->
+                    """
+                ).strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(ValueError):
+                update_markdown_files([md])
+
+            text = md.read_text(encoding="utf-8")
+            self.assertIn("old section b", text)
+            self.assertIn("Text without a generated block", text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -88,7 +88,11 @@ See the [full v3 specification](specs/v3/) for details.
 
 > All commands run from the **project root directory**.
 
-### v3 (recommended for new projects)
+### v3 (operational programs)
+
+Use v3 when the plan is becoming a working center for syncs, executive views,
+status documents, and focused Gantt windows. For simple plan-as-code with
+tree/list/Gantt renders only, v2 remains a smaller starting point.
 
 ```bash
 # Validate example
@@ -98,7 +102,7 @@ python -m specs.v3.tools.cli validate specs/v3/ru/examples/executive/release.pla
 python -m specs.v3.tools.cli render executive specs/v3/ru/examples/executive/release.plan.yaml --view exec-top
 
 # Render executive Markdown section
-python -m specs.v3.tools.cli render executive-report specs/v3/ru/examples/executive/release.plan.yaml --section status
+python -m specs.v3.tools.cli render executive-report specs/v3/ru/examples/executive/release.plan.yaml --section status --lang ru
 
 # Render clipped Gantt diagram
 python -m specs.v3.tools.cli render gantt specs/v3/ru/examples/executive/release.plan.yaml --view release-window --style status

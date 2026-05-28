@@ -25,12 +25,13 @@ Requirements covered:
 - 5.3: Validator SHALL return structured errors with file source
 """
 
+import re
 from dataclasses import dataclass, field
 from datetime import date as _date
 from enum import Enum
 from typing import Any, Optional
 
-from specs.v3.tools.models import MergedPlan
+from specs.v3.tools.models import MergedPlan, VIEW_FIELDS, VIEW_STRING_FIELDS
 
 
 class Severity(Enum):
@@ -192,6 +193,15 @@ FORBIDDEN_NODE_FIELDS = frozenset({"start", "finish", "duration", "excludes"})
 
 # Required version for v3 tools
 REQUIRED_VERSION = 3
+
+# Duration pattern for schedule node durations: positive integer followed by d or w.
+_DURATION_PATTERN = re.compile(r"^[1-9][0-9]*[dw]$")
+
+# Lag pattern: non-negative integer followed by d or w
+_LAG_PATTERN = re.compile(r"^(0|[1-9][0-9]*)[dw]$")
+
+# Valid dep types
+_VALID_DEP_TYPES = frozenset({"fs", "ss"})
 
 
 def _validate_version(plan: MergedPlan, result: ValidationResult) -> None:
@@ -1074,6 +1084,42 @@ def _validate_schedule_references(plan: MergedPlan, result: ValidationResult) ->
                     actual=schedule_node.calendar,
                 )
 
+        if schedule_node.start is not None and not _is_valid_date(schedule_node.start):
+            result.add_error(
+                message=f"Schedule node '{schedule_node_id}' has invalid start: expected valid YYYY-MM-DD date",
+                path=f"schedule.nodes.{schedule_node_id}.start",
+                file_source=file_source,
+                expected="valid YYYY-MM-DD date",
+                actual=repr(schedule_node.start),
+            )
+
+        if schedule_node.finish is not None and not _is_valid_date(schedule_node.finish):
+            result.add_error(
+                message=f"Schedule node '{schedule_node_id}' has invalid finish: expected valid YYYY-MM-DD date",
+                path=f"schedule.nodes.{schedule_node_id}.finish",
+                file_source=file_source,
+                expected="valid YYYY-MM-DD date",
+                actual=repr(schedule_node.finish),
+            )
+
+        if schedule_node.duration is not None:
+            if not isinstance(schedule_node.duration, str):
+                result.add_error(
+                    message=f"Schedule node '{schedule_node_id}' has invalid duration type",
+                    path=f"schedule.nodes.{schedule_node_id}.duration",
+                    file_source=file_source,
+                    expected="positive duration like '1d', '3d', '2w'",
+                    actual=f"{type(schedule_node.duration).__name__}: {repr(schedule_node.duration)}",
+                )
+            elif not _DURATION_PATTERN.match(schedule_node.duration):
+                result.add_error(
+                    message=f"Schedule node '{schedule_node_id}' has invalid duration '{schedule_node.duration}'",
+                    path=f"schedule.nodes.{schedule_node_id}.duration",
+                    file_source=file_source,
+                    expected="positive duration like '1d', '3d', '2w'",
+                    actual=schedule_node.duration,
+                )
+
 
 def _validate_views(plan: MergedPlan, result: ValidationResult) -> None:
     """
@@ -1110,6 +1156,13 @@ def _validate_views(plan: MergedPlan, result: ValidationResult) -> None:
             )
         
         # Validate where filter structure (Requirement 4.3)
+        _validate_view_string_fields(
+            view_id,
+            {field_name: getattr(view, field_name) for field_name in VIEW_STRING_FIELDS},
+            file_source,
+            result,
+        )
+
         if view.where is not None:
             _validate_view_where(view_id, view.where, node_ids, file_source, result)
 
@@ -1118,6 +1171,27 @@ def _validate_views(plan: MergedPlan, result: ValidationResult) -> None:
             _validate_view_lanes(view_id, view.lanes, node_ids, file_source, result)
 
         _validate_view_window(view_id, view.window_start, view.window_finish, file_source, result)
+
+
+def _validate_view_string_fields(
+    view_id: str,
+    values: dict[str, object],
+    file_source: Optional[str],
+    result: ValidationResult,
+) -> None:
+    for field_name in sorted(VIEW_STRING_FIELDS):
+        value = values.get(field_name)
+        if value is not None and not isinstance(value, str):
+            result.add_error(
+                message=(
+                    f"View '{view_id}' has invalid {field_name}: "
+                    f"expected string, got {type(value).__name__}"
+                ),
+                path=f"views.{view_id}.{field_name}",
+                file_source=file_source,
+                expected="string",
+                actual=f"{type(value).__name__}: {repr(value)}",
+            )
 
 
 def _validate_view_where(
@@ -1404,6 +1478,23 @@ def validate_view_dict(
     
     Requirements: 4.2, 4.3
     """
+    unknown_keys = set(view_data) - VIEW_FIELDS - {"excludes"}
+    for key in sorted(unknown_keys):
+        result.add_error(
+            message=f"View '{view_id}' contains unsupported field '{key}'",
+            path=f"views.{view_id}.{key}",
+            file_source=file_source,
+            expected=f"one of {', '.join(sorted(VIEW_FIELDS))}",
+            actual=repr(view_data[key]),
+        )
+
+    _validate_view_string_fields(
+        view_id,
+        {field_name: view_data.get(field_name) for field_name in VIEW_STRING_FIELDS},
+        file_source,
+        result,
+    )
+
     # Check for forbidden excludes field (Requirement 4.2)
     if "excludes" in view_data:
         result.add_error(
@@ -1537,15 +1628,6 @@ def validate_view_dict(
         file_source,
         result,
     )
-
-
-import re
-
-# Lag pattern: non-negative integer followed by d or w
-_LAG_PATTERN = re.compile(r"^(0|[1-9][0-9]*)[dw]$")
-
-# Valid dep types
-_VALID_DEP_TYPES = frozenset({"fs", "ss"})
 
 
 def _validate_dep_edges(plan: MergedPlan, result: ValidationResult) -> None:

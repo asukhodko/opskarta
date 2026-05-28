@@ -111,7 +111,11 @@ views:
 
 ```bash
 python -m specs.v3.tools.cli render executive plan.yaml exec.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section tracks
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section signals
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status --lang ru
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section tracks --view exec-active-tracks --lang ru
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section signals --view exec-active-tracks --lang ru
 ```
+
+По умолчанию `executive-report status` использует view `exec-top`, а `tracks`
+и `signals` используют `exec-active-tracks`. Передайте `--view`, если секция
+документа должна строиться по другому executive-view.

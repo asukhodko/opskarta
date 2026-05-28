@@ -1484,10 +1484,14 @@ Supported fields:
 
 ```bash
 python -m specs.v3.tools.cli render executive plan.yaml exec.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section tracks
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section signals
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status --lang en
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section tracks --view exec-active-tracks --lang en
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section signals --view exec-active-tracks --lang en
 ```
+
+By default, `executive-report status` uses the `exec-top` view, while
+`tracks` and `signals` use `exec-active-tracks`. Pass `--view` when a document
+section should be generated from a different executive view.
 
 ---
 
@@ -2219,6 +2223,7 @@ Fields in `where` must be from the allowed list:
 - `status`
 - `has_schedule`
 - `parent`
+- `x_ops_attention_class`
 
 ```yaml
 views:
@@ -2227,6 +2232,20 @@ views:
       kind: [task]        # OK
       custom_field: value # ERROR: unknown filter field 'custom_field'
 ```
+
+### View Field Types
+
+Scalar view fields must be strings when present:
+
+- `title`
+- `order_by`
+- `group_by`
+- `date_format`
+- `axis_format`
+- `tick_interval`
+
+`window_start` and `window_finish` must be real `YYYY-MM-DD` dates, and
+`window_start` cannot be later than `window_finish`.
 
 ## Merge Validation
 

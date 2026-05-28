@@ -53,17 +53,23 @@ def _parse_block(comment_match: re.Match[str], text: str) -> RenderBlock:
     if len(render_commands) > 1:
         raise ValueError("В блоке 'Перегенерить' найдено больше одной команды render")
 
-    generated_match = GENERATED_RE.search(text, comment_match.end())
-    mermaid_match = MERMAID_RE.search(text, comment_match.end())
+    target_start = comment_match.end()
+    whitespace_match = re.match(r"\s*", text[target_start:])
+    if whitespace_match:
+        target_start += whitespace_match.end()
 
-    candidates = []
+    generated_match = GENERATED_RE.match(text, target_start)
+    mermaid_match = MERMAID_RE.match(text, target_start)
+
+    candidates: list[tuple[str, int, re.Match[str]]] = []
     if generated_match:
         candidates.append(("generated", generated_match.start(), generated_match))
     if mermaid_match:
         candidates.append(("mermaid", mermaid_match.start(), mermaid_match))
     if not candidates:
         raise ValueError(
-            "После блока 'Перегенерить' не найден ни следующий fenced mermaid-блок, ни GENERATED-блок"
+            "После блока 'Перегенерить' должен сразу идти fenced mermaid-блок "
+            "или GENERATED-блок"
         )
 
     target_kind, _, target_match = min(candidates, key=lambda item: item[1])

@@ -41,6 +41,8 @@ from specs.v3.tools.models import (
     ScheduleNode,
     Status,
     View,
+    VIEW_FIELDS,
+    VIEW_FILTER_FIELDS,
     ViewFilter,
 )
 
@@ -82,7 +84,6 @@ _ALLOWED_EXECUTION_KEYS: frozenset[str] = frozenset({
 _ALLOWED_SCHEDULE_NODE_KEYS: frozenset[str] = frozenset({
     "start", "finish", "duration", "calendar",
 })
-
 
 class LoadError(Exception):
     """
@@ -606,18 +607,53 @@ def merge_fragments(fragments: list[dict[str, Any]]) -> MergedPlan:
                         element_id=view_id,
                         files=[sources[f"view:{view_id}"], source],
                     )
+                if not isinstance(view_data, dict):
+                    raise LoadError(
+                        f"View '{view_id}' must be an object, got {type(view_data).__name__}",
+                        file_path=source,
+                        block_name=f"views.{view_id}",
+                    )
+
+                unknown_view_keys = set(view_data) - VIEW_FIELDS
+                if unknown_view_keys:
+                    unknown = ", ".join(sorted(unknown_view_keys))
+                    allowed = ", ".join(sorted(VIEW_FIELDS))
+                    raise LoadError(
+                        f"View '{view_id}' has unsupported key(s): {unknown}. "
+                        f"Allowed keys: {allowed}",
+                        file_path=source,
+                        block_name=f"views.{view_id}",
+                    )
                 
                 # Parse where filter if present
                 where_filter = None
-                if "where" in view_data and view_data["where"]:
+                if "where" in view_data and view_data["where"] is not None:
                     where_data = view_data["where"]
-                    where_filter = ViewFilter(
-                        kind=where_data.get("kind"),
-                        status=where_data.get("status"),
-                        has_schedule=where_data.get("has_schedule"),
-                        parent=where_data.get("parent"),
-                        x_ops_attention_class=where_data.get("x_ops_attention_class"),
-                    )
+                    if not isinstance(where_data, dict):
+                        raise LoadError(
+                            f"View '{view_id}' where must be an object, "
+                            f"got {type(where_data).__name__}",
+                            file_path=source,
+                            block_name=f"views.{view_id}.where",
+                        )
+                    unknown_where_keys = set(where_data) - VIEW_FILTER_FIELDS
+                    if unknown_where_keys:
+                        unknown = ", ".join(sorted(unknown_where_keys))
+                        allowed = ", ".join(sorted(VIEW_FILTER_FIELDS))
+                        raise LoadError(
+                            f"View '{view_id}' where has unsupported key(s): {unknown}. "
+                            f"Allowed keys: {allowed}",
+                            file_path=source,
+                            block_name=f"views.{view_id}.where",
+                        )
+                    if where_data:
+                        where_filter = ViewFilter(
+                            kind=where_data.get("kind"),
+                            status=where_data.get("status"),
+                            has_schedule=where_data.get("has_schedule"),
+                            parent=where_data.get("parent"),
+                            x_ops_attention_class=where_data.get("x_ops_attention_class"),
+                        )
                 
                 result.views[view_id] = View(
                     title=view_data.get("title"),

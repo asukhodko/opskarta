@@ -1910,8 +1910,8 @@ class ExecutiveRenderTests(unittest.TestCase):
         self.assertIn("Alpha block", status)
 
         tracks = render_executive_report(plan, "tracks")
-        self.assertIn("### Date-holders", tracks)
-        self.assertIn("### Стратегические треки приближения миграции", tracks)
+        self.assertIn("### Держатели дат", tracks)
+        self.assertIn("### Стратегические треки", tracks)
         self.assertIn("| Трек | Состояние |", tracks)
         self.assertIn("| Alpha block | 🟢 |", tracks)
         self.assertIn("| Gamma block | 🟡 |", tracks)
@@ -1922,6 +1922,17 @@ class ExecutiveRenderTests(unittest.TestCase):
         self.assertIn("| Gamma block | 🟡 |", signals)
         self.assertIn("yellow signal", signals)
         self.assertIn("need answer", signals)
+
+        custom_tracks = render_executive_report(
+            plan,
+            "tracks",
+            view_id="exec-strategic-tracks",
+            lang="en",
+        )
+        self.assertIn("| Track | State | Nearest gate |", custom_tracks)
+        self.assertIn("| Gamma block | 🟡 |", custom_tracks)
+        self.assertNotIn("| Alpha block |", custom_tracks)
+        self.assertNotIn("Стратегические", custom_tracks)
 
     def test_render_executive_report_compacts_multiline_titles_for_markdown(self):
         plan = self.load_plan(

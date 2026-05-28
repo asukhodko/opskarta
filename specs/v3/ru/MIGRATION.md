@@ -44,7 +44,7 @@ x:
 
 ```bash
 python -m specs.v3.tools.cli render executive plan.yaml exec.yaml --view exec-top
-python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status
+python -m specs.v3.tools.cli render executive-report plan.yaml exec.yaml --section status --lang ru
 ```
 
 ### Оконные Gantt-срезы
@@ -111,7 +111,8 @@ old
 ```
 ````
 
-и заменяет следующий Mermaid-блок или содержимое между `<!-- GENERATED:START -->` / `<!-- GENERATED:END -->`.
+и заменяет Mermaid-блок или содержимое между `<!-- GENERATED:START -->` /
+`<!-- GENERATED:END -->`, которое идёт сразу после комментария.
 
 ## Когда не надо мигрировать
 

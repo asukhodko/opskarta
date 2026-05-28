@@ -1332,6 +1332,42 @@ class TestValidateScheduleReferences(unittest.TestCase):
         result = validate(plan)
         
         self.assertTrue(result.is_valid)
+
+    def test_invalid_schedule_duration_is_rejected(self):
+        """Schedule duration must be a positive Nd/Nw value."""
+        from specs.v3.tools.models import Schedule, ScheduleNode
+
+        for duration in ["0d", "abc", "5", "5m"]:
+            with self.subTest(duration=duration):
+                plan = MergedPlan(
+                    nodes={"task1": Node(title="Task 1")},
+                    schedule=Schedule(
+                        nodes={"task1": ScheduleNode(start="2024-03-01", duration=duration)},
+                    ),
+                )
+
+                result = validate(plan)
+
+                self.assertFalse(result.is_valid)
+                self.assertTrue(any("invalid duration" in e.message for e in result.errors))
+
+    def test_invalid_schedule_dates_are_rejected(self):
+        """Schedule start/finish must be real YYYY-MM-DD dates."""
+        from specs.v3.tools.models import Schedule, ScheduleNode
+
+        plan = MergedPlan(
+            nodes={"task1": Node(title="Task 1")},
+            schedule=Schedule(
+                nodes={"task1": ScheduleNode(start="2024-02-30", finish="not-a-date")},
+            ),
+        )
+
+        result = validate(plan)
+
+        self.assertFalse(result.is_valid)
+        error_paths = {e.path for e in result.errors}
+        self.assertIn("schedule.nodes.task1.start", error_paths)
+        self.assertIn("schedule.nodes.task1.finish", error_paths)
     
     def test_invalid_schedule_node_reference(self):
         """Schedule node referencing non-existent node is invalid (Requirement 3.7)."""
@@ -1678,6 +1714,40 @@ class TestValidateViews(unittest.TestCase):
         result = validate(plan)
         
         self.assertTrue(result.is_valid)
+
+    def test_view_string_fields_must_be_strings(self):
+        """View scalar fields are validated before renderers use them."""
+        from specs.v3.tools.models import View
+
+        plan = MergedPlan(
+            nodes={"task1": Node(title="Task 1")},
+            views={"bad": View(title=123, order_by=["title"])},
+        )
+
+        result = validate(plan)
+
+        self.assertFalse(result.is_valid)
+        messages = [error.message for error in result.errors]
+        self.assertTrue(any("invalid title" in message for message in messages))
+        self.assertTrue(any("invalid order_by" in message for message in messages))
+
+    def test_raw_view_string_fields_must_be_strings(self):
+        """Raw view dict validation matches the dataclass validation path."""
+        from specs.v3.tools.validator import validate_view_dict, ValidationResult
+
+        result = ValidationResult()
+        view_data = {
+            "title": 123,
+            "date_format": ["YYYY-MM-DD"],
+            "axis_format": "%d %b",
+        }
+
+        validate_view_dict("bad", view_data, set(), "views.yaml", result)
+
+        self.assertFalse(result.is_valid)
+        messages = [error.message for error in result.errors]
+        self.assertTrue(any("invalid title" in message for message in messages))
+        self.assertTrue(any("invalid date_format" in message for message in messages))
 
 
 class TestValidateViewsExcludesForbidden(unittest.TestCase):

@@ -761,6 +761,58 @@ class TestMergeFragmentsViews(unittest.TestCase):
         self.assertTrue(view.where.has_schedule)
         self.assertEqual(view.where.parent, "root")
 
+    def test_view_with_unknown_key_raises_load_error(self):
+        """Unknown view keys are rejected before they can be dropped."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 3,
+            "views": {
+                "main": {
+                    "title": "Main",
+                    "excludes": ["weekends"],
+                },
+            },
+        }
+
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+
+        self.assertIn("unsupported key", str(ctx.exception))
+        self.assertIn("excludes", str(ctx.exception))
+
+    def test_view_where_must_be_object(self):
+        """Malformed where filters produce a clean loading error."""
+        for where_value in [True, False, [], ["task"], "task", 0]:
+            with self.subTest(where_value=where_value):
+                fragment = {
+                    "_source": "test.yaml",
+                    "version": 3,
+                    "views": {"main": {"where": where_value}},
+                }
+
+                with self.assertRaises(LoadError) as ctx:
+                    merge_fragments([fragment])
+
+                self.assertIn("where must be an object", str(ctx.exception))
+
+    def test_view_where_unknown_key_raises_load_error(self):
+        """Unknown where keys are rejected explicitly."""
+        fragment = {
+            "_source": "test.yaml",
+            "version": 3,
+            "views": {
+                "main": {
+                    "where": {"unknown": ["task"]},
+                },
+            },
+        }
+
+        with self.assertRaises(LoadError) as ctx:
+            merge_fragments([fragment])
+
+        self.assertIn("where has unsupported key", str(ctx.exception))
+        self.assertIn("unknown", str(ctx.exception))
+
 
 class TestMergeFragmentsExtensions(unittest.TestCase):
     """Tests for x (extensions) block merging."""

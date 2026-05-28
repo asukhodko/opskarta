@@ -278,6 +278,7 @@ views:
 - `status`
 - `has_schedule`
 - `parent`
+- `x_ops_attention_class`
 
 ```yaml
 views:
@@ -286,6 +287,20 @@ views:
       kind: [task]        # OK
       custom_field: value # ОШИБКА: unknown filter field 'custom_field'
 ```
+
+### Типы полей view
+
+Скалярные поля view должны быть строками, если они заданы:
+
+- `title`
+- `order_by`
+- `group_by`
+- `date_format`
+- `axis_format`
+- `tick_interval`
+
+`window_start` и `window_finish` должны быть реальными датами `YYYY-MM-DD`, и
+`window_start` не может быть позже `window_finish`.
 
 ## Валидация слияния
 
