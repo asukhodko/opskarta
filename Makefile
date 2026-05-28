@@ -16,6 +16,7 @@ ifeq ($(wildcard $(VENV_PYTHON)),)
 else
   PYTHON := $(VENV_PYTHON)
 endif
+PYTHON_ABS := $(abspath $(PYTHON))
 
 # Colors
 G := \033[0;32m
@@ -33,7 +34,8 @@ help: ## Show this help
 	@echo "Quick start:  make quickstart"
 	@echo "Run CI:       make ci        (v1 only)"
 	@echo "              make ci-v2     (v2 only)"
-	@echo "              make ci-all    (both)"
+	@echo "              make ci-v3     (v3 only)"
+	@echo "              make ci-all    (all versions)"
 	@echo ""
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(G)%-18s$(N) %s\n", $$1, $$2}'
@@ -132,10 +134,10 @@ validate-v2: ## Validate v2 examples and schemas
 		$(PYTHON) -c "import json; json.load(open('$$schema'))" || exit 1; \
 	done
 	@cd specs/v2 && for dir in en/examples/*/; do \
-		PYTHONPATH=$(CURDIR) $(CURDIR)/$(PYTHON) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
+		PYTHONPATH=$(CURDIR) $(PYTHON_ABS) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
 	done
 	@cd specs/v2 && for dir in ru/examples/*/; do \
-		PYTHONPATH=$(CURDIR) $(CURDIR)/$(PYTHON) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
+		PYTHONPATH=$(CURDIR) $(PYTHON_ABS) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
 	done
 	@echo "$(G)v2 valid$(N)"
 
@@ -151,16 +153,55 @@ ci-v2: check-spec-v2 check-spec-min-v2 validate-v2 test-v2 ## Run v2 CI checks
 	@echo "$(G)v2 CI passed$(N)"
 
 # ============================================================================
+# v3 Specification
+# ============================================================================
+
+.PHONY: spec-v3 check-spec-v3 validate-v3 test-v3 ci-v3
+
+spec-v3: ## Build v3 SPEC.md (en + ru)
+	@$(PYTHON) specs/v3/tools/build_spec.py --lang en
+	@$(PYTHON) specs/v3/tools/build_spec.py --lang ru
+	@echo "$(G)v3 SPEC.md built$(N)"
+
+check-spec-v3: ## Check v3 SPEC.md is up-to-date
+	@$(PYTHON) specs/v3/tools/build_spec.py --lang en --check
+	@$(PYTHON) specs/v3/tools/build_spec.py --lang ru --check
+
+validate-v3: ## Validate v3 examples and schemas
+	@echo "$(G)Validating v3...$(N)"
+	@for schema in specs/v3/schemas/*.schema.json; do \
+		$(PYTHON) -c "import json; json.load(open('$$schema'))" || exit 1; \
+	done
+	@cd specs/v3 && for dir in en/examples/*/; do \
+		PYTHONPATH=$(CURDIR) $(PYTHON_ABS) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
+	done
+	@cd specs/v3 && for dir in ru/examples/*/; do \
+		PYTHONPATH=$(CURDIR) $(PYTHON_ABS) -m tools.cli validate "$$dir"*.plan.yaml || exit 1; \
+	done
+	@echo "$(G)v3 valid$(N)"
+
+test-v3: ## Run v3 tests
+	@PYTHONPATH=$(CURDIR) $(PYTHON) -m pytest specs/v3/tests/ -v --tb=short
+
+check-spec-min-v3: ## Check v3 SPEC.min.md exists
+	@test -f specs/v3/en/SPEC.min.md || (echo "Error: specs/v3/en/SPEC.min.md not found" && exit 1)
+	@test -f specs/v3/ru/SPEC.min.md || (echo "Error: specs/v3/ru/SPEC.min.md not found" && exit 1)
+	@echo "$(G)v3 SPEC.min.md files exist$(N)"
+
+ci-v3: check-spec-v3 check-spec-min-v3 validate-v3 test-v3 ## Run v3 CI checks
+	@echo "$(G)v3 CI passed$(N)"
+
+# ============================================================================
 # Combined targets
 # ============================================================================
 
 .PHONY: spec-all test-all ci-all clean
 
-spec-all: spec-v1 spec-v2 ## Build all SPEC.md files
+spec-all: spec-v1 spec-v2 spec-v3 ## Build all SPEC.md files
 
-test-all: test-v1 test-v2 ## Run all tests
+test-all: test-v1 test-v2 test-v3 ## Run all tests
 
-ci-all: ci-v1 ci-v2 ## Run all CI checks
+ci-all: ci-v1 ci-v2 ci-v3 ## Run all CI checks
 	@echo "$(G)All CI passed$(N)"
 
 clean: ## Clean generated files

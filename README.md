@@ -11,15 +11,16 @@ Key idea: **"source of truth" — not Jira, not Confluence, not "in your head", 
 
 | Version | Status | Spec | Spec (compact) | Description |
 |---------|--------|------|----------------|-------------|
+| [v3](specs/v3/) | Alpha | [EN](specs/v3/en/SPEC.md) \| [RU](specs/v3/ru/SPEC.md) | [EN](specs/v3/en/SPEC.min.md) \| [RU](specs/v3/ru/SPEC.min.md) | Operational overlays: executive maps, report sections, Gantt windows, Markdown refresh tooling |
 | [v2](specs/v2/) | Alpha | [EN](specs/v2/en/SPEC.md) \| [RU](specs/v2/ru/SPEC.md) | [EN](specs/v2/en/SPEC.min.md) \| [RU](specs/v2/ru/SPEC.min.md) | Overlay schedule concept — separation of work structure and calendar planning |
 | [v1](specs/v1/) | Alpha | [EN](specs/v1/en/SPEC.md) \| [RU](specs/v1/ru/SPEC.md) | [EN](specs/v1/en/SPEC.min.md) \| [RU](specs/v1/ru/SPEC.min.md) | Initial specification version |
 
 ## What It Looks Like
 
-Plan file (v2 format with separate structure and schedule):
+Plan file (v3 format with separate structure and schedule):
 
 ```yaml
-version: 2
+version: 3
 
 meta:
   id: hello-upgrade
@@ -48,7 +49,7 @@ nodes:
     title: "Rollout"
     kind: phase
     parent: root
-    after: [prep]
+    deps: [prep]
     status: not_started
     effort: 5
 
@@ -56,7 +57,7 @@ nodes:
     title: "Traffic Switch"
     kind: task
     parent: rollout
-    after: [rollout]
+    deps: [rollout]
     status: not_started
     notes: |
       Critical step. Rollback plan needed.
@@ -79,15 +80,31 @@ schedule:
       duration: 1d
 ```
 
-Key v2 concept: **work structure** (nodes with hierarchy, dependencies, effort) is separated from **calendar planning** (schedule with dates and calendars). This allows using the same plan for backlog management (no schedule) and Gantt charts (with schedule).
+Key concept: **work structure** (nodes with hierarchy, dependencies, effort) is separated from **calendar planning** (schedule with dates and calendars). This allows using the same plan for backlog management (no schedule), Gantt charts (with schedule), and v3 executive views (`x.exec`).
 
-See the [full v2 specification](specs/v2/) for details.
+See the [full v3 specification](specs/v3/) for details.
 
 ## Quick Start
 
 > All commands run from the **project root directory**.
 
-### v2 (recommended for new projects)
+### v3 (recommended for new projects)
+
+```bash
+# Validate example
+python -m specs.v3.tools.cli validate specs/v3/ru/examples/executive/release.plan.yaml
+
+# Render executive flowchart
+python -m specs.v3.tools.cli render executive specs/v3/ru/examples/executive/release.plan.yaml --view exec-top
+
+# Render executive Markdown section
+python -m specs.v3.tools.cli render executive-report specs/v3/ru/examples/executive/release.plan.yaml --section status
+
+# Render clipped Gantt diagram
+python -m specs.v3.tools.cli render gantt specs/v3/ru/examples/executive/release.plan.yaml --view release-window --style status
+```
+
+### v2
 
 ```bash
 # Validate example
@@ -170,11 +187,20 @@ make test-v2       # Run v2 tests (502 tests)
 make ci-v2         # Full v2 CI: check-spec + validate + test
 ```
 
+#### v3 Specification
+```bash
+make spec-v3       # Build v3 SPEC.md (en + ru)
+make check-spec-v3 # Check v3 SPEC.md is up-to-date
+make validate-v3   # Validate v3 examples and schemas
+make test-v3       # Run v3 tests
+make ci-v3         # Full v3 CI: check-spec + validate + test
+```
+
 #### Combined
 ```bash
 make spec-all      # Build all SPEC.md files
-make test-all      # Run all tests (v1 + v2)
-make ci-all        # Full CI for both versions
+make test-all      # Run all tests (v1 + v2 + v3)
+make ci-all        # Full CI for all versions
 make clean         # Clean generated files
 make clean-all     # Clean everything including venv
 ```
