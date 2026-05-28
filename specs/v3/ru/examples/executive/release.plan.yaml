@@ -1,0 +1,200 @@
+version: 3
+
+meta:
+  id: release-window
+  title: "Релиз с управленческим срезом"
+  effort_unit: "pt"
+
+statuses:
+  not_started: { label: "Не начато", color: "#9ca3af" }
+  in_progress: { label: "В работе", color: "#0ea5e9" }
+  done: { label: "Готово", color: "#22c55e" }
+  blocked: { label: "Заблокировано", color: "#fecaca" }
+
+nodes:
+  release:
+    title: "Релиз сервиса"
+    kind: summary
+    status: in_progress
+
+  prep:
+    title: "Подготовка"
+    kind: phase
+    parent: release
+    status: done
+
+  prep-runbook:
+    title: "Проверить runbook и роли"
+    kind: task
+    parent: prep
+    status: done
+    effort: 2
+
+  gate-ready:
+    title: "Go/no-go перед окном"
+    kind: milestone
+    milestone: true
+    parent: release
+    deps: [prep-runbook]
+    status: done
+
+  cutover:
+    title: "Окно переключения"
+    kind: phase
+    parent: release
+    deps: [gate-ready]
+    status: in_progress
+
+  cutover-switch:
+    title: "Переключить трафик"
+    kind: task
+    parent: cutover
+    status: in_progress
+    effort: 3
+    x:
+      ops:
+        attention_class: date_holder
+
+  cutover-check:
+    title: "Проверить пользовательские сценарии"
+    kind: task
+    parent: cutover
+    deps: [cutover-switch]
+    status: not_started
+    effort: 2
+
+  gate-done:
+    title: "Релиз завершён"
+    kind: milestone
+    milestone: true
+    parent: release
+    deps: [cutover-check]
+    status: not_started
+
+  post:
+    title: "Стабилизация после окна"
+    kind: phase
+    parent: release
+    deps:
+      - id: gate-done
+        type: fs
+        hard: false
+        note: "Полезный хвост, не держит само окно"
+    status: not_started
+
+  post-cleanup:
+    title: "Дочистить временные настройки"
+    kind: task
+    parent: post
+    status: not_started
+    effort: 1
+    x:
+      ops:
+        attention_class: tail
+
+schedule:
+  calendars:
+    work:
+      excludes: [weekends]
+  default_calendar: work
+  nodes:
+    prep-runbook:
+      start: "2026-06-01"
+      duration: "1d"
+    gate-ready:
+      start: "2026-06-02"
+      duration: "1d"
+    cutover-switch:
+      start: "2026-06-03"
+      duration: "1d"
+    cutover-check:
+      duration: "1d"
+    gate-done:
+      duration: "1d"
+    post-cleanup:
+      start: "2026-06-08"
+      duration: "2d"
+
+views:
+  release-window:
+    title: "Окно релиза"
+    date_format: "YYYY-MM-DD"
+    axis_format: "%d.%m"
+    window_start: "2026-06-01"
+    window_finish: "2026-06-10"
+    lanes:
+      main:
+        title: "Основной путь"
+        expand_descendants: leaves
+        nodes: [prep, cutover]
+      tails:
+        title: "Параллельные хвосты"
+        nodes: [post-cleanup]
+
+  date-holders:
+    title: "То, что держит дату"
+    where:
+      x_ops_attention_class: [date_holder]
+
+x:
+  exec:
+    program:
+      committed_date: "2026-06-04"
+      nearest_goal: "Пройти окно переключения без отката."
+      success_by_next_sync: "Проверки зелёные, решение по post-cleanup принято."
+    defaults:
+      status_progress:
+        done: 1.0
+        in_progress: 0.5
+        not_started: 0.0
+        blocked: 0.0
+      weight_strategy: effort_effective
+    blocks:
+      prep:
+        title: "Подготовка"
+        scope_nodes: [prep]
+        target_gate: gate-ready
+        kind: main
+        mgmt:
+          health: green
+          sync_note: "Runbook и роли проверены."
+          next_sync_goal: "Держать готовность до старта окна."
+      cutover:
+        title: "Окно переключения"
+        scope_nodes: [cutover]
+        target_gate: gate-done
+        kind: main
+        mgmt:
+          health: yellow
+          sync_note: "Главный риск сейчас внутри пользовательских проверок после switch."
+          next_sync_goal: "Закрыть smoke и принять решение по открытию пользователей."
+      post:
+        title: "Стабилизация"
+        scope_nodes: [post]
+        target_gate: gate-done
+        kind: risk_sidecar
+        progress_override: 0.0
+        mgmt:
+          health: neutral
+          sync_note: "Полезный хвост, не держит окно."
+    edges:
+      - from: prep
+        to: cutover
+        type: required
+      - from: post
+        to: cutover
+        type: context
+        label: "после окна"
+    views:
+      exec-top:
+        direction: LR
+        color_mode: mgmt_hybrid
+        highlight_current: true
+        show_progress: false
+        show_gate_date: true
+        wrap_title_lines: 2
+        caption: "Короткая карта для синка: готовность, окно и постстабилизация."
+        blocks: [prep, cutover, post]
+      exec-active-tracks:
+        direction: TB
+        blocks: [cutover, post]
